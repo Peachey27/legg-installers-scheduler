@@ -27,8 +27,8 @@ type FormState = {
   factoryJobId: string;
 };
 
-const areaOptions: AreaTag[] = ["Lakes", "Bairnsdale", "Metung", "Orbost", "Other"];
-const statusOptions: JobStatus[] = [
+const areaOptions: string[] = ["Lakes", "Bairnsdale", "Metung", "Orbost", "Other"];
+const statusOptions: string[] = [
   "backlog",
   "scheduled",
   "in_progress",
@@ -328,7 +328,7 @@ export function JobDetailEditor({ job }: { job: Job }) {
               <select
                 className="w-full rounded border border-amber-200 px-3 py-2 bg-white"
                 value={form.areaTag}
-                onChange={(e) => updateField("areaTag", e.target.value as AreaTag)}
+                onChange={(e) => updateField("areaTag", e.target.value)}
               >
                 {areaOptions.map((option) => (
                   <option key={option} value={option}>
@@ -342,7 +342,7 @@ export function JobDetailEditor({ job }: { job: Job }) {
               <select
                 className="w-full rounded border border-amber-200 px-3 py-2 bg-white"
                 value={form.status}
-                onChange={(e) => updateField("status", e.target.value as JobStatus)}
+                onChange={(e) => updateField("status", e.target.value)}
               >
                 {statusOptions.map((option) => (
                   <option key={option} value={option}>

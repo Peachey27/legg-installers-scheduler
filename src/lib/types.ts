@@ -1,11 +1,6 @@
-export type JobStatus =
-  | "backlog"
-  | "scheduled"
-  | "in_progress"
-  | "completed"
-  | "cancelled";
-
-export type AreaTag = "Lakes" | "Bairnsdale" | "Metung" | "Orbost" | "Other";
+// Allow any backend string value
+export type JobStatus = string;
+export type AreaTag = string;
 
 export interface Job {
   id: string;
