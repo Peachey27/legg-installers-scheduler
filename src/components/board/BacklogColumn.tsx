@@ -1,0 +1,289 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import type React from "react";
+import { createPortal } from "react-dom";
+import type { Job } from "@/lib/types";
+import JobCard from "../jobs/JobCard";
+import { Draggable } from "@hello-pangea/dnd";
+import { useSchedulerStore } from "@/store/useSchedulerStore";
+
+interface Props {
+  jobs: Job[];
+}
+
+export default function BacklogColumn({ jobs }: Props) {
+  const { showAddJobForm, openAddJobForm, closeAddJobForm, createJob, error } =
+    useSchedulerStore();
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  return (
+    <div className="h-full rounded-2xl bg-[#f6f0e7]/90 border border-amber-200/70 shadow-inner flex flex-col p-3">
+      <div className="mb-2">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-amber-900">
+          Backlog
+        </h2>
+        <p className="text-xs text-amber-900/70">
+          Unschedule jobs – drag onto a day.
+        </p>
+      </div>
+      <div className="flex-1 space-y-2 overflow-y-auto">
+        {jobs.map((j, index) => (
+          <Draggable key={j.id} draggableId={j.id} index={index}>
+            {(provided) => (
+              <div
+                ref={provided.innerRef}
+                {...provided.draggableProps}
+                {...provided.dragHandleProps}
+              >
+                <JobCard job={j} />
+              </div>
+            )}
+          </Draggable>
+        ))}
+      </div>
+      {showAddJobForm ? (
+        <AddJobModal
+          onCancel={closeAddJobForm}
+          onSave={async (payload) => {
+            setFormError(null);
+            setSaving(true);
+            try {
+              await createJob(payload);
+            } catch (e: any) {
+              setFormError(e?.message ?? "Could not create job");
+            } finally {
+              setSaving(false);
+            }
+          }}
+          loading={saving}
+          error={formError ?? error}
+        />
+      ) : (
+        <button
+          className="mt-2 text-xs text-amber-800 underline"
+          onClick={openAddJobForm}
+        >
+          + Add job
+        </button>
+      )}
+    </div>
+  );
+}
+
+type AddJobFormValues = {
+  clientName: string;
+  clientPhone: string;
+  clientAddress: string;
+  jobAddress: string;
+  description: string;
+  estimatedDurationHours: number | null;
+};
+
+function AddJobModal({
+  onCancel,
+  onSave,
+  loading,
+  error
+}: {
+  onCancel: () => void;
+  onSave: (values: AddJobFormValues) => Promise<void>;
+  loading: boolean;
+  error: string | null;
+}) {
+  const [values, setValues] = useState<AddJobFormValues>({
+    clientName: "",
+    clientPhone: "",
+    clientAddress: "",
+    jobAddress: "",
+    description: "New Window/Doors",
+    estimatedDurationHours: null
+  });
+  const [customDescription, setCustomDescription] = useState("");
+
+  const presetDescriptions = [
+    "New Window/Doors",
+    "New Shower Screen",
+    "Reglaze",
+    "LEGG job site works",
+    "Add a new description"
+  ];
+
+  // avoid SSR mismatch for portal
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  function handleChange(
+    field: keyof AddJobFormValues,
+    v: string | number | null
+  ) {
+    setValues((prev) => ({ ...prev, [field]: v }));
+  }
+
+  function getDescriptionValue() {
+    if (values.description === "Add a new description") {
+      return customDescription.trim() || "Custom job";
+    }
+    return values.description;
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const required = ["clientName", "clientAddress", "jobAddress"] as const;
+    for (const key of required) {
+      // @ts-ignore dynamic check
+      if (!values[key]?.toString().trim()) {
+        alert("Please fill in all required fields.");
+        return;
+      }
+    }
+
+    const description = getDescriptionValue();
+
+    await onSave({
+      ...values,
+      jobAddress: values.jobAddress.trim() || values.clientAddress.trim(),
+      clientAddress: values.clientAddress.trim(),
+      clientName: values.clientName.trim(),
+      clientPhone: values.clientPhone.trim() || "N/A",
+      description
+    });
+  }
+
+  const form = (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div
+        className="absolute inset-0 bg-black/30 backdrop-blur-sm"
+        onClick={onCancel}
+      />
+      <form
+        onSubmit={handleSubmit}
+        className="relative z-10 w-full max-w-2xl rounded-2xl border border-amber-300 bg-white/95 p-6 shadow-2xl space-y-3 text-sm"
+      >
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-amber-900">New job</h3>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="text-amber-700 hover:text-amber-900 text-sm"
+            disabled={loading}
+          >
+            Cancel
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <label className="block text-amber-900/80">Client name*</label>
+            <input
+              className="w-full rounded border border-amber-200 px-3 py-2 text-amber-900 bg-white/80"
+              value={values.clientName}
+              onChange={(e) => handleChange("clientName", e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="block text-amber-900/80">Client phone</label>
+            <input
+              className="w-full rounded border border-amber-200 px-3 py-2 text-amber-900 bg-white/80"
+              value={values.clientPhone}
+              onChange={(e) => handleChange("clientPhone", e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-1 md:col-span-2">
+            <label className="block text-amber-900/80">Client address*</label>
+            <input
+              className="w-full rounded border border-amber-200 px-3 py-2 text-amber-900 bg-white/80"
+              value={values.clientAddress}
+              onChange={(e) => {
+                handleChange("clientAddress", e.target.value);
+                if (!values.jobAddress) {
+                  handleChange("jobAddress", e.target.value);
+                }
+              }}
+              required
+            />
+          </div>
+
+          <div className="space-y-1 md:col-span-2">
+            <label className="block text-amber-900/80">Job address*</label>
+            <input
+              className="w-full rounded border border-amber-200 px-3 py-2 text-amber-900 bg-white/80"
+              value={values.jobAddress}
+              onChange={(e) => handleChange("jobAddress", e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="space-y-1 md:col-span-2">
+            <label className="block text-amber-900/80">Job description</label>
+            <select
+              className="w-full rounded border border-amber-200 px-3 py-2 text-amber-900 bg-white/80"
+              value={values.description}
+              onChange={(e) => handleChange("description", e.target.value)}
+            >
+              {presetDescriptions.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+            {values.description === "Add a new description" && (
+              <input
+                className="mt-2 w-full rounded border border-amber-200 px-3 py-2 text-amber-900 bg-white/80"
+                placeholder="Enter new description"
+                value={customDescription}
+                onChange={(e) => setCustomDescription(e.target.value)}
+              />
+            )}
+          </div>
+
+          <div className="space-y-1 md:col-span-1">
+            <label className="block text-amber-900/80">
+              Estimated hours (optional)
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="0.25"
+              className="w-full rounded border border-amber-200 px-3 py-2 text-amber-900 bg-white/80"
+              value={values.estimatedDurationHours ?? ""}
+              onChange={(e) =>
+                handleChange(
+                  "estimatedDurationHours",
+                  e.target.value ? Number(e.target.value) : null
+                )
+              }
+            />
+          </div>
+        </div>
+
+        {error && <p className="text-red-700 text-sm">{error}</p>}
+
+        <div className="flex justify-end gap-3">
+          <button
+            type="button"
+            className="px-4 py-2 rounded border border-amber-200 text-amber-800 bg-white/80 hover:bg-amber-50"
+            onClick={onCancel}
+            disabled={loading}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="px-4 py-2 rounded bg-amber-600 text-white hover:bg-amber-500 disabled:opacity-60"
+            disabled={loading}
+          >
+            {loading ? "Saving…" : "Create"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+
+  if (!mounted) return null;
+  return createPortal(form, document.body);
+}
