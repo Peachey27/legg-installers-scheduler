@@ -1,7 +1,5 @@
-import type Database from "better-sqlite3";
-
 // Ensure required tables exist; safe to call multiple times.
-export function ensureSchema(db: Database) {
+export function ensureSchema(db: any) {
   const hasJobsTable = db
     .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='jobs'")
     .get();
