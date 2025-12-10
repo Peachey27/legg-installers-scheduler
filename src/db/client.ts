@@ -7,7 +7,7 @@ const sqlitePath =
   process.env.DATABASE_FILENAME ??
   (process.env.VERCEL ? "/tmp/installer_scheduler.db" : "installer_scheduler.db");
 
-let sqlite: Database;
+let sqlite: Database.Database;
 try {
   sqlite = new Database(sqlitePath);
 } catch (err) {
