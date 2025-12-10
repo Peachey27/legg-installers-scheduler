@@ -17,9 +17,14 @@ export async function GET(_req: NextRequest, { params }: Params) {
 }
 
 export async function PUT(req: NextRequest, { params }: Params) {
-  const body = await req.json();
-  await db.update(jobs).set(body).where(eq(jobs.id, params.id));
-  return NextResponse.json({ ok: true });
+  try {
+    const body = await req.json();
+    await db.update(jobs).set(body).where(eq(jobs.id, params.id));
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error("Update job failed", error);
+    return NextResponse.json({ error: String(error) }, { status: 500 });
+  }
 }
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
