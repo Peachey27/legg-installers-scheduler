@@ -5,13 +5,14 @@ import { jobs } from "@/db/schema";
 import { isNull } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
-export async function GET(_req: NextRequest) {
-  const rows = await db
-    .select()
-    .from(jobs)
-    .where(isNull(jobs.deletedAt));
-
-  return NextResponse.json(rows);
+export async function GET(req: NextRequest) {
+  try {
+    const allJobs = await db.select().from(jobs);
+    return NextResponse.json(allJobs, { status: 200 });
+  } catch (error) {
+    console.error("GET /api/jobs failed", error);
+    return NextResponse.json({ error: String(error) }, { status: 500 });
+  }
 }
 
 export async function POST(req: NextRequest) {
