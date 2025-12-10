@@ -18,8 +18,24 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
+    const requiredFields = [
+      "clientName",
+      "clientPhone",
+      "clientAddress",
+      "jobAddress",
+      "description",
+      "areaTag",
+      "status"
+    ] as const;
+
+    for (const key of requiredFields) {
+      if (!body[key]) {
+        throw new Error(`Missing required field: ${key}`);
+      }
+    }
+
     const id = randomUUID();
-    await db.insert(jobs).values({
+    const payload = {
       id,
       clientName: body.clientName,
       clientAddress: body.clientAddress,
@@ -46,9 +62,11 @@ export async function POST(req: NextRequest) {
       photo2Url: body.photo2Url ?? null,
       photo3Url: body.photo3Url ?? null,
       deletedAt: null
-    });
+    };
 
-    return NextResponse.json({ id }, { status: 201 });
+    await db.insert(jobs).values(payload);
+
+    return NextResponse.json(payload, { status: 201 });
   } catch (error: any) {
     console.error("Create job failed", error);
     return NextResponse.json({ error: String(error) }, { status: 500 });
