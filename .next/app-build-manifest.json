@@ -15,6 +15,13 @@
       "static/css/8836a7bb1f7071d4.css",
       "static/chunks/app/layout-eb73d00c335b77f6.js"
     ],
+    "/jobs/[id]/print/page": [
+      "static/chunks/webpack-616e068a201ad621.js",
+      "static/chunks/fd9d1056-bb8a686b0f6e7880.js",
+      "static/chunks/117-4ad5059e268e2dc3.js",
+      "static/chunks/main-app-8d558b5c80b8ffea.js",
+      "static/chunks/app/jobs/[id]/print/page-f701a668b3ecfdf4.js"
+    ],
     "/debug-dnd/page": [
       "static/chunks/webpack-616e068a201ad621.js",
       "static/chunks/fd9d1056-bb8a686b0f6e7880.js",
@@ -31,13 +38,6 @@
       "static/chunks/main-app-8d558b5c80b8ffea.js",
       "static/chunks/965-13a42798c043739d.js",
       "static/chunks/app/jobs/[id]/page-fa105cfaaaa2cd95.js"
-    ],
-    "/jobs/[id]/print/page": [
-      "static/chunks/webpack-616e068a201ad621.js",
-      "static/chunks/fd9d1056-bb8a686b0f6e7880.js",
-      "static/chunks/117-4ad5059e268e2dc3.js",
-      "static/chunks/main-app-8d558b5c80b8ffea.js",
-      "static/chunks/app/jobs/[id]/print/page-f701a668b3ecfdf4.js"
     ],
     "/login/page": [
       "static/chunks/webpack-616e068a201ad621.js",

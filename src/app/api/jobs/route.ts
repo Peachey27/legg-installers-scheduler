@@ -2,6 +2,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db/client";
 import { jobs } from "@/db/schema";
+import { randomUUID } from "crypto";
 
 export async function GET(req: NextRequest) {
   try {

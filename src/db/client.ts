@@ -7,7 +7,18 @@ const sqlitePath =
   process.env.DATABASE_FILENAME ??
   (process.env.VERCEL ? "/tmp/installer_scheduler.db" : "installer_scheduler.db");
 
-const sqlite = new Database(sqlitePath);
+let sqlite: Database;
+try {
+  sqlite = new Database(sqlitePath);
+} catch (err) {
+  console.error(
+    "Failed to open sqlite file at path",
+    sqlitePath,
+    "- falling back to in-memory DB.",
+    err
+  );
+  sqlite = new Database(":memory:");
+}
 
 ensureSchema(sqlite);
 
