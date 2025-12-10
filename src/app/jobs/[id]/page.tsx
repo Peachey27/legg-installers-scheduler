@@ -1,15 +1,26 @@
 import Link from "next/link";
-import { db } from "@/db/client";
-import { jobs } from "@/db/schema";
-import { eq } from "drizzle-orm";
 import JobDetailEditor from "@/components/jobs/JobDetailEditor";
+
+function getBaseUrl() {
+  if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  return "http://localhost:3000";
+}
 
 interface Params {
   params: { id: string };
 }
 
 export default async function JobDetailPage({ params }: Params) {
-  const [job] = await db.select().from(jobs).where(eq(jobs.id, params.id));
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/jobs/${params.id}`, {
+    cache: "no-store"
+  });
+  if (!res.ok) {
+    return <div className="p-4">Job not found.</div>;
+  }
+
+  const job = await res.json();
 
   if (!job || job.deletedAt) {
     return <div className="p-4">Job not found.</div>;
