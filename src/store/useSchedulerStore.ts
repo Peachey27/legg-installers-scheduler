@@ -38,7 +38,14 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const res = await fetch("/api/jobs");
-      const data = (await res.json()) as Job[];
+      const text = await res.text();
+
+      if (!res.ok) {
+        console.error("Failed to load jobs", res.status, text);
+        throw new Error(`Failed to load jobs: ${res.status}`);
+      }
+
+      const data = JSON.parse(text) as Job[];
 
       const normalised = data.map((j) => ({
         ...j,
@@ -107,20 +114,15 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
-
       const text = await res.text();
+
       if (!res.ok) {
-        throw new Error(text || "Failed to create job");
+        console.error("Create job failed", res.status, text);
+        throw new Error(`Failed to create job: ${res.status}`);
       }
 
-      let parsed: { id: string | number } | null = null;
-      try {
-        parsed = JSON.parse(text) as { id: string | number };
-      } catch {
-        parsed = null;
-      }
-
-      const id = parsed?.id != null ? String(parsed.id) : crypto.randomUUID();
+      const data = JSON.parse(text) as { id: string | number };
+      const id = data?.id != null ? String(data.id) : crypto.randomUUID();
 
       set((state) => ({
         jobs: [
