@@ -48,11 +48,8 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ id }, { status: 201 });
-  } catch (err: any) {
-    console.error("Failed to create job", err);
-    return NextResponse.json(
-      { error: err?.message ?? "Failed to create job" },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    console.error("Create job failed", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
