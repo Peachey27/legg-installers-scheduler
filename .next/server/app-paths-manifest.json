@@ -1,12 +1,12 @@
 {
   "/_not-found/page": "app/_not-found/page.js",
+  "/debug-dnd/page": "app/debug-dnd/page.js",
   "/api/login/route": "app/api/login/route.js",
-  "/login/page": "app/login/page.js",
   "/jobs/[id]/page": "app/jobs/[id]/page.js",
   "/jobs/[id]/print/page": "app/jobs/[id]/print/page.js",
+  "/login/page": "app/login/page.js",
   "/page": "app/page.js",
-  "/debug-dnd/page": "app/debug-dnd/page.js",
-  "/api/jobs/[id]/route": "app/api/jobs/[id]/route.js",
   "/api/upload/route": "app/api/upload/route.js",
+  "/api/jobs/[id]/route": "app/api/jobs/[id]/route.js",
   "/api/jobs/route": "app/api/jobs/route.js"
 }
