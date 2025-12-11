@@ -3,10 +3,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db/client";
 import { jobs } from "@/db/schema";
 import { randomUUID } from "crypto";
+import { isNull } from "drizzle-orm";
 
 export async function GET(req: NextRequest) {
   try {
-    const allJobs = await db.select().from(jobs);
+    // Only surface active jobs; deleted rows stay hidden from the UI.
+    const allJobs = await db.select().from(jobs).where(isNull(jobs.deletedAt));
     return NextResponse.json(allJobs, { status: 200 });
   } catch (error) {
     console.error("GET /api/jobs failed", error);

@@ -1,6 +1,6 @@
-import { sqliteTable, text, real } from "drizzle-orm/sqlite-core";
+import { pgTable, text, real } from "drizzle-orm/pg-core";
 
-export const jobs = sqliteTable("jobs", {
+export const jobs = pgTable("jobs", {
   id: text("id").primaryKey().notNull(),
 
   clientName: text("client_name").notNull(),
@@ -37,7 +37,7 @@ export const jobs = sqliteTable("jobs", {
   deletedAt: text("deleted_at")
 });
 
-export const daySettings = sqliteTable("day_settings", {
+export const daySettings = pgTable("day_settings", {
   date: text("date").primaryKey(),
   areaLabel: text("area_label")
 });

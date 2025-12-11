@@ -47,10 +47,13 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
 
       const data = JSON.parse(text) as Job[];
 
-      const normalised = data.map((j) => ({
-        ...j,
-        id: String(j.id)
-      })) as Job[];
+      const normalised = data
+        // Hide soft-deleted jobs client-side too, in case older caches sneak through.
+        .filter((j) => !j.deletedAt)
+        .map((j) => ({
+          ...j,
+          id: String(j.id)
+        })) as Job[];
 
       set({ jobs: normalised, loading: false });
     } catch (e: any) {

@@ -1,60 +1,49 @@
-import { drizzle } from "drizzle-orm/better-sqlite3";
-import Database from "better-sqlite3";
-import fs from "fs";
-import path from "path";
+// src/db/client.ts
+//
+// Drizzle DB client using Neon (serverless Postgres) with a wrapper
+// that supports both tagged-template and function-style calls.
+
+import "server-only";
+import { drizzle } from "drizzle-orm/neon-http";
+import { neon } from "@neondatabase/serverless";
 import * as schema from "./schema";
-import { ensureSchema } from "./ensureSchema";
 
-const isVercel = !!process.env.VERCEL;
-const configuredPath = process.env.DATABASE_FILENAME ?? "installer_scheduler.db";
-const tmpPath = "/tmp/installer_scheduler.db";
-const targetPath = isVercel && !configuredPath.startsWith("/tmp/")
-  ? tmpPath
-  : configuredPath;
+const databaseUrl = process.env.DATABASE_URL;
 
-function preparePath(targetPath: string) {
-  if (!isVercel) return targetPath;
+if (!databaseUrl) {
+  throw new Error("DATABASE_URL env var is not set");
+}
 
-  try {
-    // Ensure a writable file exists in /tmp; copy bundled DB if present.
-    if (!fs.existsSync(targetPath)) {
-      const bundled = path.join(process.cwd(), "installer_scheduler.db");
-      if (fs.existsSync(bundled)) {
-        fs.copyFileSync(bundled, targetPath);
-      } else {
-        fs.writeFileSync(targetPath, "");
-      }
-    }
-  } catch (err) {
-    console.error("Failed to prepare sqlite file", err);
+// Base Neon HTTP client (tagged-template compatible)
+const neonSql = neon(databaseUrl);
+
+// Hybrid client: lets Drizzle call us EITHER as a tagged template
+//   db`SELECT ${value}`
+// OR as a normal function
+//   db("SELECT $1", [value])
+const client = ((
+  textOrStrings: any,
+  params?: any,
+  options?: any
+) => {
+  // Tagged-template call: first arg is a TemplateStringsArray
+  if (
+    Array.isArray(textOrStrings) &&
+    Object.prototype.hasOwnProperty.call(textOrStrings, "raw")
+  ) {
+    // Forward directly to the Neon tagged-template function
+    return (neonSql as any)(textOrStrings, params, options);
   }
-  return targetPath;
-}
 
-function openDatabase(targetPath: string) {
-  const preparedPath = preparePath(targetPath);
-  const sqlite = new Database(preparedPath);
-  ensureSchema(sqlite);
-  return { sqlite, activePath: preparedPath };
-}
+  // Function-style call: use .query when available; otherwise invoke the client directly.
+  // e.g. client("SELECT $1", [value], options)
+  const neonQuery = (neonSql as any).query ?? (neonSql as any);
+  return neonQuery(textOrStrings, params, options);
+}) as any;
 
-let sqlite: Database.Database;
-let activePath = targetPath;
+// Expose .query explicitly as well, for any code that expects it
+const directQuery = (neonSql as any).query ?? (neonSql as any);
+client.query = (...args: any[]) => directQuery(...args);
 
-try {
-  const opened = openDatabase(targetPath);
-  sqlite = opened.sqlite;
-  activePath = opened.activePath;
-} catch (err: any) {
-  console.error("Failed to open sqlite at target path, attempting /tmp fallback", err);
-  if (targetPath !== tmpPath) {
-    const fallback = openDatabase(tmpPath);
-    sqlite = fallback.sqlite;
-    activePath = fallback.activePath;
-    console.warn("Using SQLite fallback path", activePath);
-  } else {
-    throw err;
-  }
-}
-
-export const db = drizzle(sqlite, { schema });
+// Drizzle DB instance
+export const db = drizzle(client, { schema });
