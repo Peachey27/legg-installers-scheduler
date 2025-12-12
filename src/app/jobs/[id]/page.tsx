@@ -1,10 +1,16 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import JobDetailEditor from "@/components/jobs/JobDetailEditor";
 
-function getBaseUrl() {
-  if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  return "http://localhost:3000";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+function getBaseUrlFromHeaders() {
+  const h = headers();
+  const proto = h.get("x-forwarded-proto") ?? "https";
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  if (!host) return "http://localhost:3000";
+  return `${proto}://${host}`;
 }
 
 interface Params {
@@ -12,13 +18,10 @@ interface Params {
 }
 
 export default async function JobDetailPage({ params }: Params) {
-  const baseUrl = getBaseUrl();
+  const baseUrl = getBaseUrlFromHeaders();
   let job: any = null;
   try {
-    const res = await fetch(`/api/jobs/${params.id}`, {
-  cache: "no-store",
-});
-
+    const res = await fetch(`${baseUrl}/api/jobs/${params.id}`, {
       cache: "no-store"
     });
     if (!res.ok) {
