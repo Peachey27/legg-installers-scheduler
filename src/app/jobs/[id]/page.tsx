@@ -15,7 +15,10 @@ export default async function JobDetailPage({ params }: Params) {
   const baseUrl = getBaseUrl();
   let job: any = null;
   try {
-    const res = await fetch(`${baseUrl}/api/jobs/${params.id}`, {
+    const res = await fetch(`/api/jobs/${params.id}`, {
+  cache: "no-store",
+});
+
       cache: "no-store"
     });
     if (!res.ok) {
