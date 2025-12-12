@@ -13,14 +13,21 @@ interface Params {
 
 export default async function JobDetailPage({ params }: Params) {
   const baseUrl = getBaseUrl();
-  const res = await fetch(`${baseUrl}/api/jobs/${params.id}`, {
-    cache: "no-store"
-  });
-  if (!res.ok) {
+  let job: any = null;
+  try {
+    const res = await fetch(`${baseUrl}/api/jobs/${params.id}`, {
+      cache: "no-store"
+    });
+    if (!res.ok) {
+      const body = await res.text();
+      console.error("[job-detail] fetch failed", res.status, body);
+      return <div className="p-4">Job not found.</div>;
+    }
+    job = await res.json();
+  } catch (err) {
+    console.error("[job-detail] fetch error", err);
     return <div className="p-4">Job not found.</div>;
   }
-
-  const job = await res.json();
 
   if (!job || job.deletedAt) {
     return <div className="p-4">Job not found.</div>;
