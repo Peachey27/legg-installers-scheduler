@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { AreaTag, Job, JobStatus } from "@/lib/types";
 import { useRouter } from "next/navigation";
 
@@ -27,7 +27,14 @@ type FormState = {
   factoryJobId: string;
 };
 
-const areaOptions: string[] = ["Lakes", "Bairnsdale", "Metung", "Orbost", "Other"];
+const baseAreaOptions: string[] = [
+  "Bairnsdale",
+  "Lakes",
+  "Sale",
+  "Melbourne",
+  "Saphire Coast",
+  "Other"
+];
 const statusOptions: string[] = [
   "backlog",
   "scheduled",
@@ -38,6 +45,15 @@ const statusOptions: string[] = [
 
 export function JobDetailEditor({ job }: { job: Job }) {
   const router = useRouter();
+  const initialArea = job.areaTag ?? "Other";
+  const isCustomInitialArea = useMemo(
+    () => !baseAreaOptions.includes(initialArea),
+    [initialArea]
+  );
+  const [useCustomArea, setUseCustomArea] = useState(isCustomInitialArea);
+  const [customAreaTag, setCustomAreaTag] = useState(
+    isCustomInitialArea ? initialArea : ""
+  );
   const [form, setForm] = useState<FormState>(() => ({
     clientName: job.clientName ?? "",
     clientPhone: job.clientPhone ?? "",
@@ -57,7 +73,7 @@ export function JobDetailEditor({ job }: { job: Job }) {
     estimatedDurationHours:
       job.estimatedDurationHours != null ? String(job.estimatedDurationHours) : "",
     crew: job.crew ?? "",
-    areaTag: job.areaTag ?? "Other",
+    areaTag: isCustomInitialArea ? "Other" : initialArea,
     status: job.status ?? "backlog",
     factoryJobId: job.factoryJobId ?? ""
   }));
@@ -70,6 +86,11 @@ export function JobDetailEditor({ job }: { job: Job }) {
   }
 
   function resetForm() {
+    const resetArea = job.areaTag ?? "Other";
+    const resetIsCustom = !baseAreaOptions.includes(resetArea);
+    setUseCustomArea(resetIsCustom);
+    setCustomAreaTag(resetIsCustom ? resetArea : "");
+
     setForm({
       clientName: job.clientName ?? "",
       clientPhone: job.clientPhone ?? "",
@@ -89,7 +110,7 @@ export function JobDetailEditor({ job }: { job: Job }) {
       estimatedDurationHours:
         job.estimatedDurationHours != null ? String(job.estimatedDurationHours) : "",
       crew: job.crew ?? "",
-      areaTag: job.areaTag ?? "Other",
+      areaTag: resetIsCustom ? "Other" : resetArea,
       status: job.status ?? "backlog",
       factoryJobId: job.factoryJobId ?? ""
     });
@@ -132,7 +153,9 @@ export function JobDetailEditor({ job }: { job: Job }) {
         ? Number(form.estimatedDurationHours)
         : null,
       crew: form.crew.trim() || null,
-      areaTag: form.areaTag,
+      areaTag: useCustomArea
+        ? customAreaTag.trim() || "Other"
+        : form.areaTag,
       status: form.status,
       factoryJobId: form.factoryJobId.trim() || null
     };
@@ -327,15 +350,32 @@ export function JobDetailEditor({ job }: { job: Job }) {
               <span>Area</span>
               <select
                 className="w-full rounded border border-amber-200 px-3 py-2 bg-white"
-                value={form.areaTag}
-                onChange={(e) => updateField("areaTag", e.target.value)}
+                value={useCustomArea ? "__add_new_area" : form.areaTag}
+                onChange={(e) => {
+                  if (e.target.value === "__add_new_area") {
+                    setUseCustomArea(true);
+                    setCustomAreaTag("");
+                  } else {
+                    setUseCustomArea(false);
+                    updateField("areaTag", e.target.value as AreaTag);
+                  }
+                }}
               >
-                {areaOptions.map((option) => (
+                {baseAreaOptions.map((option) => (
                   <option key={option} value={option}>
                     {option}
                   </option>
                 ))}
+                <option value="__add_new_area">Add new area</option>
               </select>
+              {useCustomArea && (
+                <input
+                  className="mt-2 w-full rounded border border-amber-200 px-3 py-2 bg-white"
+                  placeholder="Enter new area"
+                  value={customAreaTag}
+                  onChange={(e) => setCustomAreaTag(e.target.value)}
+                />
+              )}
             </label>
             <label className="space-y-1 text-sm text-amber-900/80">
               <span>Status</span>

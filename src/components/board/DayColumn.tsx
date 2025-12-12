@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import JobCard from "../jobs/JobCard";
 import { Draggable } from "@hello-pangea/dnd";
 import { useSchedulerStore } from "@/store/useSchedulerStore";
+import { useMemo, useState } from "react";
 
 interface Props {
   label: string;
@@ -17,6 +18,15 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
   const { dayAreaLabels, setDayAreaLabel } = useSchedulerStore();
   const area = dayAreaLabels[isoDate];
   const areaStyle = getAreaStyle(area);
+  const baseAreas = useMemo(
+    () => ["Bairnsdale", "Lakes", "Sale", "Melbourne", "Saphire Coast"],
+    []
+  );
+  const normalizedArea = area?.toLowerCase() ?? "";
+  const isCustomArea = area ? !baseAreas.some((a) => a.toLowerCase() === normalizedArea) : false;
+  const [customAreaInput, setCustomAreaInput] = useState(
+    isCustomArea ? area ?? "" : ""
+  );
 
   const totalHours = jobs.reduce(
     (sum, j) => sum + (j.estimatedDurationHours ?? 0),
@@ -36,24 +46,60 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
             Total hours: {totalHours.toFixed(1)}h
           </div>
         </div>
-        <button
-          className={`text-[11px] px-2 py-1 rounded-full border transition-colors ${
-            areaStyle?.badge ??
-            "border-amber-300 text-amber-800 bg-amber-50/70 hover:bg-amber-100"
-          }`}
-          onClick={() => {
-            const newLabel = prompt(
-              "Area label for this day (e.g. Bairnsdale run):",
-              area ?? ""
-            );
-            if (newLabel !== null) {
-              const trimmed = newLabel.trim();
-              setDayAreaLabel(isoDate, trimmed || undefined);
+        <div className="flex items-center gap-2">
+          <select
+            className={`text-[11px] px-2 py-1 rounded-full border transition-colors ${
+              areaStyle?.badge ??
+              "border-amber-300 text-amber-800 bg-amber-50/70 hover:bg-amber-100"
+            }`}
+            value={
+              isCustomArea
+                ? "__custom"
+                : baseAreas.find((a) => a.toLowerCase() === normalizedArea) ??
+                  ""
             }
-          }}
-        >
-          {area ? area : "Set area"}
-        </button>
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val === "__custom") {
+                setCustomAreaInput("");
+                setDayAreaLabel(isoDate, undefined);
+              } else {
+                setCustomAreaInput("");
+                setDayAreaLabel(isoDate, val || undefined);
+              }
+            }}
+          >
+            <option value="">Set area</option>
+            {baseAreas.map((a) => (
+              <option key={a} value={a}>
+                {a}
+              </option>
+            ))}
+            <option value="__custom">Add new area</option>
+          </select>
+          { (isCustomArea || customAreaInput) && (
+            <div className="flex items-center gap-1">
+              <input
+                className="text-xs rounded border border-amber-200 px-2 py-1 bg-white"
+                placeholder="Custom area"
+                value={customAreaInput || area || ""}
+                onChange={(e) => setCustomAreaInput(e.target.value)}
+              />
+              <button
+                className="text-[11px] px-2 py-1 rounded border border-amber-300 text-amber-800 bg-amber-50/70 hover:bg-amber-100"
+                onClick={() => {
+                  const trimmed = (customAreaInput || area || "").trim();
+                  setDayAreaLabel(isoDate, trimmed || undefined);
+                  if (!trimmed) {
+                    setCustomAreaInput("");
+                  }
+                }}
+              >
+                Save
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto space-y-2">
@@ -82,45 +128,50 @@ function getAreaStyle(label?: string) {
 
   const styleMap: Record<string, { ring: string; badge: string }> = {
     bairnsdale: {
-      ring: "ring-4 ring-offset-2 ring-blue-400 ring-offset-amber-50 shadow-lg",
+      ring: "border-[12px] border-blue-400 shadow-lg",
       badge: "border-blue-200 text-blue-800 bg-blue-50/80 hover:bg-blue-100"
     },
     bdale: {
-      ring: "ring-4 ring-offset-2 ring-blue-400 ring-offset-amber-50 shadow-lg",
+      ring: "border-[12px] border-blue-400 shadow-lg",
       badge: "border-blue-200 text-blue-800 bg-blue-50/80 hover:bg-blue-100"
     },
     lakesentrance: {
-      ring: "ring-4 ring-offset-2 ring-green-400 ring-offset-amber-50 shadow-lg",
+      ring: "border-[12px] border-green-400 shadow-lg",
       badge:
         "border-green-200 text-green-800 bg-green-50/80 hover:bg-green-100"
     },
     lakes: {
-      ring: "ring-4 ring-offset-2 ring-green-400 ring-offset-amber-50 shadow-lg",
+      ring: "border-[12px] border-green-400 shadow-lg",
       badge:
         "border-green-200 text-green-800 bg-green-50/80 hover:bg-green-100"
     },
     orbost: {
-      ring: "ring-4 ring-offset-2 ring-orange-400 ring-offset-amber-50 shadow-lg",
+      ring: "border-[12px] border-orange-400 shadow-lg",
       badge:
         "border-orange-200 text-orange-800 bg-orange-50/80 hover:bg-orange-100"
     },
     saphirecoast: {
-      ring: "ring-4 ring-offset-2 ring-yellow-300 ring-offset-amber-50 shadow-lg",
+      ring: "border-[12px] border-yellow-300 shadow-lg",
       badge:
         "border-yellow-200 text-yellow-900 bg-yellow-50/80 hover:bg-yellow-100"
     },
     sapphirecoast: {
-      ring: "ring-4 ring-offset-2 ring-yellow-300 ring-offset-amber-50 shadow-lg",
+      ring: "border-[12px] border-yellow-300 shadow-lg",
       badge:
         "border-yellow-200 text-yellow-900 bg-yellow-50/80 hover:bg-yellow-100"
     },
     melbourne: {
-      ring: "ring-4 ring-offset-2 ring-red-400 ring-offset-amber-50 shadow-lg",
+      ring: "border-[12px] border-red-400 shadow-lg",
       badge: "border-red-200 text-red-800 bg-red-50/80 hover:bg-red-100"
     },
     melb: {
-      ring: "ring-4 ring-offset-2 ring-red-400 ring-offset-amber-50 shadow-lg",
+      ring: "border-[12px] border-red-400 shadow-lg",
       badge: "border-red-200 text-red-800 bg-red-50/80 hover:bg-red-100"
+    },
+    sale: {
+      ring: "border-[12px] border-purple-400 shadow-lg",
+      badge:
+        "border-purple-200 text-purple-800 bg-purple-50/80 hover:bg-purple-100"
     }
   };
 

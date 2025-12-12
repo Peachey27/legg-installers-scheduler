@@ -4,18 +4,20 @@ import type { Job } from "@/lib/types";
 import { useRouter } from "next/navigation";
 
 function areaColor(area: Job["areaTag"]) {
-  switch (area) {
-    case "Lakes":
-      return "bg-sky-500";
-    case "Bairnsdale":
-      return "bg-emerald-500";
-    case "Metung":
-      return "bg-teal-500";
-    case "Orbost":
-      return "bg-orange-500";
-    default:
-      return "bg-slate-400";
-  }
+  const normalized = area?.toLowerCase().replace(/[^a-z]/g, "") ?? "";
+  const map: Record<string, string> = {
+    bairnsdale: "bg-blue-500",
+    bdale: "bg-blue-500",
+    lakes: "bg-green-500",
+    lakesentrance: "bg-green-500",
+    sale: "bg-purple-500",
+    melbourne: "bg-red-500",
+    melb: "bg-red-500",
+    orbost: "bg-orange-500",
+    saphirecoast: "bg-yellow-400",
+    sapphirecoast: "bg-yellow-400"
+  };
+  return map[normalized] ?? "bg-slate-400";
 }
 
 interface Props {

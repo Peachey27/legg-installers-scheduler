@@ -9,6 +9,7 @@ type NewJobInput = {
   description: string;
   assignedDate?: string | null;
   estimatedDurationHours?: number | null;
+  areaTag?: string;
 };
 
 interface SchedulerState {
@@ -90,7 +91,7 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
       ...input,
       dateTaken: today,
       billingAddress: input.clientAddress,
-      areaTag: "Other",
+      areaTag: input.areaTag ?? "Other",
       totalPrice: null,
       invoiceNumber: null,
       estimateNumber: null,

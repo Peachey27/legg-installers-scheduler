@@ -79,6 +79,7 @@ type AddJobFormValues = {
   jobAddress: string;
   description: string;
   estimatedDurationHours: number | null;
+  areaTag: string;
 };
 
 function AddJobModal({
@@ -92,15 +93,26 @@ function AddJobModal({
   loading: boolean;
   error: string | null;
 }) {
+  const areaOptions = [
+    "Bairnsdale",
+    "Lakes",
+    "Sale",
+    "Melbourne",
+    "Saphire Coast",
+    "Other"
+  ];
   const [values, setValues] = useState<AddJobFormValues>({
     clientName: "",
     clientPhone: "",
     clientAddress: "",
     jobAddress: "",
     description: "New Window/Doors",
-    estimatedDurationHours: null
+    estimatedDurationHours: null,
+    areaTag: "Other"
   });
   const [customDescription, setCustomDescription] = useState("");
+  const [useCustomArea, setUseCustomArea] = useState(false);
+  const [customAreaTag, setCustomAreaTag] = useState("");
 
   const presetDescriptions = [
     "New Window/Doors",
@@ -147,7 +159,10 @@ function AddJobModal({
       clientAddress: values.clientAddress.trim(),
       clientName: values.clientName.trim(),
       clientPhone: values.clientPhone.trim() || "N/A",
-      description
+      description,
+      areaTag: useCustomArea
+        ? customAreaTag.trim() || "Other"
+        : values.areaTag
     });
   }
 
@@ -258,6 +273,38 @@ function AddJobModal({
                 )
               }
             />
+          </div>
+
+          <div className="space-y-1 md:col-span-1">
+            <label className="block text-amber-900/80">Area</label>
+            <select
+              className="w-full rounded border border-amber-200 px-3 py-2 text-amber-900 bg-white/80"
+              value={useCustomArea ? "__add_new_area" : values.areaTag}
+              onChange={(e) => {
+                if (e.target.value === "__add_new_area") {
+                  setUseCustomArea(true);
+                  setCustomAreaTag("");
+                } else {
+                  setUseCustomArea(false);
+                  setValues((prev) => ({ ...prev, areaTag: e.target.value }));
+                }
+              }}
+            >
+              {areaOptions.map((area) => (
+                <option key={area} value={area}>
+                  {area}
+                </option>
+              ))}
+              <option value="__add_new_area">Add new area</option>
+            </select>
+            {useCustomArea && (
+              <input
+                className="mt-2 w-full rounded border border-amber-200 px-3 py-2 text-amber-900 bg-white/80"
+                placeholder="Enter new area"
+                value={customAreaTag}
+                onChange={(e) => setCustomAreaTag(e.target.value)}
+              />
+            )}
           </div>
         </div>
 

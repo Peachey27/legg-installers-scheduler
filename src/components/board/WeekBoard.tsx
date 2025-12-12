@@ -7,7 +7,7 @@ import BacklogColumn from "./BacklogColumn";
 import { startOfWeek, addDays, format } from "date-fns";
 
 export default function WeekBoard() {
-  const { jobs, moveJob } = useSchedulerStore();
+  const { jobs, moveJob, dayAreaLabels } = useSchedulerStore();
 
   const today = new Date();
   const weekStart = startOfWeek(today, { weekStartsOn: 1 });
@@ -47,6 +47,20 @@ export default function WeekBoard() {
 
     const target = destination.droppableId;
     const assignedDate = target === "backlog" ? null : target;
+
+    // If dropping onto a dated column, warn when job area differs from the day's area label.
+    if (assignedDate) {
+      const job = jobs.find((j) => j.id === draggableId);
+      const dayArea = dayAreaLabels[assignedDate];
+      const jobArea = job?.areaTag;
+      if (job && dayArea && jobArea && normalize(dayArea) && normalize(jobArea) !== normalize(dayArea)) {
+        const ok = window.confirm(
+          `This job is tagged "${jobArea}", but the day is set to "${dayArea}". Drop here anyway?`
+        );
+        if (!ok) return;
+      }
+    }
+
     void moveJob(draggableId, assignedDate);
   }
 
@@ -72,7 +86,7 @@ export default function WeekBoard() {
               <div
                 ref={provided.innerRef}
                 {...provided.droppableProps}
-                className="flex-1 min-w-[260px]"
+                className="flex-1 min-w-[260px] px-1"
               >
                 <DayColumn
                   date={d.date}
@@ -88,4 +102,8 @@ export default function WeekBoard() {
       </div>
     </DragDropContext>
   );
+}
+
+function normalize(val?: string | null) {
+  return val?.trim().toLowerCase() ?? "";
 }
