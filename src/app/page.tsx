@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useSchedulerStore } from "@/store/useSchedulerStore";
 import WeekBoard from "@/components/board/WeekBoard";
 import MobileDayView from "@/components/board/MobileDayView";
 
 export default function HomePage() {
-  const { fetchJobs, loading, error, openAddJobForm } = useSchedulerStore();
+  const router = useRouter();
+  const { fetchJobs, loading, error, openAddJobForm, jobs } = useSchedulerStore();
+  const [search, setSearch] = useState("");
 
   // only fetch once on mount
   useEffect(() => {
@@ -14,12 +17,61 @@ export default function HomePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const searchResults = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (q.length < 2) return [];
+    return jobs
+      .filter((j) => !j.deletedAt)
+      .filter((j) => {
+        return (
+          j.clientName.toLowerCase().includes(q) ||
+          j.jobAddress.toLowerCase().includes(q) ||
+          j.description.toLowerCase().includes(q) ||
+          (j.areaTag ?? "").toLowerCase().includes(q)
+        );
+      })
+      .slice(0, 8);
+  }, [jobs, search]);
+
   return (
     <main className="min-h-screen flex flex-col">
-      <header className="px-4 py-3 bg-amber-700 text-amber-50 shadow-md flex justify-between items-center">
-        <h1 className="text-lg font-semibold tracking-wide">
-          LEGG Installers Scheduler
-        </h1>
+      <header className="px-4 py-3 bg-amber-700 text-amber-50 shadow-md flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <h1 className="text-lg font-semibold tracking-wide flex-1">
+            LEGG Installers Scheduler
+          </h1>
+          <div className="relative w-full max-w-sm">
+            <input
+              type="search"
+              placeholder="Search jobs (includes archived)..."
+              className="w-full rounded-lg px-3 py-2 text-slate-900 text-sm"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            {searchResults.length > 0 && (
+              <div className="absolute mt-1 w-full bg-white text-slate-900 rounded-lg shadow-lg border border-slate-200 z-20">
+                {searchResults.map((j) => (
+                  <button
+                    key={j.id}
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-slate-100 border-b last:border-b-0 border-slate-100"
+                    onClick={() => {
+                      setSearch("");
+                      router.push(`/jobs/${j.id}`);
+                    }}
+                  >
+                    <div className="font-semibold">{j.clientName}</div>
+                    <div className="text-xs text-slate-600 truncate">
+                      {j.jobAddress}
+                    </div>
+                    <div className="text-[11px] text-slate-500">
+                      {j.status} • {j.areaTag}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
         <div className="space-x-2 text-sm">
           <button
             type="button"

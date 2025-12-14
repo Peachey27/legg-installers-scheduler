@@ -19,7 +19,10 @@ export default function WeekBoard() {
   });
 
   const backlogJobs = jobs.filter(
-    (j) => !j.assignedDate || j.status === "backlog"
+    (j) =>
+      (!j.assignedDate || j.status === "backlog") &&
+      j.status !== "completed" &&
+      j.status !== "cancelled"
   );
 
   const jobsByDate: Record<string, typeof jobs> = {};
@@ -28,6 +31,7 @@ export default function WeekBoard() {
       (j) =>
         j.assignedDate === d.iso &&
         j.status !== "cancelled" &&
+        j.status !== "completed" &&
         !j.deletedAt
     );
   }

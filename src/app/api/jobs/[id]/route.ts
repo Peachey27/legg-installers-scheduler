@@ -19,7 +19,12 @@ export async function GET(_req: NextRequest, { params }: Params) {
 export async function PUT(req: NextRequest, { params }: Params) {
   try {
     const body = await req.json();
-    await db.update(jobs).set(body).where(eq(jobs.id, params.id));
+    const updatePayload =
+      body.status === "cancelled"
+        ? { ...body, deletedAt: new Date().toISOString() }
+        : body;
+
+    await db.update(jobs).set(updatePayload).where(eq(jobs.id, params.id));
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("Update job failed", error);

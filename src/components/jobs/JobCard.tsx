@@ -26,7 +26,6 @@ interface Props {
 
 export default function JobCard({ job }: Props) {
   const router = useRouter();
-  const suburb = job.jobAddress.split(",")[1]?.trim() ?? "";
 
   return (
     <div
@@ -47,20 +46,21 @@ export default function JobCard({ job }: Props) {
         )} shadow`}
       />
       <div className={`h-1 rounded-t-xl -mx-3 mb-1 ${areaColor(job.areaTag)}`} />
-      <div className="text-sm font-semibold text-slate-900 truncate">
+      <div className="text-base font-semibold text-slate-900 truncate">
         {job.clientName}
       </div>
-      <div className="text-xs text-slate-600 truncate">
-        {suburb || job.jobAddress}
+      <div className="text-xs text-slate-700 truncate">
+        {job.jobAddress}
       </div>
       <div className="text-xs text-slate-500 line-clamp-2 mt-1">
         {job.description}
       </div>
       {job.estimatedDurationHours && (
         <div className="mt-1 text-[11px] text-slate-500">
-          ~{job.estimatedDurationHours}h ƒ?½ {job.crew ?? "Install crew"}
+          ~{job.estimatedDurationHours}h - {job.crew ?? "Install crew"}
         </div>
       )}
     </div>
   );
 }
+
