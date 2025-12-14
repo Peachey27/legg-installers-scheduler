@@ -5,29 +5,29 @@ import { DragDropContext, Droppable, DropResult } from "@hello-pangea/dnd";
 import { useSchedulerStore } from "@/store/useSchedulerStore";
 import DayColumn from "./DayColumn";
 import BacklogColumn from "./BacklogColumn";
-import { startOfWeek, addDays, addWeeks, format } from "date-fns";
+import { addDays, addWeeks, format } from "date-fns";
 
 export default function WeekBoard() {
   const { jobs, moveJob, dayAreaLabels } = useSchedulerStore();
-  const [weekOffset, setWeekOffset] = useState(0);
+  const [weekOffset, setWeekOffset] = useState(0); // 0 = start at today, each step = 5 weekdays
 
   const today = new Date();
-  // Show a 5-week window by default: previous week + current + next 3 weeks.
-  const weekStart = startOfWeek(addWeeks(today, weekOffset - 1), {
-    weekStartsOn: 1
-  });
+  const startDate = addWeeks(today, weekOffset); // shift in 5-day (workweek) blocks
 
   const days = useMemo(() => {
     const result: { label: string; date: Date; iso: string }[] = [];
-    for (let week = 0; week < 5; week++) {
-      for (let day = 0; day < 5; day++) {
-        const date = addDays(weekStart, week * 7 + day); // Mon–Fri only
-        const iso = format(date, "yyyy-MM-dd");
-        result.push({ label: format(date, "EEE d/M"), date, iso });
+    let cursor = startDate;
+    // Build 25 weekdays starting from startDate, skipping weekends
+    while (result.length < 25) {
+      const day = cursor.getDay();
+      if (day !== 0 && day !== 6) {
+        const iso = format(cursor, "yyyy-MM-dd");
+        result.push({ label: format(cursor, "EEE d/M"), date: new Date(cursor), iso });
       }
+      cursor = addDays(cursor, 1);
     }
     return result;
-  }, [weekStart]);
+  }, [startDate]);
 
   const backlogJobs = jobs.filter(
     (j) =>
@@ -95,7 +95,7 @@ export default function WeekBoard() {
           </button>
           <button
             className="px-3 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
-            onClick={() => setWeekOffset(1)}
+            onClick={() => setWeekOffset(0)}
           >
             Today
           </button>
@@ -106,7 +106,7 @@ export default function WeekBoard() {
             +4 weeks →
           </button>
           <span className="ml-auto text-xs">
-            Starting {format(weekStart, "d MMM")}
+            Starting {format(days[0].date, "d MMM")}
           </span>
         </div>
 

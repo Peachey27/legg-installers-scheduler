@@ -2,24 +2,28 @@
 
 import { useMemo, useState } from "react";
 import { useSchedulerStore } from "@/store/useSchedulerStore";
-import { startOfWeek, addDays, addWeeks, format } from "date-fns";
+import { addDays, addWeeks, format } from "date-fns";
 import JobCard from "../jobs/JobCard";
 
 export default function MobileDayView() {
   const { jobs, dayAreaLabels, setDayAreaLabel } = useSchedulerStore();
-  const [weekOffset, setWeekOffset] = useState(0);
+  const [weekOffset, setWeekOffset] = useState(0); // blocks of 5 weekdays
   const today = new Date();
-  const weekStart = startOfWeek(addWeeks(today, weekOffset), { weekStartsOn: 1 });
+  const startDate = addWeeks(today, weekOffset);
 
-  const days = useMemo(
-    () =>
-      Array.from({ length: 5 }).map((_, i) => {
-        const d = addDays(weekStart, i); // Mon–Fri only
-        const iso = format(d, "yyyy-MM-dd");
-        return { iso, date: d, label: format(d, "EEE d/MM") };
-      }),
-    [weekStart]
-  );
+  const days = useMemo(() => {
+    const result: { iso: string; date: Date; label: string }[] = [];
+    let cursor = startDate;
+    while (result.length < 5) {
+      const day = cursor.getDay();
+      if (day !== 0 && day !== 6) {
+        const iso = format(cursor, "yyyy-MM-dd");
+        result.push({ iso, date: new Date(cursor), label: format(cursor, "EEE d/MM") });
+      }
+      cursor = addDays(cursor, 1);
+    }
+    return result;
+  }, [startDate]);
 
   const jobsByDay = useMemo(
     () =>
@@ -61,7 +65,7 @@ export default function MobileDayView() {
           +4 weeks →
         </button>
         <span className="ml-auto text-[11px]">
-          Week of {format(weekStart, "d MMM")}
+          Week of {format(days[0].date, "d MMM")}
         </span>
       </div>
 
@@ -74,8 +78,8 @@ export default function MobileDayView() {
             key={d.iso}
             className={`min-w-[240px] flex-shrink-0 bg-[#f6f0e7]/90 border border-amber-200/70 rounded-xl shadow-inner p-3 flex flex-col gap-2 ${getAreaStyle(d.area)?.ring ?? ""}`}
           >
-            <div className="text-xs font-semibold text-amber-900 flex items-center justify-between">
-              <span>{d.label}</span>
+          <div className="text-xs font-semibold text-amber-900 flex items-center justify-between">
+            <span>{d.label}</span>
               <button
                 className={`text-[11px] px-2 py-1 rounded-full border transition-colors ${
                   getAreaStyle(d.area)?.badge ??

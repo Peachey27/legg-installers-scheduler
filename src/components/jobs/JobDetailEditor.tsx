@@ -25,6 +25,9 @@ type FormState = {
   areaTag: AreaTag;
   status: JobStatus;
   factoryJobId: string;
+  photo1Url: string;
+  photo2Url: string;
+  photo3Url: string;
 };
 
 const baseAreaOptions: string[] = [
@@ -75,7 +78,10 @@ export function JobDetailEditor({ job }: { job: Job }) {
     crew: job.crew ?? "",
     areaTag: isCustomInitialArea ? "Other" : initialArea,
     status: job.status ?? "backlog",
-    factoryJobId: job.factoryJobId ?? ""
+    factoryJobId: job.factoryJobId ?? "",
+    photo1Url: job.photo1Url ?? "",
+    photo2Url: job.photo2Url ?? "",
+    photo3Url: job.photo3Url ?? ""
   }));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -112,7 +118,10 @@ export function JobDetailEditor({ job }: { job: Job }) {
       crew: job.crew ?? "",
       areaTag: resetIsCustom ? "Other" : resetArea,
       status: job.status ?? "backlog",
-      factoryJobId: job.factoryJobId ?? ""
+      factoryJobId: job.factoryJobId ?? "",
+      photo1Url: job.photo1Url ?? "",
+      photo2Url: job.photo2Url ?? "",
+      photo3Url: job.photo3Url ?? ""
     });
     setError(null);
     setSavedMessage("");
@@ -157,7 +166,10 @@ export function JobDetailEditor({ job }: { job: Job }) {
         ? customAreaTag.trim() || "Other"
         : form.areaTag,
       status: form.status,
-      factoryJobId: form.factoryJobId.trim() || null
+      factoryJobId: form.factoryJobId.trim() || null,
+      photo1Url: form.photo1Url.trim() || null,
+      photo2Url: form.photo2Url.trim() || null,
+      photo3Url: form.photo3Url.trim() || null
     };
 
     try {
@@ -278,37 +290,77 @@ export function JobDetailEditor({ job }: { job: Job }) {
 
       <div className="grid md:grid-cols-2 gap-3">
         <section className="space-y-3 rounded-xl border border-amber-200 bg-amber-50/70 p-4">
-          <div className="text-sm font-semibold text-amber-900">Notes</div>
-          <label className="space-y-1 text-sm text-amber-900/80">
-            <span>Measurements</span>
-            <textarea
-              className="w-full rounded border border-amber-200 px-3 py-2 bg-white min-h-[72px]"
-              value={form.measurements}
-              onChange={(e) => updateField("measurements", e.target.value)}
-            />
-          </label>
-          <label className="space-y-1 text-sm text-amber-900/80">
-            <span>Glass / product details</span>
-            <textarea
-              className="w-full rounded border border-amber-200 px-3 py-2 bg-white min-h-[72px]"
-              value={form.glassOrProductDetails}
-              onChange={(e) => updateField("glassOrProductDetails", e.target.value)}
-            />
-          </label>
-          <label className="space-y-1 text-sm text-amber-900/80">
-            <span>Quoted range</span>
-            <textarea
-              className="w-full rounded border border-amber-200 px-3 py-2 bg-white min-h-[60px]"
-              value={form.quotedRange}
-              onChange={(e) => updateField("quotedRange", e.target.value)}
-            />
-          </label>
-          <label className="space-y-1 text-sm text-amber-900/80">
-            <span>Internal notes</span>
-            <textarea
-              className="w-full rounded border border-amber-200 px-3 py-2 bg-white min-h-[80px]"
-              value={form.internalNotes}
-              onChange={(e) => updateField("internalNotes", e.target.value)}
+          <div className="text-sm font-semibold text-amber-900">Back of card</div>
+          {![form.photo1Url, form.photo2Url, form.photo3Url].some(Boolean) && (
+            <p className="text-xs text-amber-900/70">
+              Upload a photo of the back of the card or any relevant sketches/photos.
+            </p>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {[form.photo1Url, form.photo2Url, form.photo3Url].map((url, idx) =>
+              url ? (
+                <div key={idx} className="space-y-1">
+                  <img
+                    src={url}
+                    alt={`Attachment ${idx + 1}`}
+                    className="w-full h-32 object-cover rounded border border-amber-200 bg-white cursor-pointer"
+                    onClick={() => window.open(url, "_blank")}
+                  />
+                  <button
+                    type="button"
+                    className="text-[11px] text-red-700 underline"
+                    onClick={() => updateField((`photo${idx + 1}Url` as any), "")}
+                    disabled={saving}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : null
+            )}
+          </div>
+
+          {/* Upload control */}
+          <label className="inline-flex items-center gap-2 text-xs text-amber-900/80 cursor-pointer">
+            <span className="px-3 py-1 rounded border border-amber-200 bg-white hover:bg-amber-50">
+              Upload image
+            </span>
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                setSaving(true);
+                setError(null);
+                try {
+                  const formData = new FormData();
+                  formData.append("file", file);
+                  const res = await fetch("/api/upload", {
+                    method: "POST",
+                    body: formData
+                  });
+                  const text = await res.text();
+                  if (!res.ok) {
+                    throw new Error(text || "Upload failed");
+                  }
+                  const data = JSON.parse(text) as { url?: string };
+                  if (data.url) {
+                    const slots: Array<keyof FormState> = ["photo1Url", "photo2Url", "photo3Url"];
+                    const target = slots.find((key) => !form[key]);
+                    if (target) {
+                      updateField(target, data.url as any);
+                    }
+                  }
+                } catch (err: any) {
+                  setError(err?.message ?? "Upload failed");
+                } finally {
+                  setSaving(false);
+                  e.target.value = "";
+                }
+              }}
+              disabled={saving}
             />
           </label>
         </section>
