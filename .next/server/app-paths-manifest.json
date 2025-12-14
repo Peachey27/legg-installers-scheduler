@@ -1,1 +1,7 @@
-{}
+{
+  "/jobs/[id]/print/page": "app/jobs/[id]/print/page.js",
+  "/page": "app/page.js",
+  "/jobs/[id]/page": "app/jobs/[id]/page.js",
+  "/api/jobs/route": "app/api/jobs/route.js",
+  "/api/jobs/[id]/route": "app/api/jobs/[id]/route.js"
+}

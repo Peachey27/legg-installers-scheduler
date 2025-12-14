@@ -1,10 +1,15 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { Job } from "@/lib/types";
 
 export function PrintJobCard({ job }: { job: Job }) {
+  const hasPrintedRef = useRef(false);
+
   useEffect(() => {
+    if (hasPrintedRef.current) return;
+    hasPrintedRef.current = true;
+
     const hasOpener = typeof window !== "undefined" && !!window.opener;
     function finish() {
       if (hasOpener) {
@@ -27,6 +32,19 @@ export function PrintJobCard({ job }: { job: Job }) {
       window.clearTimeout(timer);
     };
   }, []);
+
+  const descriptionLines = (job.description ?? "")
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+  const noteLines = (job.internalNotes ?? "")
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+  const lineTexts = [...descriptionLines, ...noteLines].slice(0, 4);
+  while (lineTexts.length < 4) {
+    lineTexts.push("");
+  }
 
   return (
     <div className="print-wrapper">
@@ -81,12 +99,13 @@ export function PrintJobCard({ job }: { job: Job }) {
         }
         .line {
           border-bottom: 1px solid #000;
-          height: 10mm;
+          min-height: 10mm;
           font-size: 12px;
           padding-bottom: 1mm;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
+          white-space: pre-wrap;
+          overflow-wrap: anywhere;
+          display: flex;
+          align-items: flex-end;
         }
         .bottom-row {
           display: flex;
@@ -172,10 +191,9 @@ export function PrintJobCard({ job }: { job: Job }) {
         </div>
 
         <div className="lines">
-          <div className="line">{job.description}</div>
-          <div className="line">{job.internalNotes ?? ""}</div>
-          <div className="line" />
-          <div className="line" />
+          {lineTexts.map((text, idx) => (
+            <div className="line" key={idx}>{text}</div>
+          ))}
         </div>
 
         <div className="bottom-row">
