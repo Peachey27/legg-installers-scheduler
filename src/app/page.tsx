@@ -36,10 +36,10 @@ export default function HomePage() {
   return (
     <main className="min-h-screen flex flex-col">
       <header className="px-4 py-3 bg-amber-700 text-amber-50 shadow-md flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-3 w-full md:w-auto">
-          <h1 className="text-lg font-semibold tracking-wide flex-1">
-            LEGG Installers Scheduler
-          </h1>
+        <h1 className="text-lg font-semibold tracking-wide">
+          LEGG Installers Scheduler
+        </h1>
+        <div className="flex items-center gap-2 w-full md:w-auto justify-end">
           <div className="relative w-full max-w-sm">
             <input
               type="search"
@@ -71,8 +71,6 @@ export default function HomePage() {
               </div>
             )}
           </div>
-        </div>
-        <div className="space-x-2 text-sm">
           <button
             type="button"
             className="px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-400"
