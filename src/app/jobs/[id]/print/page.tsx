@@ -24,12 +24,17 @@ export default async function PrintJobPage({ params }: Params) {
     const res = await fetch(`${baseUrl}/api/jobs/${params.id}`, {
       cache: "no-store"
     });
+    const text = await res.text();
     if (!res.ok) {
-      const body = await res.text();
-      console.error("[print-job] fetch failed", res.status, body);
+      console.error("[print-job] fetch failed", res.status, text);
       return <div className="p-4">Not found</div>;
     }
-    job = await res.json();
+    try {
+      job = JSON.parse(text);
+    } catch (err) {
+      console.error("[print-job] parse error", err, text);
+      return <div className="p-4">Not found</div>;
+    }
   } catch (err) {
     console.error("[print-job] fetch error", err);
     return <div className="p-4">Not found</div>;
