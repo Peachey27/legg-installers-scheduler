@@ -18,6 +18,16 @@ export default function MobileDayView() {
 
   const [activeIso, setActiveIso] = useState(days[0].iso);
 
+  // Auto-select the first day that has jobs, so users immediately see bookings.
+  useEffect(() => {
+    const firstWithJobs = days.find((d) =>
+      jobs.some((j) => j.assignedDate === d.iso && j.status !== "cancelled")
+    );
+    if (firstWithJobs && firstWithJobs.iso !== activeIso) {
+      setActiveIso(firstWithJobs.iso);
+    }
+  }, [days, jobs, activeIso]);
+
   const filtered = jobs.filter(
     (j) => j.assignedDate === activeIso && j.status !== "cancelled"
   );
