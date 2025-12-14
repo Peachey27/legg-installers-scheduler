@@ -6,7 +6,7 @@ import { startOfWeek, addDays, addWeeks, format } from "date-fns";
 import JobCard from "../jobs/JobCard";
 
 export default function MobileDayView() {
-  const { jobs } = useSchedulerStore();
+  const { jobs, dayAreaLabels, setDayAreaLabel } = useSchedulerStore();
   const [weekOffset, setWeekOffset] = useState(0);
   const today = new Date();
   const weekStart = startOfWeek(addWeeks(today, weekOffset), { weekStartsOn: 1 });
@@ -25,6 +25,7 @@ export default function MobileDayView() {
     () =>
       days.map((d) => ({
         ...d,
+        area: dayAreaLabels[d.iso],
         jobs: jobs
           .filter(
             (j) =>
@@ -49,6 +50,12 @@ export default function MobileDayView() {
         </button>
         <button
           className="px-2 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
+          onClick={() => setWeekOffset(0)}
+        >
+          Today
+        </button>
+        <button
+          className="px-2 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
           onClick={() => setWeekOffset((v) => v + 4)}
         >
           +4 weeks →
@@ -65,13 +72,28 @@ export default function MobileDayView() {
         {jobsByDay.map((d) => (
           <div
             key={d.iso}
-            className="min-w-[240px] flex-shrink-0 bg-[#f6f0e7]/90 border border-amber-200/70 rounded-xl shadow-inner p-3 flex flex-col gap-2"
+            className={`min-w-[240px] flex-shrink-0 bg-[#f6f0e7]/90 border border-amber-200/70 rounded-xl shadow-inner p-3 flex flex-col gap-2 ${getAreaStyle(d.area)?.ring ?? ""}`}
           >
             <div className="text-xs font-semibold text-amber-900 flex items-center justify-between">
               <span>{d.label}</span>
-              <span className="text-amber-800/70">
-                {d.jobs.length} job{d.jobs.length === 1 ? "" : "s"}
-              </span>
+              <button
+                className={`text-[11px] px-2 py-1 rounded-full border transition-colors ${
+                  getAreaStyle(d.area)?.badge ??
+                  "border-amber-300 text-amber-800 bg-amber-50/70 hover:bg-amber-100"
+                }`}
+                onClick={() => {
+                  const newLabel = prompt(
+                    "Area label for this day (e.g. Bairnsdale):",
+                    d.area ?? ""
+                  );
+                  if (newLabel !== null) {
+                    const trimmed = newLabel.trim();
+                    setDayAreaLabel(d.iso, trimmed || undefined);
+                  }
+                }}
+              >
+                {d.area ? d.area : "Set area"}
+              </button>
             </div>
             <div className="flex-1 overflow-y-auto space-y-2">
               {d.jobs.length === 0 ? (
@@ -85,4 +107,60 @@ export default function MobileDayView() {
       </div>
     </div>
   );
+}
+
+function getAreaStyle(label?: string) {
+  if (!label) return null;
+  const normalized = label.toLowerCase().replace(/[^a-z]/g, "");
+
+  const styleMap: Record<string, { ring: string; badge: string }> = {
+    bairnsdale: {
+      ring: "border-[12px] border-blue-400 shadow-lg",
+      badge: "border-blue-200 text-blue-800 bg-blue-50/80 hover:bg-blue-100"
+    },
+    bdale: {
+      ring: "border-[12px] border-blue-400 shadow-lg",
+      badge: "border-blue-200 text-blue-800 bg-blue-50/80 hover:bg-blue-100"
+    },
+    lakesentrance: {
+      ring: "border-[12px] border-green-400 shadow-lg",
+      badge:
+        "border-green-200 text-green-800 bg-green-50/80 hover:bg-green-100"
+    },
+    lakes: {
+      ring: "border-[12px] border-green-400 shadow-lg",
+      badge:
+        "border-green-200 text-green-800 bg-green-50/80 hover:bg-green-100"
+    },
+    orbost: {
+      ring: "border-[12px] border-orange-400 shadow-lg",
+      badge:
+        "border-orange-200 text-orange-800 bg-orange-50/80 hover:bg-orange-100"
+    },
+    saphirecoast: {
+      ring: "border-[12px] border-yellow-300 shadow-lg",
+      badge:
+        "border-yellow-200 text-yellow-900 bg-yellow-50/80 hover:bg-yellow-100"
+    },
+    sapphirecoast: {
+      ring: "border-[12px] border-yellow-300 shadow-lg",
+      badge:
+        "border-yellow-200 text-yellow-900 bg-yellow-50/80 hover:bg-yellow-100"
+    },
+    melbourne: {
+      ring: "border-[12px] border-red-400 shadow-lg",
+      badge: "border-red-200 text-red-800 bg-red-50/80 hover:bg-red-100"
+    },
+    melb: {
+      ring: "border-[12px] border-red-400 shadow-lg",
+      badge: "border-red-200 text-red-800 bg-red-50/80 hover:bg-red-100"
+    },
+    sale: {
+      ring: "border-[12px] border-purple-400 shadow-lg",
+      badge:
+        "border-purple-200 text-purple-800 bg-purple-50/80 hover:bg-purple-100"
+    }
+  };
+
+  return styleMap[normalized] ?? null;
 }
