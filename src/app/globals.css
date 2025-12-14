@@ -28,3 +28,12 @@ body {
   border-radius: 12px;
   border: 6px solid #fef3c7;
 }
+
+/* Mobile scale-down */
+@media (max-width: 768px) {
+  .mobile-scale {
+    transform: scale(0.7);
+    transform-origin: top left;
+    width: 142.857%;
+  }
+}
