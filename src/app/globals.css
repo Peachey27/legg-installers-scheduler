@@ -4,4 +4,27 @@
 
 body {
   @apply antialiased;
+  overflow-y: hidden; /* Hide vertical scrollbar on main views */
+}
+
+/* Global scrollbar defaults */
+html,
+body {
+  scrollbar-width: thin;
+  scrollbar-color: #b45309 #fef3c7;
+}
+
+/* Horizontal scrollbar styling helper */
+.scrollbar-thin::-webkit-scrollbar {
+  height: 42px; /* 75% taller for easier grab */
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: #fef3c7;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #d97706;
+  border-radius: 12px;
+  border: 6px solid #fef3c7;
 }
