@@ -20,9 +20,10 @@ interface SchedulerState {
   showAddJobForm: boolean;
 
   fetchJobs: () => Promise<void>;
+  fetchDayAreaLabels: () => Promise<void>;
   moveJob: (id: string, assignedDate: string | null) => Promise<void>;
   createJob: (input: NewJobInput) => Promise<void>;
-  setDayAreaLabel: (date: string, label: string | undefined) => void;
+  setDayAreaLabel: (date: string, label: string | undefined) => Promise<void>;
   setJobs: (jobs: Job[]) => void;
   openAddJobForm: () => void;
   closeAddJobForm: () => void;
@@ -59,6 +60,21 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
       set({ jobs: normalised, loading: false });
     } catch (e: any) {
       set({ error: e?.message ?? "Failed to load", loading: false });
+    }
+  },
+
+  async fetchDayAreaLabels() {
+    try {
+      const res = await fetch("/api/day-settings", { cache: "no-store" });
+      const text = await res.text();
+      if (!res.ok) {
+        console.error("Failed to load day settings", res.status, text);
+        return;
+      }
+      const data = JSON.parse(text) as Record<string, string | undefined>;
+      set({ dayAreaLabels: data });
+    } catch (error) {
+      console.error("Failed to load day settings", error);
     }
   },
 
@@ -145,10 +161,19 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
     }
   },
 
-  setDayAreaLabel(date, label) {
+  async setDayAreaLabel(date, label) {
     set((state) => ({
       dayAreaLabels: { ...state.dayAreaLabels, [date]: label }
     }));
+    try {
+      await fetch("/api/day-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date, label })
+      });
+    } catch (error) {
+      console.error("Failed to save day setting", error);
+    }
   },
 
   setJobs(jobs) {

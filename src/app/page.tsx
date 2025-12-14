@@ -8,12 +8,14 @@ import MobileDayView from "@/components/board/MobileDayView";
 
 export default function HomePage() {
   const router = useRouter();
-  const { fetchJobs, loading, error, openAddJobForm, jobs } = useSchedulerStore();
+  const { fetchJobs, fetchDayAreaLabels, loading, error, openAddJobForm, jobs } =
+    useSchedulerStore();
   const [search, setSearch] = useState("");
 
   // only fetch once on mount
   useEffect(() => {
     fetchJobs();
+    fetchDayAreaLabels();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
