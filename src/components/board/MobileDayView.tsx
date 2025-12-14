@@ -16,48 +16,37 @@ export default function MobileDayView() {
     return { iso, date: d, label: format(d, "EEE d/MM") };
   });
 
-  const [activeIso, setActiveIso] = useState(days[0].iso);
-
-  // Auto-select the first day that has jobs, so users immediately see bookings.
-  useEffect(() => {
-    const firstWithJobs = days.find((d) =>
-      jobs.some((j) => j.assignedDate === d.iso && j.status !== "cancelled")
-    );
-    if (firstWithJobs && firstWithJobs.iso !== activeIso) {
-      setActiveIso(firstWithJobs.iso);
-    }
-  }, [days, jobs, activeIso]);
-
-  const filtered = jobs.filter(
-    (j) => j.assignedDate === activeIso && j.status !== "cancelled"
-  );
+  // Group jobs by day for stacked mobile view
+  const jobsByDay = days.map((d) => ({
+    ...d,
+    jobs: jobs
+      .filter(
+        (j) =>
+          j.assignedDate === d.iso &&
+          j.status !== "cancelled"
+      )
+      .sort((a, b) => (a.clientName || "").localeCompare(b.clientName || ""))
+  }));
 
   return (
-    <div className="flex flex-col h-[calc(100vh-56px)]">
-      <div className="flex overflow-x-auto border-b border-amber-200 bg-amber-50">
-        {days.map((d) => (
-          <button
-            key={d.iso}
-            onClick={() => setActiveIso(d.iso)}
-            className={`px-3 py-2 text-xs flex-shrink-0 ${
-              d.iso === activeIso
-                ? "border-b-2 border-amber-600 text-amber-900 font-semibold"
-                : "text-amber-800/70"
-            }`}
-          >
-            {d.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-3 space-y-2">
-        {filtered.length === 0 && (
-          <p className="text-xs text-amber-900/70">No jobs for this day.</p>
-        )}
-        {filtered.map((j) => (
-          <JobCard job={j} key={j.id} />
-        ))}
-      </div>
+    <div className="flex flex-col h-[calc(100vh-56px)] overflow-y-auto p-3 space-y-4">
+      {jobsByDay.map((d) => (
+        <div key={d.iso} className="space-y-2">
+          <div className="flex items-center justify-between text-xs text-amber-900/80">
+            <span className="font-semibold text-amber-900">{d.label}</span>
+            <span>{d.jobs.length} job{d.jobs.length === 1 ? "" : "s"}</span>
+          </div>
+          {d.jobs.length === 0 ? (
+            <p className="text-xs text-amber-900/60">No jobs for this day.</p>
+          ) : (
+            <div className="space-y-2">
+              {d.jobs.map((j) => (
+                <JobCard job={j} key={j.id} />
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
     </div>
   );
 }
