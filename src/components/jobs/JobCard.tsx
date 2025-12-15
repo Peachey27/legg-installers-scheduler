@@ -29,6 +29,8 @@ export default function JobCard({ job }: Props) {
 
   return (
     <div
+      id={`job-${job.id}`}
+      data-job-id={job.id}
       role="button"
       tabIndex={0}
       onClick={() => router.push(`/jobs/${job.id}`)}
@@ -63,4 +65,3 @@ export default function JobCard({ job }: Props) {
     </div>
   );
 }
-

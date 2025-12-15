@@ -1,13 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { useSchedulerStore } from "@/store/useSchedulerStore";
 import WeekBoard from "@/components/board/WeekBoard";
 import MobileDayView from "@/components/board/MobileDayView";
 
 export default function HomePage() {
-  const router = useRouter();
   const { fetchJobs, fetchDayAreaLabels, loading, error, openAddJobForm, jobs } =
     useSchedulerStore();
   const [search, setSearch] = useState("");
@@ -35,6 +33,17 @@ export default function HomePage() {
       .slice(0, 8);
   }, [jobs, search]);
 
+  function scrollToJob(jobId: string) {
+    const el =
+      document.querySelector<HTMLElement>(`[data-job-id="${jobId}"]`) ??
+      document.getElementById(`job-${jobId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+      el.classList.add("ring-4", "ring-amber-400");
+      window.setTimeout(() => el.classList.remove("ring-4", "ring-amber-400"), 1800);
+    }
+  }
+
   return (
     <main className="min-h-screen flex flex-col">
       <header className="px-4 py-3 bg-amber-700 text-amber-50 shadow-md flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
@@ -58,7 +67,7 @@ export default function HomePage() {
                     className="w-full text-left px-3 py-2 text-sm hover:bg-slate-100 border-b last:border-b-0 border-slate-100"
                     onClick={() => {
                       setSearch("");
-                      router.push(`/jobs/${j.id}`);
+                      scrollToJob(j.id);
                     }}
                   >
                     <div className="font-semibold">{j.clientName}</div>
