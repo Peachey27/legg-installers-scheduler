@@ -395,13 +395,17 @@ export function JobDetailEditor({ job }: { job: Job }) {
                   if (!res.ok) {
                     throw new Error(text || "Upload failed");
                   }
-                  const data = JSON.parse(text) as { url?: string };
+                  const data = JSON.parse(text) as { url?: string; error?: string };
                   if (data.url) {
                     const slots: Array<keyof FormState> = ["photo1Url", "photo2Url", "photo3Url"];
                     const target = slots.find((key) => !form[key]);
                     if (target) {
                       updateField(target, data.url as any);
+                    } else {
+                      setError("All attachment slots are full.");
                     }
+                  } else if (data.error) {
+                    throw new Error(data.error);
                   }
                 } catch (err: any) {
                   setError(err?.message ?? "Upload failed");

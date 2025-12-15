@@ -11,6 +11,7 @@ Tech stack:
 - Zustand
 - @hello-pangea/dnd
 - date-fns
+- Vercel Blob for uploads (production)
 
 Quick start:
 
@@ -26,6 +27,9 @@ Quick start:
 
    INSTALLER_SCHEDULER_PASSWORD=your-password
    DATABASE_FILENAME=installer_scheduler.db
+   BLOB_READ_WRITE_TOKEN=your-vercel-blob-token
+
+   (On Vercel, add `BLOB_READ_WRITE_TOKEN` as a project env var for uploads.)
 
 3. Run DB seed:
 
