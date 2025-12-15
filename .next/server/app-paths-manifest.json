@@ -1,14 +1,8 @@
 {
-  "/_not-found/page": "app/_not-found/page.js",
-  "/api/logout/route": "app/api/logout/route.js",
-  "/page": "app/page.js",
-  "/api/login/route": "app/api/login/route.js",
-  "/debug-dnd/page": "app/debug-dnd/page.js",
-  "/api/jobs/[id]/route": "app/api/jobs/[id]/route.js",
   "/api/day-settings/route": "app/api/day-settings/route.js",
+  "/page": "app/page.js",
   "/api/jobs/route": "app/api/jobs/route.js",
-  "/api/upload/route": "app/api/upload/route.js",
-  "/login/page": "app/login/page.js",
-  "/jobs/[id]/print/page": "app/jobs/[id]/print/page.js",
-  "/jobs/[id]/page": "app/jobs/[id]/page.js"
+  "/api/jobs/[id]/route": "app/api/jobs/[id]/route.js",
+  "/jobs/[id]/page": "app/jobs/[id]/page.js",
+  "/jobs/[id]/print/page": "app/jobs/[id]/print/page.js"
 }

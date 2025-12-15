@@ -11,18 +11,18 @@ export async function POST(req: NextRequest) {
 
     if (!expected) {
       console.error("Missing SCHEDULER_PASSWORD env var");
-      return NextResponse.redirect(new URL("/login?error=1", req.url));
+      return NextResponse.redirect(new URL("/login?error=1", req.url), 303);
     }
 
     if (password !== expected) {
       const url = new URL("/login", req.url);
       url.searchParams.set("error", "1");
       if (from) url.searchParams.set("from", from);
-      return NextResponse.redirect(url);
+      return NextResponse.redirect(url, 303);
     }
 
     const target = from || "/";
-    const res = NextResponse.redirect(new URL(target, req.url));
+    const res = NextResponse.redirect(new URL(target, req.url), 303);
     res.cookies.set(COOKIE_NAME, "1", {
       httpOnly: true,
       sameSite: "lax",
@@ -35,6 +35,6 @@ export async function POST(req: NextRequest) {
     console.error("Login failed", error);
     const url = new URL("/login", req.url);
     url.searchParams.set("error", "1");
-    return NextResponse.redirect(url);
+    return NextResponse.redirect(url, 303);
   }
 }
