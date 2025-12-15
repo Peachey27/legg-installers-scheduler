@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import JobCard from "../jobs/JobCard";
 import { Draggable } from "@hello-pangea/dnd";
 import { useSchedulerStore } from "@/store/useSchedulerStore";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
 interface Props {
   label: string;
@@ -14,21 +14,55 @@ interface Props {
   jobs: Job[];
 }
 
+const baseAreas = ["Bairnsdale", "Lakes", "Sale", "Melbourne", "Saphire Coast"];
+const ringPalette = [
+  "border-[12px] border-blue-400 shadow-lg",
+  "border-[12px] border-green-400 shadow-lg",
+  "border-[12px] border-red-400 shadow-lg",
+  "border-[12px] border-purple-400 shadow-lg",
+  "border-[12px] border-yellow-300 shadow-lg",
+  "border-[12px] border-orange-400 shadow-lg",
+  "border-[12px] border-emerald-400 shadow-lg",
+  "border-[12px] border-amber-400 shadow-lg"
+];
+const badgePalette = [
+  "border-blue-200 text-blue-800 bg-blue-50/80 hover:bg-blue-100",
+  "border-green-200 text-green-800 bg-green-50/80 hover:bg-green-100",
+  "border-red-200 text-red-800 bg-red-50/80 hover:bg-red-100",
+  "border-purple-200 text-purple-800 bg-purple-50/80 hover:bg-purple-100",
+  "border-yellow-200 text-yellow-900 bg-yellow-50/80 hover:bg-yellow-100",
+  "border-orange-200 text-orange-800 bg-orange-50/80 hover:bg-orange-100",
+  "border-emerald-200 text-emerald-800 bg-emerald-50/80 hover:bg-emerald-100",
+  "border-amber-200 text-amber-800 bg-amber-50/80 hover:bg-amber-100"
+];
+
+function normalizeArea(area?: string | null) {
+  return (area ?? "").trim().toLowerCase();
+}
+
+function getDynamicStyle(area: string | undefined, order: string[]) {
+  if (!area) return null;
+  const idx = order.findIndex((a) => normalizeArea(a) === normalizeArea(area));
+  const pos = idx >= 0 ? idx % ringPalette.length : 0;
+  return { ring: ringPalette[pos], badge: badgePalette[pos] };
+}
+
 export default function DayColumn({ label, date, isoDate, jobs }: Props) {
   const { dayAreaLabels, setDayAreaLabel } = useSchedulerStore();
   const area = dayAreaLabels[isoDate];
-  const areaStyle = getAreaStyle(area);
   const todayIso = new Date().toISOString().slice(0, 10);
   const isToday = isoDate === todayIso;
-  const baseAreas = useMemo(
-    () => ["Bairnsdale", "Lakes", "Sale", "Melbourne", "Saphire Coast"],
-    []
-  );
-  const normalizedArea = area?.toLowerCase() ?? "";
-  const isCustomArea = area ? !baseAreas.some((a) => a.toLowerCase() === normalizedArea) : false;
-  const [customAreaInput, setCustomAreaInput] = useState(
-    isCustomArea ? area ?? "" : ""
-  );
+
+  const areaOptions = useMemo(() => {
+    const set = new Set<string>(baseAreas);
+    Object.values(dayAreaLabels).forEach((a) => {
+      if (a) set.add(a);
+    });
+    if (area) set.add(area);
+    return Array.from(set);
+  }, [area, dayAreaLabels]);
+
+  const areaStyle = getDynamicStyle(area, areaOptions);
 
   const totalHours = jobs.reduce(
     (sum, j) => sum + (j.estimatedDurationHours ?? 0),
@@ -42,7 +76,10 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
       } ${areaStyle?.ring ?? ""}`}
     >
       {isToday && (
-        <span className="absolute inset-y-0 left-0 w-1 bg-rose-500 rounded-l-2xl" aria-hidden="true" />
+        <span
+          className="absolute inset-y-0 left-0 w-1 bg-rose-500 rounded-l-2xl"
+          aria-hidden="true"
+        />
       )}
       <div className="flex items-center justify-between mb-2">
         <div>
@@ -64,53 +101,27 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
               areaStyle?.badge ??
               "border-amber-300 text-amber-800 bg-amber-50/70 hover:bg-amber-100"
             }`}
-            value={
-              isCustomArea
-                ? "__custom"
-                : baseAreas.find((a) => a.toLowerCase() === normalizedArea) ??
-                  ""
-            }
+            value={areaOptions.find((a) => normalizeArea(a) === normalizeArea(area)) ?? ""}
             onChange={(e) => {
               const val = e.target.value;
               if (val === "__custom") {
-                setCustomAreaInput("");
-                setDayAreaLabel(isoDate, undefined);
+                const custom = prompt("New area name:")?.trim();
+                if (custom) {
+                  setDayAreaLabel(isoDate, custom);
+                }
               } else {
-                setCustomAreaInput("");
                 setDayAreaLabel(isoDate, val || undefined);
               }
             }}
           >
             <option value="">Set area</option>
-            {baseAreas.map((a) => (
+            {areaOptions.map((a) => (
               <option key={a} value={a}>
                 {a}
               </option>
             ))}
             <option value="__custom">Add new area</option>
           </select>
-          { (isCustomArea || customAreaInput) && (
-            <div className="flex items-center gap-1">
-              <input
-                className="text-xs rounded border border-amber-200 px-2 py-1 bg-white"
-                placeholder="Custom area"
-                value={customAreaInput || area || ""}
-                onChange={(e) => setCustomAreaInput(e.target.value)}
-              />
-              <button
-                className="text-[11px] px-2 py-1 rounded border border-amber-300 text-amber-800 bg-amber-50/70 hover:bg-amber-100"
-                onClick={() => {
-                  const trimmed = (customAreaInput || area || "").trim();
-                  setDayAreaLabel(isoDate, trimmed || undefined);
-                  if (!trimmed) {
-                    setCustomAreaInput("");
-                  }
-                }}
-              >
-                Save
-              </button>
-            </div>
-          )}
         </div>
       </div>
 
@@ -132,60 +143,4 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
       </div>
     </div>
   );
-}
-
-function getAreaStyle(label?: string) {
-  if (!label) return null;
-  const normalized = label.toLowerCase().replace(/[^a-z]/g, "");
-
-  const styleMap: Record<string, { ring: string; badge: string }> = {
-    bairnsdale: {
-      ring: "border-[12px] border-blue-400 shadow-lg",
-      badge: "border-blue-200 text-blue-800 bg-blue-50/80 hover:bg-blue-100"
-    },
-    bdale: {
-      ring: "border-[12px] border-blue-400 shadow-lg",
-      badge: "border-blue-200 text-blue-800 bg-blue-50/80 hover:bg-blue-100"
-    },
-    lakesentrance: {
-      ring: "border-[12px] border-green-400 shadow-lg",
-      badge:
-        "border-green-200 text-green-800 bg-green-50/80 hover:bg-green-100"
-    },
-    lakes: {
-      ring: "border-[12px] border-green-400 shadow-lg",
-      badge:
-        "border-green-200 text-green-800 bg-green-50/80 hover:bg-green-100"
-    },
-    orbost: {
-      ring: "border-[12px] border-orange-400 shadow-lg",
-      badge:
-        "border-orange-200 text-orange-800 bg-orange-50/80 hover:bg-orange-100"
-    },
-    saphirecoast: {
-      ring: "border-[12px] border-yellow-300 shadow-lg",
-      badge:
-        "border-yellow-200 text-yellow-900 bg-yellow-50/80 hover:bg-yellow-100"
-    },
-    sapphirecoast: {
-      ring: "border-[12px] border-yellow-300 shadow-lg",
-      badge:
-        "border-yellow-200 text-yellow-900 bg-yellow-50/80 hover:bg-yellow-100"
-    },
-    melbourne: {
-      ring: "border-[12px] border-red-400 shadow-lg",
-      badge: "border-red-200 text-red-800 bg-red-50/80 hover:bg-red-100"
-    },
-    melb: {
-      ring: "border-[12px] border-red-400 shadow-lg",
-      badge: "border-red-200 text-red-800 bg-red-50/80 hover:bg-red-100"
-    },
-    sale: {
-      ring: "border-[12px] border-purple-400 shadow-lg",
-      badge:
-        "border-purple-200 text-purple-800 bg-purple-50/80 hover:bg-purple-100"
-    }
-  };
-
-  return styleMap[normalized] ?? null;
 }

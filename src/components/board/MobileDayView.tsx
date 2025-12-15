@@ -43,6 +43,14 @@ export default function MobileDayView() {
     [days, jobs]
   );
 
+  const areaOptions = useMemo(() => {
+    const set = new Set<string>(["Bairnsdale", "Lakes", "Sale", "Melbourne", "Saphire Coast"]);
+    Object.values(dayAreaLabels).forEach((a) => {
+      if (a) set.add(a);
+    });
+    return Array.from(set);
+  }, [dayAreaLabels]);
+
   return (
     <div className="flex flex-col h-[calc(100vh-56px)] overflow-hidden">
       <div className="flex items-center gap-2 px-3 py-2 text-xs text-amber-900/80">
@@ -77,7 +85,7 @@ export default function MobileDayView() {
         {jobsByDay.map((d) => {
           const todayIso = new Date().toISOString().slice(0, 10);
           const isToday = d.iso === todayIso;
-          const areaStyle = getAreaStyle(d.area);
+          const areaStyle = getAreaStyle(d.area, areaOptions);
           return (
             <div
               key={d.iso}
@@ -106,10 +114,7 @@ export default function MobileDayView() {
                     "border-amber-300 text-amber-800 bg-amber-50/70 hover:bg-amber-100"
                   }`}
                   onClick={() => {
-                    const newLabel = prompt(
-                      "Area label for this day (e.g. Bairnsdale):",
-                      d.area ?? ""
-                    );
+                    const newLabel = prompt("Area label for this day:", d.area ?? "");
                     if (newLabel !== null) {
                       const trimmed = newLabel.trim();
                       setDayAreaLabel(d.iso, trimmed || undefined);
@@ -134,58 +139,33 @@ export default function MobileDayView() {
   );
 }
 
-function getAreaStyle(label?: string) {
+function normalizeArea(area?: string | null) {
+  return (area ?? "").trim().toLowerCase();
+}
+
+function getAreaStyle(label: string | undefined, order: string[]) {
   if (!label) return null;
-  const normalized = label.toLowerCase().replace(/[^a-z]/g, "");
-
-  const styleMap: Record<string, { ring: string; badge: string }> = {
-    bairnsdale: {
-      ring: "border-[12px] border-blue-400 shadow-lg",
-      badge: "border-blue-200 text-blue-800 bg-blue-50/80 hover:bg-blue-100"
-    },
-    bdale: {
-      ring: "border-[12px] border-blue-400 shadow-lg",
-      badge: "border-blue-200 text-blue-800 bg-blue-50/80 hover:bg-blue-100"
-    },
-    lakesentrance: {
-      ring: "border-[12px] border-green-400 shadow-lg",
-      badge:
-        "border-green-200 text-green-800 bg-green-50/80 hover:bg-green-100"
-    },
-    lakes: {
-      ring: "border-[12px] border-green-400 shadow-lg",
-      badge:
-        "border-green-200 text-green-800 bg-green-50/80 hover:bg-green-100"
-    },
-    orbost: {
-      ring: "border-[12px] border-orange-400 shadow-lg",
-      badge:
-        "border-orange-200 text-orange-800 bg-orange-50/80 hover:bg-orange-100"
-    },
-    saphirecoast: {
-      ring: "border-[12px] border-yellow-300 shadow-lg",
-      badge:
-        "border-yellow-200 text-yellow-900 bg-yellow-50/80 hover:bg-yellow-100"
-    },
-    sapphirecoast: {
-      ring: "border-[12px] border-yellow-300 shadow-lg",
-      badge:
-        "border-yellow-200 text-yellow-900 bg-yellow-50/80 hover:bg-yellow-100"
-    },
-    melbourne: {
-      ring: "border-[12px] border-red-400 shadow-lg",
-      badge: "border-red-200 text-red-800 bg-red-50/80 hover:bg-red-100"
-    },
-    melb: {
-      ring: "border-[12px] border-red-400 shadow-lg",
-      badge: "border-red-200 text-red-800 bg-red-50/80 hover:bg-red-100"
-    },
-    sale: {
-      ring: "border-[12px] border-purple-400 shadow-lg",
-      badge:
-        "border-purple-200 text-purple-800 bg-purple-50/80 hover:bg-purple-100"
-    }
-  };
-
-  return styleMap[normalized] ?? null;
+  const ringPalette = [
+    "border-[12px] border-blue-400 shadow-lg",
+    "border-[12px] border-green-400 shadow-lg",
+    "border-[12px] border-red-400 shadow-lg",
+    "border-[12px] border-purple-400 shadow-lg",
+    "border-[12px] border-yellow-300 shadow-lg",
+    "border-[12px] border-orange-400 shadow-lg",
+    "border-[12px] border-emerald-400 shadow-lg",
+    "border-[12px] border-amber-400 shadow-lg"
+  ];
+  const badgePalette = [
+    "border-blue-200 text-blue-800 bg-blue-50/80 hover:bg-blue-100",
+    "border-green-200 text-green-800 bg-green-50/80 hover:bg-green-100",
+    "border-red-200 text-red-800 bg-red-50/80 hover:bg-red-100",
+    "border-purple-200 text-purple-800 bg-purple-50/80 hover:bg-purple-100",
+    "border-yellow-200 text-yellow-900 bg-yellow-50/80 hover:bg-yellow-100",
+    "border-orange-200 text-orange-800 bg-orange-50/80 hover:bg-orange-100",
+    "border-emerald-200 text-emerald-800 bg-emerald-50/80 hover:bg-emerald-100",
+    "border-amber-200 text-amber-800 bg-amber-50/80 hover:bg-amber-100"
+  ];
+  const idx = order.findIndex((a) => normalizeArea(a) === normalizeArea(label));
+  const pos = idx >= 0 ? idx % ringPalette.length : 0;
+  return { ring: ringPalette[pos], badge: badgePalette[pos] };
 }
