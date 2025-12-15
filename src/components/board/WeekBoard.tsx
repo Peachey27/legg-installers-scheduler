@@ -5,14 +5,14 @@ import { DragDropContext, Droppable, DropResult } from "@hello-pangea/dnd";
 import { useSchedulerStore } from "@/store/useSchedulerStore";
 import DayColumn from "./DayColumn";
 import BacklogColumn from "./BacklogColumn";
-import { addDays, addWeeks, format } from "date-fns";
+import { addDays, format } from "date-fns";
 
 export default function WeekBoard() {
   const { jobs, moveJob, dayAreaLabels } = useSchedulerStore();
   const [weekOffset, setWeekOffset] = useState(0); // 0 = start at today, each step = 5 weekdays
 
   const today = new Date();
-  const startDate = addWeeks(today, weekOffset); // shift in 5-day (workweek) blocks
+  const startDate = addDays(today, weekOffset * 5); // shift in 5-day (workweek) blocks
 
   const days = useMemo(() => {
     const result: { label: string; date: Date; iso: string }[] = [];
