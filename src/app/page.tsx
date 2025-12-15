@@ -38,6 +38,15 @@ export default function HomePage() {
       document.querySelector<HTMLElement>(`[data-job-id="${jobId}"]`) ??
       document.getElementById(`job-${jobId}`);
     if (el) {
+      // Scroll nearest horizontal container if present
+      const scrollContainer = el.closest<HTMLElement>("[data-scroll-container]");
+      if (scrollContainer) {
+        const rect = el.getBoundingClientRect();
+        const parentRect = scrollContainer.getBoundingClientRect();
+        const offsetLeft = rect.left - parentRect.left + scrollContainer.scrollLeft;
+        const targetLeft = offsetLeft - parentRect.width / 2 + rect.width / 2;
+        scrollContainer.scrollTo({ left: targetLeft, behavior: "smooth" });
+      }
       el.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
       el.classList.add("ring-4", "ring-amber-400");
       window.setTimeout(() => el.classList.remove("ring-4", "ring-amber-400"), 1800);

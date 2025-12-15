@@ -72,6 +72,7 @@ export default function MobileDayView() {
       <div
         className="flex flex-1 overflow-x-auto overflow-y-hidden px-3 pb-4 gap-3"
         style={{ WebkitOverflowScrolling: "touch" }}
+        data-scroll-container="board"
       >
         {jobsByDay.map((d) => (
           <div

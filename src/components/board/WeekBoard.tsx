@@ -110,7 +110,10 @@ export default function WeekBoard() {
           </span>
         </div>
 
-        <div className="flex-1 flex overflow-x-scroll px-4 py-3 gap-3 scrollbar-thin">
+        <div
+          className="flex-1 flex overflow-x-scroll px-4 py-3 gap-3 scrollbar-thin"
+          data-scroll-container="board"
+        >
           <Droppable droppableId="backlog">
             {(provided) => (
               <div
