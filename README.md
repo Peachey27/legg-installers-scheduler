@@ -28,8 +28,10 @@ Quick start:
    INSTALLER_SCHEDULER_PASSWORD=your-password
    DATABASE_FILENAME=installer_scheduler.db
    BLOB_READ_WRITE_TOKEN=your-vercel-blob-token
+   SCHEDULER_PASSWORD=your-shared-password
 
    (On Vercel, add `BLOB_READ_WRITE_TOKEN` as a project env var for uploads.)
+   - Add `SCHEDULER_PASSWORD` on Vercel to enable the login gate.
 
 3. Run DB seed:
 
@@ -48,3 +50,4 @@ Notes:
 - File uploads via /api/upload save into public/uploads (dev only).
 - Jobs are soft-deleted with `deletedAt`.
 - Print view: open any job, click "Print card" to open /jobs/[id]/print.
+- Login gate: shared password stored in `SCHEDULER_PASSWORD`; `/api/login` sets a `scheduler_auth` cookie, middleware protects the app; `/api/logout` clears it.

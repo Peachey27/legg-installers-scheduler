@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/api/upload", "/api/jobs", "/_next", "/favicon.ico"];
+const PUBLIC_PATHS = ["/login", "/api/login", "/api/logout", "/_next", "/favicon.ico"];
+const COOKIE_NAME = "scheduler_auth";
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -9,7 +10,7 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  const cookie = req.cookies.get("installer_auth")?.value;
+  const cookie = req.cookies.get(COOKIE_NAME)?.value;
   if (cookie === "1") return NextResponse.next();
 
   const loginUrl = new URL("/login", req.url);

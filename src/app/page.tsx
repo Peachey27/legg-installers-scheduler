@@ -156,6 +156,14 @@ export default function HomePage() {
           >
             + Add job
           </button>
+          <form action="/api/logout" method="POST">
+            <button
+              type="submit"
+              className="px-3 py-1 rounded-lg border border-red-600 text-red-700 hover:bg-red-50"
+            >
+              Logout
+            </button>
+          </form>
         </div>
       </header>
 
