@@ -68,9 +68,9 @@ export default function MobileDayView() {
         </button>
         <button
           className="px-2 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
-          onClick={() => setWeekOffset((v) => v + 4)}
+          onClick={() => setWeekOffset((v) => v + 1)}
         >
-          +4 weeks →
+          Next week →
         </button>
         <span className="ml-auto text-[11px]">
           Week of {format(days[0].date, "d MMM")}

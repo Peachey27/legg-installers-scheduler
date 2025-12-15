@@ -120,9 +120,9 @@ export default function WeekBoard() {
           </button>
           <button
             className="px-3 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
-            onClick={() => setWeekOffset((v) => v + 4)}
+            onClick={() => setWeekOffset((v) => v + 1)}
           >
-            +4 weeks →
+            Next week →
           </button>
           <span className="ml-auto text-xs">
             Starting {format(days[0].date, "d MMM")}
