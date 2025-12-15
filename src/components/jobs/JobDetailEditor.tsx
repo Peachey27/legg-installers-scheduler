@@ -87,6 +87,55 @@ export function JobDetailEditor({ job }: { job: Job }) {
   const [error, setError] = useState<string | null>(null);
   const [savedMessage, setSavedMessage] = useState("");
 
+  async function compressImage(file: File): Promise<File> {
+    if (!file.type.startsWith("image/")) return file;
+    const loadImage = (src: string) =>
+      new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = src;
+      });
+
+    const createBlob = async (
+      img: HTMLImageElement,
+      maxWidth: number,
+      quality: number
+    ) => {
+      const canvas = document.createElement("canvas");
+      const scale = img.width > maxWidth ? maxWidth / img.width : 1;
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("No canvas context");
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      return new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob(
+          (blob) => (blob ? resolve(blob) : reject(new Error("Blob failed"))),
+          "image/jpeg",
+          quality
+        );
+      });
+    };
+
+    let img: HTMLImageElement | null = null;
+    const objectUrl = URL.createObjectURL(file);
+    try {
+      img = await loadImage(objectUrl);
+      let blob = await createBlob(img, 1600, 0.75);
+      if (blob.size > 2 * 1024 * 1024) {
+        blob = await createBlob(img, 1280, 0.6);
+      }
+      const name = file.name.replace(/\.[^.]+$/, "") + ".jpg";
+      return new File([blob], name, { type: "image/jpeg", lastModified: Date.now() });
+    } catch (err) {
+      console.error("Image compression failed, using original file", err);
+      return file;
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
+  }
+
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
@@ -335,8 +384,9 @@ export function JobDetailEditor({ job }: { job: Job }) {
                 setSaving(true);
                 setError(null);
                 try {
+                  const compressed = await compressImage(file);
                   const formData = new FormData();
-                  formData.append("file", file);
+                  formData.append("file", compressed);
                   const res = await fetch("/api/upload", {
                     method: "POST",
                     body: formData
