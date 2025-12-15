@@ -74,41 +74,61 @@ export default function MobileDayView() {
         style={{ WebkitOverflowScrolling: "touch" }}
         data-scroll-container="board"
       >
-        {jobsByDay.map((d) => (
-          <div
-            key={d.iso}
-            className={`min-w-[240px] flex-shrink-0 bg-[#f6f0e7]/90 border border-amber-200/70 rounded-xl shadow-inner p-3 flex flex-col gap-2 ${getAreaStyle(d.area)?.ring ?? ""}`}
-          >
-          <div className="text-xs font-semibold text-amber-900 flex items-center justify-between">
-            <span>{d.label}</span>
-              <button
-                className={`text-[11px] px-2 py-1 rounded-full border transition-colors ${
-                  getAreaStyle(d.area)?.badge ??
-                  "border-amber-300 text-amber-800 bg-amber-50/70 hover:bg-amber-100"
-                }`}
-                onClick={() => {
-                  const newLabel = prompt(
-                    "Area label for this day (e.g. Bairnsdale):",
-                    d.area ?? ""
-                  );
-                  if (newLabel !== null) {
-                    const trimmed = newLabel.trim();
-                    setDayAreaLabel(d.iso, trimmed || undefined);
-                  }
-                }}
-              >
-                {d.area ? d.area : "Set area"}
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto space-y-2">
-              {d.jobs.length === 0 ? (
-                <p className="text-[11px] text-amber-900/70">No jobs for this day.</p>
-              ) : (
-                d.jobs.map((j) => <JobCard job={j} key={j.id} />)
+        {jobsByDay.map((d) => {
+          const todayIso = new Date().toISOString().slice(0, 10);
+          const isToday = d.iso === todayIso;
+          const areaStyle = getAreaStyle(d.area);
+          return (
+            <div
+              key={d.iso}
+              className={`relative min-w-[240px] flex-shrink-0 border border-amber-200/70 rounded-xl shadow-inner p-3 flex flex-col gap-2 ${
+                isToday ? "bg-rose-50" : "bg-[#f6f0e7]/90"
+              } ${areaStyle?.ring ?? ""}`}
+            >
+              {isToday && (
+                <span
+                  className="absolute inset-y-0 left-0 w-1 bg-rose-500 rounded-l-xl"
+                  aria-hidden="true"
+                />
               )}
+              <div className="text-xs font-semibold text-amber-900 flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  {isToday && (
+                    <span className="inline-flex items-center px-2 py-1 text-[11px] font-semibold text-white bg-rose-500 rounded-full shadow">
+                      Today
+                    </span>
+                  )}
+                  {d.label}
+                </span>
+                <button
+                  className={`text-[11px] px-2 py-1 rounded-full border transition-colors ${
+                    areaStyle?.badge ??
+                    "border-amber-300 text-amber-800 bg-amber-50/70 hover:bg-amber-100"
+                  }`}
+                  onClick={() => {
+                    const newLabel = prompt(
+                      "Area label for this day (e.g. Bairnsdale):",
+                      d.area ?? ""
+                    );
+                    if (newLabel !== null) {
+                      const trimmed = newLabel.trim();
+                      setDayAreaLabel(d.iso, trimmed || undefined);
+                    }
+                  }}
+                >
+                  {d.area ? d.area : "Set area"}
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto space-y-2">
+                {d.jobs.length === 0 ? (
+                  <p className="text-[11px] text-amber-900/70">No jobs for this day.</p>
+                ) : (
+                  d.jobs.map((j) => <JobCard job={j} key={j.id} />)
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
