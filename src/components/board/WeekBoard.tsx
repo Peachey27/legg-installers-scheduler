@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { DragDropContext, Droppable, DropResult } from "@hello-pangea/dnd";
 import { useSchedulerStore } from "@/store/useSchedulerStore";
 import DayColumn from "./DayColumn";
@@ -10,6 +10,9 @@ import { addDays, format } from "date-fns";
 export default function WeekBoard() {
   const { jobs, moveJob, dayAreaLabels } = useSchedulerStore();
   const [weekOffset, setWeekOffset] = useState(0); // 0 = start at today, each step = 5 weekdays
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [scrollPos, setScrollPos] = useState(0);
+  const [scrollMax, setScrollMax] = useState(0);
 
   const today = new Date();
   const startDate = addDays(today, weekOffset * 5); // shift in 5-day (workweek) blocks
@@ -83,6 +86,22 @@ export default function WeekBoard() {
     void moveJob(draggableId, assignedDate);
   }
 
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const handle = () => {
+      setScrollPos(el.scrollLeft);
+      setScrollMax(Math.max(el.scrollWidth - el.clientWidth, 0));
+    };
+    handle();
+    el.addEventListener("scroll", handle);
+    window.addEventListener("resize", handle);
+    return () => {
+      el.removeEventListener("scroll", handle);
+      window.removeEventListener("resize", handle);
+    };
+  }, [days]);
+
   return (
     <DragDropContext onDragEnd={onDragEnd}>
       <div className="flex flex-col h-[calc(100vh-56px)]">
@@ -111,8 +130,9 @@ export default function WeekBoard() {
         </div>
 
         <div
-          className="flex-1 flex overflow-x-scroll px-4 py-3 gap-3 scrollbar-thin"
+          className="flex-1 flex overflow-x-auto overflow-y-hidden px-4 pb-6 pt-3 gap-3 scrollbar-thin board-scroll"
           data-scroll-container="board"
+          ref={scrollRef}
         >
           <Droppable droppableId="backlog">
             {(provided) => (
@@ -146,6 +166,22 @@ export default function WeekBoard() {
               )}
             </Droppable>
           ))}
+        </div>
+        <div className="px-4 pb-2">
+          <input
+            type="range"
+            min={0}
+            max={scrollMax || 1}
+            value={scrollPos}
+            onChange={(e) => {
+              const el = scrollRef.current;
+              if (!el) return;
+              const val = Number(e.target.value);
+              el.scrollTo({ left: val });
+              setScrollPos(val);
+            }}
+            className="w-full h-6 accent-amber-600"
+          />
         </div>
       </div>
     </DragDropContext>

@@ -29,6 +29,16 @@ body {
   border: 6px solid #fef3c7;
 }
 
+.board-scroll::-webkit-scrollbar {
+  height: 48px;
+}
+
+.board-scroll {
+  overflow-x: scroll;
+  scrollbar-gutter: stable both-edges;
+  scrollbar-width: auto;
+}
+
 /* Mobile scale-down */
 @media (max-width: 768px) {
   .mobile-scale {

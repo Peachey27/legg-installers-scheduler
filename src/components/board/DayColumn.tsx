@@ -18,6 +18,8 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
   const { dayAreaLabels, setDayAreaLabel } = useSchedulerStore();
   const area = dayAreaLabels[isoDate];
   const areaStyle = getAreaStyle(area);
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const isToday = isoDate === todayIso;
   const baseAreas = useMemo(
     () => ["Bairnsdale", "Lakes", "Sale", "Melbourne", "Saphire Coast"],
     []
@@ -35,13 +37,23 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
 
   return (
     <div
-      className={`h-full rounded-2xl bg-[#f6f0e7]/90 border border-amber-200/70 shadow-inner flex flex-col p-3 transition-shadow ${areaStyle?.ring ?? ""}`}
+      className={`relative h-full rounded-2xl border border-amber-200/70 shadow-inner flex flex-col p-3 transition-shadow ${
+        isToday ? "bg-rose-50" : "bg-[#f6f0e7]/90"
+      } ${areaStyle?.ring ?? ""}`}
     >
+      {isToday && (
+        <span className="absolute inset-y-0 left-0 w-1 bg-rose-500 rounded-l-2xl" aria-hidden="true" />
+      )}
       <div className="flex items-center justify-between mb-2">
         <div>
           <div className="text-sm font-semibold text-amber-900">
             {label} {format(date, "d/MM")}
           </div>
+          {isToday && (
+            <span className="inline-flex items-center px-2 py-1 mt-1 text-[11px] font-semibold text-white bg-rose-500 rounded-full shadow">
+              Today
+            </span>
+          )}
           <div className="text-xs text-amber-900/70">
             Total hours: {totalHours.toFixed(1)}h
           </div>
