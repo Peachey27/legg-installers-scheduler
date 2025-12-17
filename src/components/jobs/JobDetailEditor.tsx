@@ -1,7 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { AreaTag, Job, JobStatus } from "@/lib/types";
+import type {
+  AreaTag,
+  Job,
+  JobStatus,
+  MaterialProductUpdate
+} from "@/lib/types";
 import { useRouter } from "next/navigation";
 
 type FormState = {
@@ -28,6 +33,7 @@ type FormState = {
   photo1Url: string;
   photo2Url: string;
   photo3Url: string;
+  materialProductUpdates: MaterialProductUpdate[];
 };
 
 const baseAreaOptions: string[] = [
@@ -44,6 +50,13 @@ const statusOptions: string[] = [
   "in_progress",
   "completed",
   "cancelled"
+];
+const materialUpdateOptions: string[] = [
+  "Glass due date",
+  "Product made ready for install",
+  "Rework due date",
+  "Angles",
+  "Add custom note"
 ];
 
 export function JobDetailEditor({ job }: { job: Job }) {
@@ -81,11 +94,17 @@ export function JobDetailEditor({ job }: { job: Job }) {
     factoryJobId: job.factoryJobId ?? "",
     photo1Url: job.photo1Url ?? "",
     photo2Url: job.photo2Url ?? "",
-    photo3Url: job.photo3Url ?? ""
+    photo3Url: job.photo3Url ?? "",
+    materialProductUpdates: job.materialProductUpdates ?? []
   }));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedMessage, setSavedMessage] = useState("");
+  const [selectedMaterialOption, setSelectedMaterialOption] = useState(
+    materialUpdateOptions[0]
+  );
+  const [customMaterialLabel, setCustomMaterialLabel] = useState("");
+  const [materialDate, setMaterialDate] = useState("");
 
   async function compressImage(file: File): Promise<File> {
     if (!file.type.startsWith("image/")) return file;
@@ -170,9 +189,39 @@ export function JobDetailEditor({ job }: { job: Job }) {
       factoryJobId: job.factoryJobId ?? "",
       photo1Url: job.photo1Url ?? "",
       photo2Url: job.photo2Url ?? "",
-      photo3Url: job.photo3Url ?? ""
+      photo3Url: job.photo3Url ?? "",
+      materialProductUpdates: job.materialProductUpdates ?? []
     });
     setError(null);
+    setSavedMessage("");
+    setSelectedMaterialOption(materialUpdateOptions[0]);
+    setCustomMaterialLabel("");
+    setMaterialDate("");
+  }
+
+  function generateMaterialUpdateId() {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      return crypto.randomUUID();
+    }
+    return `mpu_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+  }
+
+  function addMaterialUpdate(label: string, date: string) {
+    setForm((prev) => ({
+      ...prev,
+      materialProductUpdates: [
+        ...prev.materialProductUpdates,
+        { id: generateMaterialUpdateId(), label, date }
+      ]
+    }));
+    setSavedMessage("");
+  }
+
+  function removeMaterialUpdate(id: string) {
+    setForm((prev) => ({
+      ...prev,
+      materialProductUpdates: prev.materialProductUpdates.filter((u) => u.id !== id)
+    }));
     setSavedMessage("");
   }
 
@@ -218,7 +267,14 @@ export function JobDetailEditor({ job }: { job: Job }) {
       factoryJobId: form.factoryJobId.trim() || null,
       photo1Url: form.photo1Url.trim() || null,
       photo2Url: form.photo2Url.trim() || null,
-      photo3Url: form.photo3Url.trim() || null
+      photo3Url: form.photo3Url.trim() || null,
+      materialProductUpdates: form.materialProductUpdates
+        .map((item) => ({
+          ...item,
+          label: item.label.trim(),
+          date: item.date
+        }))
+        .filter((item) => item.label && item.date)
     };
 
     try {
@@ -240,6 +296,27 @@ export function JobDetailEditor({ job }: { job: Job }) {
       setSaving(false);
       setError(err?.message ?? "Failed to save job");
     }
+  }
+
+  function handleAddMaterialNote() {
+    const label =
+      selectedMaterialOption === "Add custom note"
+        ? customMaterialLabel.trim()
+        : selectedMaterialOption;
+    if (!label) {
+      setError("Please choose or enter an update label.");
+      return;
+    }
+    if (!materialDate) {
+      setError("Please pick a date for the update.");
+      return;
+    }
+    setError(null);
+    addMaterialUpdate(label, materialDate);
+    if (selectedMaterialOption === "Add custom note") {
+      setCustomMaterialLabel("");
+    }
+    setMaterialDate("");
   }
 
   return (
@@ -505,6 +582,96 @@ export function JobDetailEditor({ job }: { job: Job }) {
                 onChange={(e) => updateField("factoryJobId", e.target.value)}
               />
             </label>
+          </div>
+        </section>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-3">
+        <section className="md:col-span-2 space-y-3 rounded-xl border border-emerald-200 bg-emerald-50/80 p-4">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-sm font-semibold text-emerald-900">
+              Material & product updates
+            </div>
+            {form.materialProductUpdates.length > 0 && (
+              <span className="text-[11px] font-semibold text-emerald-700">
+                "See Note" will show on the main card
+              </span>
+            )}
+          </div>
+          <div className="flex flex-col gap-2 md:flex-row md:items-end">
+            <label className="flex-1 space-y-1 text-xs text-emerald-900/80">
+              <span>Choose an update</span>
+              <select
+                className="w-full rounded border border-emerald-200 px-3 py-2 bg-white"
+                value={selectedMaterialOption}
+                onChange={(e) => setSelectedMaterialOption(e.target.value)}
+              >
+                {materialUpdateOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {selectedMaterialOption === "Add custom note" && (
+              <label className="flex-1 space-y-1 text-xs text-emerald-900/80">
+                <span>Custom label</span>
+                <input
+                  className="w-full rounded border border-emerald-200 px-3 py-2 bg-white"
+                  placeholder="e.g. Hardware arrival"
+                  value={customMaterialLabel}
+                  onChange={(e) => setCustomMaterialLabel(e.target.value)}
+                />
+              </label>
+            )}
+
+            <label className="w-full md:w-44 space-y-1 text-xs text-emerald-900/80">
+              <span>Target date</span>
+              <input
+                type="date"
+                className="w-full rounded border border-emerald-200 px-3 py-2 bg-white"
+                value={materialDate}
+                onChange={(e) => setMaterialDate(e.target.value)}
+              />
+            </label>
+
+            <button
+              type="button"
+              className="shrink-0 px-3 py-2 rounded bg-emerald-700 text-white hover:bg-emerald-600 text-xs"
+              onClick={handleAddMaterialNote}
+              disabled={saving}
+            >
+              Add
+            </button>
+          </div>
+
+          <div className="space-y-2">
+            {form.materialProductUpdates.length === 0 ? (
+              <p className="text-xs text-emerald-900/70">
+                Choose an item and date to start a materials/product note for this job.
+              </p>
+            ) : (
+              form.materialProductUpdates.map((update) => (
+                <div
+                  key={update.id}
+                  className="flex items-center justify-between rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm text-emerald-900"
+                >
+                  <div className="space-y-0.5">
+                    <p className="font-medium">{update.label}</p>
+                    <p className="text-[11px] text-emerald-700">Date: {update.date}</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="text-xs text-red-700 hover:text-red-900"
+                    onClick={() => removeMaterialUpdate(update.id)}
+                    disabled={saving}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))
+            )}
           </div>
         </section>
       </div>

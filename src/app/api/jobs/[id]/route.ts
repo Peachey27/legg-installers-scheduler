@@ -19,10 +19,16 @@ export async function GET(_req: NextRequest, { params }: Params) {
 export async function PUT(req: NextRequest, { params }: Params) {
   try {
     const body = await req.json();
+    const normalizedBody = {
+      ...body,
+      materialProductUpdates: Array.isArray(body.materialProductUpdates)
+        ? body.materialProductUpdates
+        : []
+    };
     const updatePayload =
-      body.status === "cancelled"
-        ? { ...body, deletedAt: new Date().toISOString() }
-        : body;
+      normalizedBody.status === "cancelled"
+        ? { ...normalizedBody, deletedAt: new Date().toISOString() }
+        : normalizedBody;
 
     await db.update(jobs).set(updatePayload).where(eq(jobs.id, params.id));
     return NextResponse.json({ ok: true });

@@ -1,6 +1,13 @@
 // Allow any backend string value
+// Allow any backend string value
 export type JobStatus = string;
 export type AreaTag = string;
+
+export interface MaterialProductUpdate {
+  id: string;
+  label: string;
+  date: string;
+}
 
 export interface Job {
   id: string;
@@ -20,6 +27,7 @@ export interface Job {
   glassOrProductDetails: string | null;
   quotedRange: string | null;
   internalNotes: string | null;
+  materialProductUpdates: MaterialProductUpdate[];
 
   assignedDate: string | null;
   estimatedDurationHours: number | null;

@@ -39,6 +39,9 @@ export async function POST(req: NextRequest) {
       glassOrProductDetails: body.glassOrProductDetails ?? null,
       quotedRange: body.quotedRange ?? null,
       internalNotes: body.internalNotes ?? null,
+      materialProductUpdates: Array.isArray(body.materialProductUpdates)
+        ? body.materialProductUpdates
+        : [],
       assignedDate: body.assignedDate ?? null,
       estimatedDurationHours: body.estimatedDurationHours ?? null,
       crew: body.crew ?? null,

@@ -1,4 +1,5 @@
-import { pgTable, text, real } from "drizzle-orm/pg-core";
+import { pgTable, text, real, jsonb } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 export const jobs = pgTable("jobs", {
   id: text("id").primaryKey().notNull(),
@@ -21,6 +22,16 @@ export const jobs = pgTable("jobs", {
   glassOrProductDetails: text("glass_or_product_details"),
   quotedRange: text("quoted_range"),
   internalNotes: text("internal_notes"),
+  materialProductUpdates: jsonb("material_product_updates")
+    .$type<
+      Array<{
+        id: string;
+        label: string;
+        date: string;
+      }>
+    >()
+    .notNull()
+    .default(sql`'[]'::jsonb`),
 
   assignedDate: text("assigned_date"),
   estimatedDurationHours: real("estimated_duration_hours"),

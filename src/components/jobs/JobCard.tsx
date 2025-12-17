@@ -57,6 +57,12 @@ export default function JobCard({ job }: Props) {
       <div className="text-xs text-slate-500 line-clamp-2 mt-1">
         {job.description}
       </div>
+      {job.materialProductUpdates?.length ? (
+        <div className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
+          <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
+          <span>See Note</span>
+        </div>
+      ) : null}
       {job.estimatedDurationHours && (
         <div className="mt-1 text-[11px] text-slate-500">
           ~{job.estimatedDurationHours}h - {job.crew ?? "Install crew"}

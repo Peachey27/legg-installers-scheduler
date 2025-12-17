@@ -54,7 +54,10 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
         .filter((j) => !j.deletedAt)
         .map((j) => ({
           ...j,
-          id: String(j.id)
+          id: String(j.id),
+          materialProductUpdates: Array.isArray((j as any).materialProductUpdates)
+            ? (j as any).materialProductUpdates
+            : []
         })) as Job[];
 
       set({ jobs: normalised, loading: false });
@@ -116,6 +119,7 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
       glassOrProductDetails: null,
       quotedRange: null,
       internalNotes: null,
+      materialProductUpdates: [],
       crew: null,
       factoryJobId: null,
       photo1Url: null,
