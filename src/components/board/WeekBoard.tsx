@@ -25,7 +25,7 @@ export default function WeekBoard() {
       const day = cursor.getDay();
       if (day !== 0 && day !== 6) {
         const iso = format(cursor, "yyyy-MM-dd");
-        result.push({ label: format(cursor, "EEE d/M"), date: new Date(cursor), iso });
+        result.push({ label: format(cursor, "EEE"), date: new Date(cursor), iso });
       }
       cursor = addDays(cursor, 1);
     }
