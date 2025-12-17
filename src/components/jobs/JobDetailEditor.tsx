@@ -56,7 +56,7 @@ const materialUpdateOptions: string[] = [
   "Product made ready for install",
   "Rework due date",
   "Angles",
-  "Add custom note"
+  "Add item"
 ];
 
 export function JobDetailEditor({ job }: { job: Job }) {
@@ -105,6 +105,7 @@ export function JobDetailEditor({ job }: { job: Job }) {
   );
   const [customMaterialLabel, setCustomMaterialLabel] = useState("");
   const [materialDate, setMaterialDate] = useState("");
+  const [showNotesModal, setShowNotesModal] = useState(false);
 
   async function compressImage(file: File): Promise<File> {
     if (!file.type.startsWith("image/")) return file;
@@ -197,6 +198,7 @@ export function JobDetailEditor({ job }: { job: Job }) {
     setSelectedMaterialOption(materialUpdateOptions[0]);
     setCustomMaterialLabel("");
     setMaterialDate("");
+    setShowNotesModal(false);
   }
 
   function generateMaterialUpdateId() {
@@ -300,7 +302,7 @@ export function JobDetailEditor({ job }: { job: Job }) {
 
   function handleAddMaterialNote() {
     const label =
-      selectedMaterialOption === "Add custom note"
+      selectedMaterialOption === "Add item"
         ? customMaterialLabel.trim()
         : selectedMaterialOption;
     if (!label) {
@@ -313,7 +315,7 @@ export function JobDetailEditor({ job }: { job: Job }) {
     }
     setError(null);
     addMaterialUpdate(label, materialDate);
-    if (selectedMaterialOption === "Add custom note") {
+    if (selectedMaterialOption === "Add item") {
       setCustomMaterialLabel("");
     }
     setMaterialDate("");
@@ -586,96 +588,6 @@ export function JobDetailEditor({ job }: { job: Job }) {
         </section>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-3">
-        <section className="md:col-span-2 space-y-3 rounded-xl border border-emerald-200 bg-emerald-50/80 p-4">
-          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-sm font-semibold text-emerald-900">
-              Material & product updates
-            </div>
-            {form.materialProductUpdates.length > 0 && (
-              <span className="text-[11px] font-semibold text-emerald-700">
-                "See Note" will show on the main card
-              </span>
-            )}
-          </div>
-          <div className="flex flex-col gap-2 md:flex-row md:items-end">
-            <label className="flex-1 space-y-1 text-xs text-emerald-900/80">
-              <span>Choose an update</span>
-              <select
-                className="w-full rounded border border-emerald-200 px-3 py-2 bg-white"
-                value={selectedMaterialOption}
-                onChange={(e) => setSelectedMaterialOption(e.target.value)}
-              >
-                {materialUpdateOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            {selectedMaterialOption === "Add custom note" && (
-              <label className="flex-1 space-y-1 text-xs text-emerald-900/80">
-                <span>Custom label</span>
-                <input
-                  className="w-full rounded border border-emerald-200 px-3 py-2 bg-white"
-                  placeholder="e.g. Hardware arrival"
-                  value={customMaterialLabel}
-                  onChange={(e) => setCustomMaterialLabel(e.target.value)}
-                />
-              </label>
-            )}
-
-            <label className="w-full md:w-44 space-y-1 text-xs text-emerald-900/80">
-              <span>Target date</span>
-              <input
-                type="date"
-                className="w-full rounded border border-emerald-200 px-3 py-2 bg-white"
-                value={materialDate}
-                onChange={(e) => setMaterialDate(e.target.value)}
-              />
-            </label>
-
-            <button
-              type="button"
-              className="shrink-0 px-3 py-2 rounded bg-emerald-700 text-white hover:bg-emerald-600 text-xs"
-              onClick={handleAddMaterialNote}
-              disabled={saving}
-            >
-              Add
-            </button>
-          </div>
-
-          <div className="space-y-2">
-            {form.materialProductUpdates.length === 0 ? (
-              <p className="text-xs text-emerald-900/70">
-                Choose an item and date to start a materials/product note for this job.
-              </p>
-            ) : (
-              form.materialProductUpdates.map((update) => (
-                <div
-                  key={update.id}
-                  className="flex items-center justify-between rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm text-emerald-900"
-                >
-                  <div className="space-y-0.5">
-                    <p className="font-medium">{update.label}</p>
-                    <p className="text-[11px] text-emerald-700">Date: {update.date}</p>
-                  </div>
-                  <button
-                    type="button"
-                    className="text-xs text-red-700 hover:text-red-900"
-                    onClick={() => removeMaterialUpdate(update.id)}
-                    disabled={saving}
-                  >
-                    Remove
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-        </section>
-      </div>
-
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="submit"
@@ -692,9 +604,134 @@ export function JobDetailEditor({ job }: { job: Job }) {
         >
           Reset
         </button>
+        <button
+          type="button"
+          className="px-4 py-2 rounded border border-emerald-300 text-emerald-900 bg-emerald-50 hover:bg-emerald-100"
+          onClick={() => setShowNotesModal(true)}
+          disabled={saving}
+        >
+          Material/Product notes
+        </button>
         {savedMessage && <span className="text-green-700 text-sm">{savedMessage}</span>}
         {error && <span className="text-red-700 text-sm">{error}</span>}
       </div>
+
+      {showNotesModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/30 backdrop-blur-sm"
+            onClick={() => setShowNotesModal(false)}
+          />
+          <div className="relative z-10 w-full max-w-2xl rounded-2xl border border-emerald-200 bg-white p-5 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-emerald-600">
+                  Job #{job.id}
+                </p>
+                <h3 className="text-lg font-semibold text-emerald-900">
+                  Material & product notes
+                </h3>
+                <p className="text-xs text-emerald-800/80">
+                  Choose an item or add your own, then set the date.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="text-sm text-emerald-800 hover:text-emerald-950"
+                onClick={() => setShowNotesModal(false)}
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-2 md:flex-row md:items-end">
+              <label className="flex-1 space-y-1 text-xs text-emerald-900/80">
+                <span>Choose an update</span>
+                <select
+                  className="w-full rounded border border-emerald-200 px-3 py-2 bg-white"
+                  value={selectedMaterialOption}
+                  onChange={(e) => setSelectedMaterialOption(e.target.value)}
+                >
+                  {materialUpdateOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {selectedMaterialOption === "Add item" && (
+                <label className="flex-1 space-y-1 text-xs text-emerald-900/80">
+                  <span>Custom label</span>
+                  <input
+                    className="w-full rounded border border-emerald-200 px-3 py-2 bg-white"
+                    placeholder="e.g. Hardware arrival"
+                    value={customMaterialLabel}
+                    onChange={(e) => setCustomMaterialLabel(e.target.value)}
+                  />
+                </label>
+              )}
+
+              <label className="w-full md:w-44 space-y-1 text-xs text-emerald-900/80">
+                <span>Target date</span>
+                <input
+                  type="date"
+                  className="w-full rounded border border-emerald-200 px-3 py-2 bg-white"
+                  value={materialDate}
+                  onChange={(e) => setMaterialDate(e.target.value)}
+                />
+              </label>
+
+              <button
+                type="button"
+                className="shrink-0 px-3 py-2 rounded bg-emerald-700 text-white hover:bg-emerald-600 text-xs"
+                onClick={handleAddMaterialNote}
+                disabled={saving}
+              >
+                Add
+              </button>
+            </div>
+
+            <div className="space-y-2 max-h-80 overflow-y-auto">
+              {form.materialProductUpdates.length === 0 ? (
+                <p className="text-xs text-emerald-900/70">
+                  No notes yet. Add one to show a green "See Note" on the small card.
+                </p>
+              ) : (
+                form.materialProductUpdates.map((update) => (
+                  <div
+                    key={update.id}
+                    className="flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900"
+                  >
+                    <div className="space-y-0.5">
+                      <p className="font-medium">{update.label}</p>
+                      <p className="text-[11px] text-emerald-700">Date: {update.date}</p>
+                    </div>
+                    <button
+                      type="button"
+                      className="text-xs text-red-700 hover:text-red-900"
+                      onClick={() => removeMaterialUpdate(update.id)}
+                      disabled={saving}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                type="button"
+                className="px-4 py-2 rounded border border-emerald-300 text-emerald-900 bg-white hover:bg-emerald-50"
+                onClick={() => setShowNotesModal(false)}
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </form>
   );
 }
