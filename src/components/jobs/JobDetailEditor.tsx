@@ -399,7 +399,7 @@ export function JobDetailEditor({ job }: { job: Job }) {
       <div className="grid md:grid-cols-2 gap-3">
         <section className="space-y-3 rounded-xl border border-amber-200 bg-amber-50/70 p-4">
           <div className="text-sm font-semibold text-amber-900">Client</div>
-          <label className="space-y-1 text-sm text-amber-900/80">
+          <label className="block space-y-1 text-sm text-amber-900/80">
             <span>Client name*</span>
             <input
               className="w-full rounded border border-amber-200 px-3 py-2 bg-white"
@@ -407,7 +407,7 @@ export function JobDetailEditor({ job }: { job: Job }) {
               onChange={(e) => updateField("clientName", e.target.value)}
             />
           </label>
-          <label className="space-y-1 text-sm text-amber-900/80">
+          <label className="block space-y-1 text-sm text-amber-900/80">
             <span>Phone</span>
             <input
               className="w-full rounded border border-amber-200 px-3 py-2 bg-white"
@@ -417,13 +417,13 @@ export function JobDetailEditor({ job }: { job: Job }) {
             {telHref && (
               <a
                 href={telHref}
-                className="inline-block text-[11px] text-amber-800 underline"
+                className="block text-[11px] text-amber-800 underline"
               >
                 Tap to call {form.clientPhone}
               </a>
             )}
           </label>
-          <label className="space-y-1 text-sm text-amber-900/80">
+          <label className="block space-y-1 text-sm text-amber-900/80">
             <span>Client address*</span>
             <input
               className="w-full rounded border border-amber-200 px-3 py-2 bg-white"
@@ -431,7 +431,7 @@ export function JobDetailEditor({ job }: { job: Job }) {
               onChange={(e) => updateField("clientAddress", e.target.value)}
             />
           </label>
-          <label className="space-y-1 text-sm text-amber-900/80">
+          <label className="block space-y-1 text-sm text-amber-900/80">
             <span>Billing address</span>
             <input
               className="w-full rounded border border-amber-200 px-3 py-2 bg-white"
