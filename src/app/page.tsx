@@ -4,8 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useSchedulerStore } from "@/store/useSchedulerStore";
 import WeekBoard from "@/components/board/WeekBoard";
 import MobileDayView from "@/components/board/MobileDayView";
+import { useRouter } from "next/navigation";
 
 export default function HomePage() {
+  const router = useRouter();
   const { fetchJobs, fetchDayAreaLabels, loading, error, openAddJobForm, jobs } =
     useSchedulerStore();
   const [search, setSearch] = useState("");
@@ -93,6 +95,9 @@ export default function HomePage() {
       el.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
       el.classList.add("ring-4", "ring-amber-400");
       window.setTimeout(() => el.classList.remove("ring-4", "ring-amber-400"), 1800);
+    } else {
+      // Mobile view doesn't show backlog; open the job directly so a due date can be assigned.
+      router.push(`/jobs/${jobId}`);
     }
   }
 
