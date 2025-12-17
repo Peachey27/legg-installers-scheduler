@@ -22,29 +22,39 @@ function areaColor(area: Job["areaTag"]) {
 
 interface Props {
   job: Job;
+  openOnClick?: boolean;
+  onOpen?: () => void;
 }
 
-export default function JobCard({ job }: Props) {
+export default function JobCard({ job, openOnClick = true, onOpen }: Props) {
   const router = useRouter();
   const hasMaterialNotes = Array.isArray((job as any).materialProductUpdates)
     ? ((job as any).materialProductUpdates as any[]).length > 0
     : false;
   const hasAnyNotes = hasMaterialNotes || Boolean(job.internalNotes);
 
+  const openJob = onOpen ?? (() => router.push(`/jobs/${job.id}`));
+
   return (
     <div
       id={`job-${job.id}`}
       data-job-id={job.id}
-      role="button"
-      tabIndex={0}
-      onClick={() => router.push(`/jobs/${job.id}`)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          router.push(`/jobs/${job.id}`);
-        }
-      }}
-      className="w-full cursor-pointer text-left bg-white rounded-xl border border-slate-200 shadow-sm px-3 py-2 relative hover:shadow-md transition-shadow"
+      role={openOnClick ? "button" : undefined}
+      tabIndex={openOnClick ? 0 : undefined}
+      onClick={openOnClick ? openJob : undefined}
+      onKeyDown={
+        openOnClick
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                openJob();
+              }
+            }
+          : undefined
+      }
+      className={`w-full text-left bg-white rounded-xl border border-slate-200 shadow-sm px-3 py-2 relative hover:shadow-md transition-shadow ${
+        openOnClick ? "cursor-pointer" : ""
+      }`}
     >
       <span
         className={`absolute -top-1 -left-1 w-3 h-3 rounded-full ${areaColor(

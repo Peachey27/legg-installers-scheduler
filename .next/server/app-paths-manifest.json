@@ -1,9 +1,6 @@
 {
+  "/api/jobs/route": "app/api/jobs/route.js",
   "/page": "app/page.js",
   "/api/day-settings/route": "app/api/day-settings/route.js",
-  "/jobs/[id]/page": "app/jobs/[id]/page.js",
-  "/api/jobs/route": "app/api/jobs/route.js",
-  "/api/route-metrics/route": "app/api/route-metrics/route.js",
-  "/api/jobs/[id]/route": "app/api/jobs/[id]/route.js",
-  "/api/address-search/route": "app/api/address-search/route.js"
+  "/api/route-metrics/route": "app/api/route-metrics/route.js"
 }
