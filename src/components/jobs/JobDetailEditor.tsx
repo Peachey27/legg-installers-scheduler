@@ -106,6 +106,8 @@ export function JobDetailEditor({ job }: { job: Job }) {
   const [customMaterialLabel, setCustomMaterialLabel] = useState("");
   const [materialDate, setMaterialDate] = useState("");
   const [showNotesModal, setShowNotesModal] = useState(false);
+  const [copying, setCopying] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   async function compressImage(file: File): Promise<File> {
     if (!file.type.startsWith("image/")) return file;
@@ -227,22 +229,15 @@ export function JobDetailEditor({ job }: { job: Job }) {
     setSavedMessage("");
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-    setError(null);
-    setSavedMessage("");
-
+  function buildPayload() {
     const required = ["clientName", "clientAddress", "jobAddress"] as const;
     for (const key of required) {
       if (!form[key].toString().trim()) {
-        setSaving(false);
-        setError("Client name, client address, and job address are required.");
-        return;
+        throw new Error("Client name, client address, and job address are required.");
       }
     }
 
-    const payload = {
+    return {
       clientName: form.clientName.trim(),
       clientPhone: form.clientPhone.trim() || "N/A",
       clientAddress: form.clientAddress.trim(),
@@ -278,6 +273,22 @@ export function JobDetailEditor({ job }: { job: Job }) {
         }))
         .filter((item) => item.label && item.date)
     };
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+    setSavedMessage("");
+
+    let payload;
+    try {
+      payload = buildPayload();
+    } catch (err: any) {
+      setSaving(false);
+      setError(err?.message ?? "Please fill required fields.");
+      return;
+    }
 
     try {
       const res = await fetch(`/api/jobs/${job.id}`, {
@@ -319,6 +330,59 @@ export function JobDetailEditor({ job }: { job: Job }) {
       setCustomMaterialLabel("");
     }
     setMaterialDate("");
+  }
+
+  async function handleCopyJob() {
+    setCopying(true);
+    setError(null);
+    try {
+      const payload = buildPayload();
+      const res = await fetch("/api/jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...payload,
+          // Make sure the copy is clearly separated from cancellations
+          status: payload.status || "backlog"
+        })
+      });
+      const text = await res.text();
+      if (!res.ok) {
+        throw new Error(text || "Failed to copy job");
+      }
+      const data = JSON.parse(text) as { id?: string };
+      const newId = data?.id ? String(data.id) : null;
+      setSavedMessage("Copied");
+      if (newId) {
+        router.push(`/jobs/${newId}`);
+      } else {
+        router.refresh();
+      }
+    } catch (err: any) {
+      setError(err?.message ?? "Failed to copy job");
+    } finally {
+      setCopying(false);
+    }
+  }
+
+  async function handleDeleteJob() {
+    if (!window.confirm("Delete this card? This cannot be undone.")) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/jobs/${job.id}`, {
+        method: "DELETE"
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || "Failed to delete job");
+      }
+      router.push("/");
+    } catch (err: any) {
+      setError(err?.message ?? "Failed to delete job");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
@@ -592,7 +656,7 @@ export function JobDetailEditor({ job }: { job: Job }) {
         <button
           type="submit"
           className="px-4 py-2 rounded bg-amber-700 text-white hover:bg-amber-600 disabled:opacity-60"
-          disabled={saving}
+          disabled={saving || copying || deleting}
         >
           {saving ? "Saving..." : "Save changes"}
         </button>
@@ -600,7 +664,7 @@ export function JobDetailEditor({ job }: { job: Job }) {
           type="button"
           className="px-4 py-2 rounded border border-amber-300 text-amber-900 hover:bg-amber-50"
           onClick={resetForm}
-          disabled={saving}
+          disabled={saving || copying || deleting}
         >
           Reset
         </button>
@@ -608,9 +672,25 @@ export function JobDetailEditor({ job }: { job: Job }) {
           type="button"
           className="px-4 py-2 rounded border border-emerald-300 text-emerald-900 bg-emerald-50 hover:bg-emerald-100"
           onClick={() => setShowNotesModal(true)}
-          disabled={saving}
+          disabled={saving || copying || deleting}
         >
           Material/Product notes
+        </button>
+        <button
+          type="button"
+          className="px-4 py-2 rounded border border-slate-300 text-slate-800 bg-white hover:bg-slate-50"
+          onClick={handleCopyJob}
+          disabled={saving || copying || deleting}
+        >
+          {copying ? "Copying..." : "Copy card"}
+        </button>
+        <button
+          type="button"
+          className="px-4 py-2 rounded border border-red-300 text-red-800 bg-red-50 hover:bg-red-100"
+          onClick={handleDeleteJob}
+          disabled={saving || copying || deleting}
+        >
+          {deleting ? "Deleting..." : "Delete card"}
         </button>
         {savedMessage && <span className="text-green-700 text-sm">{savedMessage}</span>}
         {error && <span className="text-red-700 text-sm">{error}</span>}
@@ -711,7 +791,7 @@ export function JobDetailEditor({ job }: { job: Job }) {
                       type="button"
                       className="text-xs text-red-700 hover:text-red-900"
                       onClick={() => removeMaterialUpdate(update.id)}
-                      disabled={saving}
+                      disabled={saving || copying || deleting}
                     >
                       Remove
                     </button>

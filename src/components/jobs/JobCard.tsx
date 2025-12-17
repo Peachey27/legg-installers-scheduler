@@ -26,6 +26,10 @@ interface Props {
 
 export default function JobCard({ job }: Props) {
   const router = useRouter();
+  const hasMaterialNotes = Array.isArray((job as any).materialProductUpdates)
+    ? ((job as any).materialProductUpdates as any[]).length > 0
+    : false;
+  const hasAnyNotes = hasMaterialNotes || Boolean(job.internalNotes);
 
   return (
     <div
@@ -57,7 +61,7 @@ export default function JobCard({ job }: Props) {
       <div className="text-xs text-slate-500 line-clamp-2 mt-1">
         {job.description}
       </div>
-      {job.materialProductUpdates?.length ? (
+      {hasAnyNotes ? (
         <div className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
           <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
           <span>See Note</span>
