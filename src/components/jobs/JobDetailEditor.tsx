@@ -61,6 +61,14 @@ const materialUpdateOptions: string[] = [
 
 export function JobDetailEditor({ job }: { job: Job }) {
   const router = useRouter();
+
+  function toTelHref(phone: string) {
+    const raw = (phone ?? "").trim();
+    if (!raw || raw.toLowerCase() === "n/a") return null;
+    const normalized = raw.replace(/[^\d+]/g, "");
+    return `tel:${normalized || raw}`;
+  }
+
   const initialArea = job.areaTag ?? "Other";
   const isCustomInitialArea = useMemo(
     () => !baseAreaOptions.includes(initialArea),
@@ -108,6 +116,7 @@ export function JobDetailEditor({ job }: { job: Job }) {
   const [showNotesModal, setShowNotesModal] = useState(false);
   const [copying, setCopying] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const telHref = toTelHref(form.clientPhone);
 
   async function compressImage(file: File): Promise<File> {
     if (!file.type.startsWith("image/")) return file;
@@ -405,6 +414,14 @@ export function JobDetailEditor({ job }: { job: Job }) {
               value={form.clientPhone}
               onChange={(e) => updateField("clientPhone", e.target.value)}
             />
+            {telHref && (
+              <a
+                href={telHref}
+                className="inline-block text-[11px] text-amber-800 underline"
+              >
+                Tap to call {form.clientPhone}
+              </a>
+            )}
           </label>
           <label className="space-y-1 text-sm text-amber-900/80">
             <span>Client address*</span>

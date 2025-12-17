@@ -13,6 +13,13 @@ function getBaseUrlFromHeaders() {
   return `${proto}://${host}`;
 }
 
+function toTelHref(phone: string | null | undefined) {
+  const raw = (phone ?? "").trim();
+  if (!raw || raw.toLowerCase() === "n/a") return null;
+  const normalized = raw.replace(/[^\d+]/g, "");
+  return `tel:${normalized || raw}`;
+}
+
 interface Params {
   params: { id: string };
 }
@@ -41,6 +48,7 @@ export default async function JobDetailPage({ params }: Params) {
 
   const statusLabel = job.status.replace("_", " ");
   const scheduleLabel = job.assignedDate ? `Scheduled ${job.assignedDate}` : "Backlog";
+  const telHref = toTelHref(job.clientPhone);
 
   return (
     <main className="min-h-screen p-4 bg-slate-100">
@@ -53,6 +61,13 @@ export default async function JobDetailPage({ params }: Params) {
             <h1 className="text-2xl font-semibold text-slate-900">
               {job.clientName}
             </h1>
+            {telHref ? (
+              <a className="text-sm text-slate-700 underline" href={telHref}>
+                {job.clientPhone}
+              </a>
+            ) : (
+              <p className="text-sm text-slate-600">{job.clientPhone}</p>
+            )}
             <p className="text-sm text-slate-600">
               {statusLabel} · {scheduleLabel}
             </p>
