@@ -12,6 +12,7 @@ import {
   type DropResult
 } from "@hello-pangea/dnd";
 import { useRouter } from "next/navigation";
+import { createPortal } from "react-dom";
 
 export default function MobileDayView() {
   const { jobs, dayAreaLabels, setDayAreaLabel, moveJob } = useSchedulerStore();
@@ -513,12 +514,41 @@ function MobileJobDraggable({ job, index }: { job: Job; index: number }) {
   return (
     <Draggable draggableId={job.id} index={index}>
       {(provided, snapshot) => (
-        <div ref={provided.innerRef} {...provided.draggableProps}>
-          <MobileJobCard job={job} dragHandleProps={provided.dragHandleProps} isDragging={snapshot.isDragging} />
-        </div>
+        <MobileJobDraggableInner
+          job={job}
+          provided={provided}
+          isDragging={snapshot.isDragging}
+        />
       )}
     </Draggable>
   );
+}
+
+function MobileJobDraggableInner({
+  job,
+  provided,
+  isDragging
+}: {
+  job: Job;
+  provided: any;
+  isDragging: boolean;
+}) {
+  const child = (
+    <div
+      ref={provided.innerRef}
+      {...provided.draggableProps}
+      style={{
+        ...(provided.draggableProps?.style ?? {}),
+        zIndex: isDragging ? 9999 : (provided.draggableProps?.style?.zIndex ?? undefined)
+      }}
+    >
+      <MobileJobCard job={job} dragHandleProps={provided.dragHandleProps} isDragging={isDragging} />
+    </div>
+  );
+
+  if (!isDragging) return child;
+  if (typeof document === "undefined") return child;
+  return createPortal(child, document.body);
 }
 
 function MobileJobCard({
