@@ -79,10 +79,23 @@ export default function HomePage() {
   }
 
   function scrollToJob(jobId: string) {
+    const isMobile =
+      typeof window !== "undefined" &&
+      (window.matchMedia?.("(max-width: 767px)")?.matches ?? false);
+    if (isMobile) {
+      router.push(`/jobs/${jobId}`);
+      return;
+    }
+
     const el =
       document.querySelector<HTMLElement>(`[data-job-id="${jobId}"]`) ??
       document.getElementById(`job-${jobId}`);
     if (el) {
+      // If the element exists but is inside a hidden desktop-only section, open the job instead.
+      if (el.offsetParent === null) {
+        router.push(`/jobs/${jobId}`);
+        return;
+      }
       // Scroll nearest horizontal container if present
       const scrollContainer = el.closest<HTMLElement>("[data-scroll-container]");
       if (scrollContainer) {
