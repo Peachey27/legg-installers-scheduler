@@ -115,6 +115,8 @@ function MobileDayCard({
         legs: Array<{ distanceMeters: number; durationSeconds: number }>;
         totalDistanceMeters: number;
         totalDurationSeconds: number;
+        approximatedStopIds: string[];
+        unresolvedStopIds: string[];
       }
     | null
   >(null);
@@ -123,7 +125,14 @@ function MobileDayCard({
   const routeSignature = useMemo(
     () =>
       day.jobs
-        .map((j) => `${j.id}:${j.clientAddressLat ?? ""},${j.clientAddressLng ?? ""}`)
+        .map(
+          (j) =>
+            `${j.id}:${j.clientAddressLat ?? ""},${j.clientAddressLng ?? ""}:${(
+              j.clientAddress ?? ""
+            )
+              .trim()
+              .toLowerCase()}`
+        )
         .join("|"),
     [day.jobs]
   );
@@ -150,6 +159,7 @@ function MobileDayCard({
 
     const stops = day.jobs.map((j) => ({
       id: j.id,
+      address: j.clientAddress || j.jobAddress,
       lat: j.clientAddressLat,
       lng: j.clientAddressLng
     }));
@@ -173,7 +183,13 @@ function MobileDayCard({
         setTravel({
           legs: Array.isArray(data.legs) ? data.legs : [],
           totalDistanceMeters: Number(data.totalDistanceMeters ?? 0),
-          totalDurationSeconds: Number(data.totalDurationSeconds ?? 0)
+          totalDurationSeconds: Number(data.totalDurationSeconds ?? 0),
+          approximatedStopIds: Array.isArray(data.approximatedStopIds)
+            ? data.approximatedStopIds
+            : [],
+          unresolvedStopIds: Array.isArray(data.unresolvedStopIds)
+            ? data.unresolvedStopIds
+            : []
         });
       } catch (e: any) {
         if (!cancelled) setTravelError(e?.message ?? "Failed to load travel metrics");
@@ -269,20 +285,29 @@ function MobileDayCard({
         <div className="text-xs font-semibold text-amber-900">Travel</div>
         {day.jobs.length === 0 ? (
           <div className="text-[11px] text-amber-900/70">No jobs.</div>
-        ) : missingCoordsCount > 0 ? (
-          <div className="text-[11px] text-amber-900/70">
-            Missing coordinates for {missingCoordsCount} jobs (open the job and re-select the Client address from the dropdown, then Save)
-          </div>
         ) : travelLoading ? (
           <div className="text-[11px] text-amber-900/70">Calculating…</div>
         ) : travelError ? (
           <div className="text-[11px] text-red-700">Travel error</div>
         ) : travel ? (
-          <div className="flex justify-between text-[11px] font-semibold text-amber-900">
-            <span>Total</span>
-            <span>
-              {fmtDistance(travel.totalDistanceMeters)} · {fmtDuration(travel.totalDurationSeconds)}
-            </span>
+          <div className="space-y-1">
+            {travel.unresolvedStopIds.length > 0 && (
+              <div className="text-[11px] text-amber-900/70">
+                Could not locate {travel.unresolvedStopIds.length} jobs (check Client address spelling)
+              </div>
+            )}
+            {travel.approximatedStopIds.length > 0 && (
+              <div className="text-[11px] text-amber-900/70">
+                Using closest address for {travel.approximatedStopIds.length} jobs
+              </div>
+            )}
+            <div className="flex justify-between text-[11px] font-semibold text-amber-900">
+              <span>Total</span>
+              <span>
+                {fmtDistance(travel.totalDistanceMeters)} ·{" "}
+                {fmtDuration(travel.totalDurationSeconds)}
+              </span>
+            </div>
           </div>
         ) : (
           <div className="text-[11px] text-amber-900/70">Set area to calculate.</div>
@@ -294,7 +319,7 @@ function MobileDayCard({
         travel &&
         !travelLoading &&
         !travelError &&
-        missingCoordsCount === 0
+        travel.unresolvedStopIds.length === 0
           ? renderLeg(`Leg 1: Base → ${day.jobs[0].clientName}`, 0)
           : null}
         {day.jobs.length === 0 ? (
@@ -303,7 +328,7 @@ function MobileDayCard({
           day.jobs.map((j, idx) => (
             <div key={j.id} className="space-y-2">
               <JobCard job={j} />
-              {travel && !travelLoading && !travelError && missingCoordsCount === 0 ? (
+              {travel && !travelLoading && !travelError && travel.unresolvedStopIds.length === 0 ? (
                 idx < day.jobs.length - 1
                   ? renderLeg(
                       `Leg ${idx + 2}: ${j.clientName} → ${day.jobs[idx + 1].clientName}`,

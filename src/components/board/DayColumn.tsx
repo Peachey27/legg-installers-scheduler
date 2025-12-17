@@ -57,6 +57,8 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
         legs: Array<{ distanceMeters: number; durationSeconds: number }>;
         totalDistanceMeters: number;
         totalDurationSeconds: number;
+        approximatedStopIds: string[];
+        unresolvedStopIds: string[];
       }
     | null
   >(null);
@@ -86,20 +88,20 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
   const routeSignature = useMemo(
     () =>
       jobs
-        .map((j) => `${j.id}:${j.clientAddressLat ?? ""},${j.clientAddressLng ?? ""}`)
+        .map(
+          (j) =>
+            `${j.id}:${j.clientAddressLat ?? ""},${j.clientAddressLng ?? ""}:${(
+              j.clientAddress ?? ""
+            )
+              .trim()
+              .toLowerCase()}`
+        )
         .join("|"),
     [jobs]
   );
 
   useEffect(() => {
     if (jobs.length === 0) {
-      setTravel(null);
-      setTravelError(null);
-      setTravelLoading(false);
-      return;
-    }
-
-    if (missingCoordsCount > 0) {
       setTravel(null);
       setTravelError(null);
       setTravelLoading(false);
@@ -115,8 +117,10 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
 
     const stops = jobs.map((j) => ({
       id: j.id,
-      lat: j.clientAddressLat as number,
-      lng: j.clientAddressLng as number
+      // Prefer client address coords, but fall back to job address text for geocoding if needed.
+      address: j.clientAddress || j.jobAddress,
+      lat: j.clientAddressLat,
+      lng: j.clientAddressLng
     }));
 
     let cancelled = false;
@@ -138,7 +142,13 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
         setTravel({
           legs: Array.isArray(data.legs) ? data.legs : [],
           totalDistanceMeters: Number(data.totalDistanceMeters ?? 0),
-          totalDurationSeconds: Number(data.totalDurationSeconds ?? 0)
+          totalDurationSeconds: Number(data.totalDurationSeconds ?? 0),
+          approximatedStopIds: Array.isArray(data.approximatedStopIds)
+            ? data.approximatedStopIds
+            : [],
+          unresolvedStopIds: Array.isArray(data.unresolvedStopIds)
+            ? data.unresolvedStopIds
+            : []
         });
       } catch (e: any) {
         if (!cancelled) setTravelError(e?.message ?? "Failed to load travel metrics");
@@ -249,20 +259,29 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
         <div className="text-xs font-semibold text-amber-900">Travel</div>
         {jobs.length === 0 ? (
           <div className="text-[11px] text-amber-900/70">No jobs.</div>
-        ) : missingCoordsCount > 0 ? (
-          <div className="text-[11px] text-amber-900/70">
-            Missing coordinates for {missingCoordsCount} jobs (open the job and re-select the Client address from the dropdown, then Save)
-          </div>
         ) : travelLoading ? (
           <div className="text-[11px] text-amber-900/70">Calculating…</div>
         ) : travelError ? (
           <div className="text-[11px] text-red-700">Travel error</div>
         ) : travel ? (
-          <div className="flex justify-between text-[11px] font-semibold text-amber-900">
-            <span>Total</span>
-            <span>
-              {fmtDistance(travel.totalDistanceMeters)} · {fmtDuration(travel.totalDurationSeconds)}
-            </span>
+          <div className="space-y-1">
+            {travel.unresolvedStopIds.length > 0 && (
+              <div className="text-[11px] text-amber-900/70">
+                Could not locate {travel.unresolvedStopIds.length} jobs (check Client address spelling)
+              </div>
+            )}
+            {travel.approximatedStopIds.length > 0 && (
+              <div className="text-[11px] text-amber-900/70">
+                Using closest address for {travel.approximatedStopIds.length} jobs
+              </div>
+            )}
+            <div className="flex justify-between text-[11px] font-semibold text-amber-900">
+              <span>Total</span>
+              <span>
+                {fmtDistance(travel.totalDistanceMeters)} ·{" "}
+                {fmtDuration(travel.totalDurationSeconds)}
+              </span>
+            </div>
           </div>
         ) : (
           <div className="text-[11px] text-amber-900/70">Set area to calculate.</div>
@@ -270,7 +289,7 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
       </div>
 
       <div className="flex-1 overflow-y-auto space-y-2">
-        {jobs.length > 0 && travel && !travelLoading && !travelError && missingCoordsCount === 0
+        {jobs.length > 0 && travel && !travelLoading && !travelError && travel.unresolvedStopIds.length === 0
           ? renderLeg(`Leg 1: Base → ${jobs[0].clientName}`, 0)
           : null}
         {jobs.map((job, index) => (
@@ -286,7 +305,7 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
                 </div>
               )}
             </Draggable>
-            {travel && !travelLoading && !travelError && missingCoordsCount === 0 ? (
+            {travel && !travelLoading && !travelError && travel.unresolvedStopIds.length === 0 ? (
               index < jobs.length - 1
                 ? renderLeg(
                     `Leg ${index + 2}: ${job.clientName} → ${jobs[index + 1].clientName}`,
