@@ -16,8 +16,29 @@ import { useRouter } from "next/navigation";
 export default function MobileDayView() {
   const { jobs, dayAreaLabels, setDayAreaLabel, moveJob } = useSchedulerStore();
   const [weekOffset, setWeekOffset] = useState(0); // blocks of 5 weekdays
+  const [orderByList, setOrderByList] = useState<Record<string, string[]>>({});
   const today = new Date();
   const startDate = addWeeks(today, weekOffset);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem("mobileJobOrder-v1");
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as any;
+      if (!parsed || typeof parsed !== "object") return;
+      setOrderByList(parsed);
+    } catch {
+      // ignore bad localStorage
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("mobileJobOrder-v1", JSON.stringify(orderByList));
+    } catch {
+      // ignore quota / private mode failures
+    }
+  }, [orderByList]);
 
   const days = useMemo(() => {
     const result: { iso: string; date: Date; label: string }[] = [];
@@ -38,31 +59,35 @@ export default function MobileDayView() {
       days.map((d) => ({
         ...d,
         area: dayAreaLabels[d.iso],
-        jobs: jobs
-          .filter(
+        jobs: orderJobs(
+          d.iso,
+          orderByList,
+          jobs.filter(
             (j) =>
               j.assignedDate === d.iso &&
               j.status !== "cancelled" &&
               j.status !== "completed" &&
               !j.deletedAt
           )
-          .sort((a, b) => (a.clientName || "").localeCompare(b.clientName || ""))
+        )
       })),
-    [days, dayAreaLabels, jobs]
+    [days, dayAreaLabels, jobs, orderByList]
   );
 
   const backlogJobs = useMemo(
     () =>
-      jobs
-        .filter(
+      orderJobs(
+        "backlog",
+        orderByList,
+        jobs.filter(
           (j) =>
             (!j.assignedDate || j.status === "backlog") &&
             j.status !== "completed" &&
             j.status !== "cancelled" &&
             !j.deletedAt
         )
-        .sort((a, b) => (a.clientName || "").localeCompare(b.clientName || "")),
-    [jobs]
+      ),
+    [jobs, orderByList]
   );
 
   const areaOptions = useMemo(() => {
@@ -84,6 +109,49 @@ export default function MobileDayView() {
         return;
       }
 
+      // Update local ordering for mobile view (does not affect desktop sorting logic).
+      setOrderByList((prev) => {
+        const sourceId = source.droppableId;
+        const destId = destination.droppableId;
+
+        const getCurrentIds = (listId: string) => {
+          const filtered =
+            listId === "backlog"
+              ? jobs.filter(
+                  (j) =>
+                    (!j.assignedDate || j.status === "backlog") &&
+                    j.status !== "completed" &&
+                    j.status !== "cancelled" &&
+                    !j.deletedAt
+                )
+              : jobs.filter(
+                  (j) =>
+                    j.assignedDate === listId &&
+                    j.status !== "cancelled" &&
+                    j.status !== "completed" &&
+                    !j.deletedAt
+                );
+          return orderJobs(listId, prev, filtered).map((j) => j.id);
+        };
+
+        const sourceIds = mergeOrder(prev[sourceId], getCurrentIds(sourceId));
+        const destIds =
+          sourceId === destId ? sourceIds.slice() : mergeOrder(prev[destId], getCurrentIds(destId));
+
+        const removeAt = sourceIds.indexOf(draggableId);
+        if (removeAt >= 0) sourceIds.splice(removeAt, 1);
+        const insertIndex = Math.min(Math.max(destination.index, 0), destIds.length);
+        if (sourceId === destId) {
+          sourceIds.splice(insertIndex, 0, draggableId);
+          return { ...prev, [sourceId]: sourceIds };
+        }
+
+        const destRemove = destIds.indexOf(draggableId);
+        if (destRemove >= 0) destIds.splice(destRemove, 1);
+        destIds.splice(insertIndex, 0, draggableId);
+        return { ...prev, [sourceId]: sourceIds, [destId]: destIds };
+      });
+
       const target = destination.droppableId;
       const assignedDate = target === "backlog" ? null : target;
 
@@ -99,7 +167,10 @@ export default function MobileDayView() {
         }
       }
 
-      void moveJob(draggableId, assignedDate);
+      // Reordering within the same list should not call the backend.
+      if (destination.droppableId !== source.droppableId) {
+        void moveJob(draggableId, assignedDate);
+      }
     },
     [dayAreaLabels, jobs, moveJob]
   );
@@ -147,6 +218,42 @@ export default function MobileDayView() {
       </div>
     </DragDropContext>
   );
+}
+
+function mergeOrder(existing: string[] | undefined, currentIds: string[]) {
+  const merged: string[] = [];
+  const seen = new Set<string>();
+  for (const id of existing ?? []) {
+    if (!seen.has(id) && currentIds.includes(id)) {
+      merged.push(id);
+      seen.add(id);
+    }
+  }
+  for (const id of currentIds) {
+    if (!seen.has(id)) {
+      merged.push(id);
+      seen.add(id);
+    }
+  }
+  return merged;
+}
+
+function orderJobs(listId: string, orderByList: Record<string, string[]>, list: Job[]) {
+  const currentIds = list.map((j) => j.id);
+  const merged = mergeOrder(orderByList[listId], currentIds);
+  const index = new Map<string, number>();
+  merged.forEach((id, i) => index.set(id, i));
+  const stablePos = new Map<string, number>();
+  list.forEach((j, i) => stablePos.set(j.id, i));
+
+  return [...list].sort((a, b) => {
+    const ai = index.get(a.id);
+    const bi = index.get(b.id);
+    if (ai != null && bi != null) return ai - bi;
+    if (ai != null) return -1;
+    if (bi != null) return 1;
+    return (stablePos.get(a.id) ?? 0) - (stablePos.get(b.id) ?? 0);
+  });
 }
 
 function MobileDayCard({
