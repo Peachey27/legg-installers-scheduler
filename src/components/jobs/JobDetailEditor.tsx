@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   AreaTag,
   Job,
@@ -117,6 +117,13 @@ export function JobDetailEditor({ job }: { job: Job }) {
   const [copying, setCopying] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const telHref = toTelHref(form.clientPhone);
+  const [addressQuery, setAddressQuery] = useState("");
+  const [addressSuggestions, setAddressSuggestions] = useState<
+    Array<{ id: string; label: string; raw?: string }>
+  >([]);
+  const [addressLoading, setAddressLoading] = useState(false);
+  const [showAddressSuggestions, setShowAddressSuggestions] = useState(false);
+  const lastAddressRequestRef = useRef(0);
 
   async function compressImage(file: File): Promise<File> {
     if (!file.type.startsWith("image/")) return file;
@@ -210,6 +217,10 @@ export function JobDetailEditor({ job }: { job: Job }) {
     setCustomMaterialLabel("");
     setMaterialDate("");
     setShowNotesModal(false);
+    setAddressQuery(job.clientAddress ?? "");
+    setAddressSuggestions([]);
+    setAddressLoading(false);
+    setShowAddressSuggestions(false);
   }
 
   function generateMaterialUpdateId() {
@@ -236,6 +247,64 @@ export function JobDetailEditor({ job }: { job: Job }) {
       materialProductUpdates: prev.materialProductUpdates.filter((u) => u.id !== id)
     }));
     setSavedMessage("");
+  }
+
+  useEffect(() => {
+    setAddressQuery(form.clientAddress);
+  }, []);
+
+  useEffect(() => {
+    const q = addressQuery.trim();
+    if (q.length < 3) {
+      setAddressSuggestions([]);
+      setAddressLoading(false);
+      return;
+    }
+
+    const reqId = Date.now();
+    lastAddressRequestRef.current = reqId;
+    setAddressLoading(true);
+
+    const timer = window.setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/address-search?q=${encodeURIComponent(q)}`);
+        const text = await res.text();
+        if (lastAddressRequestRef.current !== reqId) return;
+        if (!res.ok) {
+          console.error("Address search failed", res.status, text);
+          setAddressSuggestions([]);
+          setAddressLoading(false);
+          return;
+        }
+
+        const data = JSON.parse(text) as Array<{ id: string; label: string }>;
+        setAddressSuggestions(Array.isArray(data) ? data.slice(0, 6) : []);
+      } catch (err) {
+        console.error("Address search error", err);
+        if (lastAddressRequestRef.current === reqId) {
+          setAddressSuggestions([]);
+        }
+      } finally {
+        if (lastAddressRequestRef.current === reqId) {
+          setAddressLoading(false);
+        }
+      }
+    }, 350);
+
+    return () => window.clearTimeout(timer);
+  }, [addressQuery]);
+
+  function selectClientAddress(nextAddress: string) {
+    const prevClientAddress = form.clientAddress;
+    updateField("clientAddress", nextAddress);
+    setAddressQuery(nextAddress);
+    setShowAddressSuggestions(false);
+
+    const shouldSyncJobAddress =
+      !form.jobAddress.trim() || form.jobAddress.trim() === (prevClientAddress ?? "").trim();
+    if (shouldSyncJobAddress) {
+      updateField("jobAddress", nextAddress);
+    }
   }
 
   function buildPayload() {
@@ -425,11 +494,47 @@ export function JobDetailEditor({ job }: { job: Job }) {
           </label>
           <label className="block space-y-1 text-sm text-amber-900/80">
             <span>Client address*</span>
-            <input
-              className="w-full rounded border border-amber-200 px-3 py-2 bg-white"
-              value={form.clientAddress}
-              onChange={(e) => updateField("clientAddress", e.target.value)}
-            />
+            <div className="relative">
+              <input
+                className="w-full rounded border border-amber-200 px-3 py-2 bg-white"
+                value={addressQuery}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setAddressQuery(next);
+                  updateField("clientAddress", next);
+                  setShowAddressSuggestions(true);
+                }}
+                onFocus={() => setShowAddressSuggestions(true)}
+                onBlur={() => window.setTimeout(() => setShowAddressSuggestions(false), 120)}
+                placeholder="Start typing an address..."
+                autoComplete="off"
+              />
+              {showAddressSuggestions && (addressLoading || addressSuggestions.length > 0) && (
+                <div className="absolute z-20 mt-1 w-full rounded-lg border border-amber-200 bg-white shadow-lg overflow-hidden">
+                  {addressLoading && (
+                    <div className="px-3 py-2 text-xs text-amber-900/70">
+                      Searching...
+                    </div>
+                  )}
+                  {addressSuggestions.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      className="w-full text-left px-3 py-2 text-xs hover:bg-amber-50 border-t border-amber-100 first:border-t-0"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => selectClientAddress(s.label)}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                  {!addressLoading && addressSuggestions.length === 0 && addressQuery.trim().length >= 3 && (
+                    <div className="px-3 py-2 text-xs text-amber-900/70">
+                      No matches found.
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </label>
           <label className="block space-y-1 text-sm text-amber-900/80">
             <span>Billing address</span>

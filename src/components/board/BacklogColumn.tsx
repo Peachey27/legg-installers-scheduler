@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type React from "react";
 import { createPortal } from "react-dom";
 import type { Job } from "@/lib/types";
@@ -113,6 +113,13 @@ function AddJobModal({
   const [customDescription, setCustomDescription] = useState("");
   const [useCustomArea, setUseCustomArea] = useState(false);
   const [customAreaTag, setCustomAreaTag] = useState("");
+  const [addressQuery, setAddressQuery] = useState("");
+  const [addressSuggestions, setAddressSuggestions] = useState<
+    Array<{ id: string; label: string; raw?: string }>
+  >([]);
+  const [addressLoading, setAddressLoading] = useState(false);
+  const [showAddressSuggestions, setShowAddressSuggestions] = useState(false);
+  const lastAddressRequestRef = useRef(0);
 
   const presetDescriptions = [
     "New Window/Doors",
@@ -125,12 +132,68 @@ function AddJobModal({
   // avoid SSR mismatch for portal
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+  useEffect(() => setAddressQuery(values.clientAddress), []);
+
+  useEffect(() => {
+    const q = addressQuery.trim();
+    if (q.length < 3) {
+      setAddressSuggestions([]);
+      setAddressLoading(false);
+      return;
+    }
+
+    const reqId = Date.now();
+    lastAddressRequestRef.current = reqId;
+    setAddressLoading(true);
+
+    const timer = window.setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/address-search?q=${encodeURIComponent(q)}`);
+        const text = await res.text();
+        if (lastAddressRequestRef.current !== reqId) return;
+        if (!res.ok) {
+          console.error("Address search failed", res.status, text);
+          setAddressSuggestions([]);
+          setAddressLoading(false);
+          return;
+        }
+
+        const data = JSON.parse(text) as Array<{ id: string; label: string }>;
+        setAddressSuggestions(Array.isArray(data) ? data.slice(0, 6) : []);
+      } catch (err) {
+        console.error("Address search error", err);
+        if (lastAddressRequestRef.current === reqId) {
+          setAddressSuggestions([]);
+        }
+      } finally {
+        if (lastAddressRequestRef.current === reqId) {
+          setAddressLoading(false);
+        }
+      }
+    }, 350);
+
+    return () => window.clearTimeout(timer);
+  }, [addressQuery]);
 
   function handleChange(
     field: keyof AddJobFormValues,
     v: string | number | null
   ) {
     setValues((prev) => ({ ...prev, [field]: v }));
+  }
+
+  function selectClientAddress(nextAddress: string) {
+    const prevClientAddress = values.clientAddress;
+    setValues((prev) => ({
+      ...prev,
+      clientAddress: nextAddress,
+      jobAddress:
+        !prev.jobAddress.trim() || prev.jobAddress.trim() === prevClientAddress.trim()
+          ? nextAddress
+          : prev.jobAddress
+    }));
+    setAddressQuery(nextAddress);
+    setShowAddressSuggestions(false);
   }
 
   function getDescriptionValue() {
@@ -210,17 +273,56 @@ function AddJobModal({
 
           <div className="space-y-1 md:col-span-2">
             <label className="block text-amber-900/80">Client address*</label>
-            <input
-              className="w-full rounded border border-amber-200 px-3 py-2 text-amber-900 bg-white/80"
-              value={values.clientAddress}
-              onChange={(e) => {
-                handleChange("clientAddress", e.target.value);
-                if (!values.jobAddress) {
-                  handleChange("jobAddress", e.target.value);
+            <div className="relative">
+              <input
+                className="w-full rounded border border-amber-200 px-3 py-2 text-amber-900 bg-white/80"
+                value={addressQuery}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setAddressQuery(next);
+                  handleChange("clientAddress", next);
+                  if (!values.jobAddress) {
+                    handleChange("jobAddress", next);
+                  }
+                  setShowAddressSuggestions(true);
+                }}
+                onFocus={() => setShowAddressSuggestions(true)}
+                onBlur={() =>
+                  window.setTimeout(() => setShowAddressSuggestions(false), 120)
                 }
-              }}
-              required
-            />
+                placeholder="Start typing an address..."
+                autoComplete="off"
+                required
+              />
+              {showAddressSuggestions &&
+                (addressLoading || addressSuggestions.length > 0) && (
+                  <div className="absolute z-20 mt-1 w-full rounded-lg border border-amber-200 bg-white shadow-lg overflow-hidden">
+                    {addressLoading && (
+                      <div className="px-3 py-2 text-xs text-amber-900/70">
+                        Searching...
+                      </div>
+                    )}
+                    {addressSuggestions.map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        className="w-full text-left px-3 py-2 text-xs hover:bg-amber-50 border-t border-amber-100 first:border-t-0"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => selectClientAddress(s.label)}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                    {!addressLoading &&
+                      addressSuggestions.length === 0 &&
+                      addressQuery.trim().length >= 3 && (
+                        <div className="px-3 py-2 text-xs text-amber-900/70">
+                          No matches found.
+                        </div>
+                      )}
+                  </div>
+                )}
+            </div>
           </div>
 
           <div className="space-y-1 md:col-span-2">
