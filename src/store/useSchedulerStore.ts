@@ -7,6 +7,8 @@ type NewJobInput = {
   clientPhone: string;
   jobAddress: string;
   description: string;
+  clientAddressLat?: number | null;
+  clientAddressLng?: number | null;
   assignedDate?: string | null;
   estimatedDurationHours?: number | null;
   areaTag?: string;
@@ -106,29 +108,31 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
 
   async createJob(input) {
     const today = new Date().toISOString().slice(0, 10);
-    const payload = {
-      ...input,
-      dateTaken: today,
-      billingAddress: input.clientAddress,
-      areaTag: input.areaTag ?? "Other",
-      totalPrice: null,
-      invoiceNumber: null,
-      estimateNumber: null,
-      cashSaleNumber: null,
-      measurements: null,
-      glassOrProductDetails: null,
-      quotedRange: null,
-      internalNotes: null,
-      materialProductUpdates: [],
-      crew: null,
-      factoryJobId: null,
-      photo1Url: null,
-      photo2Url: null,
-      photo3Url: null,
-      assignedDate: input.assignedDate ?? null,
-      estimatedDurationHours: input.estimatedDurationHours ?? null,
-      status: input.assignedDate ? "scheduled" : "backlog"
-    };
+      const payload = {
+        ...input,
+        dateTaken: today,
+        billingAddress: input.clientAddress,
+        areaTag: input.areaTag ?? "Other",
+        totalPrice: null,
+        invoiceNumber: null,
+        estimateNumber: null,
+        cashSaleNumber: null,
+        measurements: null,
+        glassOrProductDetails: null,
+        quotedRange: null,
+        internalNotes: null,
+        materialProductUpdates: [],
+        crew: null,
+        factoryJobId: null,
+        photo1Url: null,
+        photo2Url: null,
+        photo3Url: null,
+        clientAddressLat: input.clientAddressLat ?? null,
+        clientAddressLng: input.clientAddressLng ?? null,
+        assignedDate: input.assignedDate ?? null,
+        estimatedDurationHours: input.estimatedDurationHours ?? null,
+        status: input.assignedDate ? "scheduled" : "backlog"
+      };
 
     set({ error: null });
 

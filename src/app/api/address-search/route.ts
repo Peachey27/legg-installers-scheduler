@@ -5,6 +5,8 @@ import { NextRequest, NextResponse } from "next/server";
 type NominatimResult = {
   place_id: number;
   display_name: string;
+  lat?: string;
+  lon?: string;
   address?: Record<string, string | undefined>;
 };
 
@@ -65,7 +67,9 @@ export async function GET(req: NextRequest) {
       .map((r) => ({
         id: String(r.place_id),
         label: formatAuAddress(r),
-        raw: r.display_name
+        raw: r.display_name,
+        lat: r.lat != null ? Number(r.lat) : undefined,
+        lng: r.lon != null ? Number(r.lon) : undefined
       }));
 
     return NextResponse.json(mapped, { status: 200 });
@@ -74,4 +78,3 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
 }
-

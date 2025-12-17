@@ -76,6 +76,8 @@ type AddJobFormValues = {
   clientName: string;
   clientPhone: string;
   clientAddress: string;
+  clientAddressLat: number | null;
+  clientAddressLng: number | null;
   jobAddress: string;
   description: string;
   estimatedDurationHours: number | null;
@@ -105,6 +107,8 @@ function AddJobModal({
     clientName: "",
     clientPhone: "",
     clientAddress: "",
+    clientAddressLat: null,
+    clientAddressLng: null,
     jobAddress: "",
     description: "New Window/Doors",
     estimatedDurationHours: null,
@@ -115,7 +119,7 @@ function AddJobModal({
   const [customAreaTag, setCustomAreaTag] = useState("");
   const [addressQuery, setAddressQuery] = useState("");
   const [addressSuggestions, setAddressSuggestions] = useState<
-    Array<{ id: string; label: string; raw?: string }>
+    Array<{ id: string; label: string; raw?: string; lat?: number; lng?: number }>
   >([]);
   const [addressLoading, setAddressLoading] = useState(false);
   const [showAddressSuggestions, setShowAddressSuggestions] = useState(false);
@@ -158,7 +162,12 @@ function AddJobModal({
           return;
         }
 
-        const data = JSON.parse(text) as Array<{ id: string; label: string }>;
+        const data = JSON.parse(text) as Array<{
+          id: string;
+          label: string;
+          lat?: number;
+          lng?: number;
+        }>;
         setAddressSuggestions(Array.isArray(data) ? data.slice(0, 6) : []);
       } catch (err) {
         console.error("Address search error", err);
@@ -182,11 +191,13 @@ function AddJobModal({
     setValues((prev) => ({ ...prev, [field]: v }));
   }
 
-  function selectClientAddress(nextAddress: string) {
+  function selectClientAddress(nextAddress: string, lat?: number, lng?: number) {
     const prevClientAddress = values.clientAddress;
     setValues((prev) => ({
       ...prev,
       clientAddress: nextAddress,
+      clientAddressLat: lat != null ? lat : null,
+      clientAddressLng: lng != null ? lng : null,
       jobAddress:
         !prev.jobAddress.trim() || prev.jobAddress.trim() === prevClientAddress.trim()
           ? nextAddress
@@ -281,6 +292,8 @@ function AddJobModal({
                   const next = e.target.value;
                   setAddressQuery(next);
                   handleChange("clientAddress", next);
+                  handleChange("clientAddressLat", null);
+                  handleChange("clientAddressLng", null);
                   if (!values.jobAddress) {
                     handleChange("jobAddress", next);
                   }
@@ -308,7 +321,7 @@ function AddJobModal({
                         type="button"
                         className="w-full text-left px-3 py-2 text-xs hover:bg-amber-50 border-t border-amber-100 first:border-t-0"
                         onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => selectClientAddress(s.label)}
+                        onClick={() => selectClientAddress(s.label, s.lat, s.lng)}
                       >
                         {s.label}
                       </button>

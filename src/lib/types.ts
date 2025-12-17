@@ -13,6 +13,8 @@ export interface Job {
   id: string;
   clientName: string;
   clientAddress: string;
+  clientAddressLat: number | null;
+  clientAddressLng: number | null;
   clientPhone: string;
   billingAddress: string | null;
   jobAddress: string;

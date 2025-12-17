@@ -29,8 +29,13 @@ Quick start:
    DATABASE_FILENAME=installer_scheduler.db
    BLOB_READ_WRITE_TOKEN=your-vercel-blob-token
    SCHEDULER_PASSWORD=your-shared-password
+   ORS_API_KEY=your-openrouteservice-api-key
+   ORS_BASE_ADDRESS=655 Esplanade, Lakes Entrance VIC
+   ORS_BASE_LAT=-37.8766
+   ORS_BASE_LNG=147.9957
 
    (On Vercel, add `BLOB_READ_WRITE_TOKEN` as a project env var for uploads.)
+   - Add `ORS_API_KEY` on Vercel to enable Travel metrics (server-only, never sent to the browser).
    - Add `SCHEDULER_PASSWORD` on Vercel to enable the login gate.
 
 3. Run DB seed:

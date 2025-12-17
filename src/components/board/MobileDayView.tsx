@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSchedulerStore } from "@/store/useSchedulerStore";
 import { addDays, addWeeks, format } from "date-fns";
 import JobCard from "../jobs/JobCard";
@@ -18,7 +18,7 @@ export default function MobileDayView() {
       const day = cursor.getDay();
       if (day !== 0 && day !== 6) {
         const iso = format(cursor, "yyyy-MM-dd");
-        result.push({ iso, date: new Date(cursor), label: format(cursor, "EEE d/MM") });
+        result.push({ iso, date: new Date(cursor), label: format(cursor, "EEE") });
       }
       cursor = addDays(cursor, 1);
     }
@@ -82,58 +82,238 @@ export default function MobileDayView() {
         style={{ WebkitOverflowScrolling: "touch" }}
         data-scroll-container="board"
       >
-        {jobsByDay.map((d) => {
-          const todayIso = new Date().toISOString().slice(0, 10);
-          const isToday = d.iso === todayIso;
-          const areaStyle = getAreaStyle(d.area, areaOptions);
-          return (
-            <div
-              key={d.iso}
-              className={`relative min-w-[240px] flex-shrink-0 border border-amber-200/70 rounded-xl shadow-inner p-3 flex flex-col gap-2 ${
-                isToday ? "bg-rose-50" : "bg-[#f6f0e7]/90"
-              } ${areaStyle?.ring ?? ""}`}
-            >
-              {isToday && (
-                <span
-                  className="absolute inset-y-0 left-0 w-1 bg-rose-500 rounded-l-xl"
-                  aria-hidden="true"
-                />
-              )}
-              <div className="text-xs font-semibold text-amber-900 flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  {isToday && (
-                    <span className="inline-flex items-center px-2 py-1 text-[11px] font-semibold text-white bg-rose-500 rounded-full shadow">
-                      Today
-                    </span>
-                  )}
-                  {d.label}
-                </span>
-                <button
-                  className={`text-[11px] px-2 py-1 rounded-full border transition-colors ${
-                    areaStyle?.badge ??
-                    "border-amber-300 text-amber-800 bg-amber-50/70 hover:bg-amber-100"
-                  }`}
-                  onClick={() => {
-                    const newLabel = prompt("Area label for this day:", d.area ?? "");
-                    if (newLabel !== null) {
-                      const trimmed = newLabel.trim();
-                      setDayAreaLabel(d.iso, trimmed || undefined);
-                    }
-                  }}
-                >
-                  {d.area ? d.area : "Set area"}
-                </button>
-              </div>
-              <div className="flex-1 overflow-y-auto space-y-2">
-                {d.jobs.length === 0 ? (
-                  <p className="text-[11px] text-amber-900/70">No jobs for this day.</p>
-                ) : (
-                  d.jobs.map((j) => <JobCard job={j} key={j.id} />)
-                )}
-              </div>
+        {jobsByDay.map((d) => (
+          <MobileDayCard
+            key={d.iso}
+            day={d}
+            areaOptions={areaOptions}
+            onSetArea={(iso, next) => setDayAreaLabel(iso, next)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function MobileDayCard({
+  day,
+  areaOptions,
+  onSetArea
+}: {
+  day: { iso: string; date: Date; label: string; area?: string; jobs: any[] };
+  areaOptions: string[];
+  onSetArea: (iso: string, label: string | undefined) => void;
+}) {
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const isToday = day.iso === todayIso;
+  const areaStyle = getAreaStyle(day.area, areaOptions);
+  const missingCoordsCount = day.jobs.filter(
+    (j) => j.clientAddressLat == null || j.clientAddressLng == null
+  ).length;
+  const [travel, setTravel] = useState<
+    | {
+        legs: Array<{ distanceMeters: number; durationSeconds: number }>;
+        totalDistanceMeters: number;
+        totalDurationSeconds: number;
+      }
+    | null
+  >(null);
+  const [travelError, setTravelError] = useState<string | null>(null);
+  const [travelLoading, setTravelLoading] = useState(false);
+  const routeSignature = useMemo(
+    () =>
+      day.jobs
+        .map((j) => `${j.id}:${j.clientAddressLat ?? ""},${j.clientAddressLng ?? ""}`)
+        .join("|"),
+    [day.jobs]
+  );
+
+  useEffect(() => {
+    if (day.jobs.length === 0) {
+      setTravel(null);
+      setTravelError(null);
+      setTravelLoading(false);
+      return;
+    }
+    if (missingCoordsCount > 0) {
+      setTravel(null);
+      setTravelError(null);
+      setTravelLoading(false);
+      return;
+    }
+    if (!day.area) {
+      setTravel(null);
+      setTravelError(null);
+      setTravelLoading(false);
+      return;
+    }
+
+    const stops = day.jobs.map((j) => ({
+      id: j.id,
+      lat: j.clientAddressLat,
+      lng: j.clientAddressLng
+    }));
+
+    let cancelled = false;
+    setTravelLoading(true);
+    setTravelError(null);
+    void (async () => {
+      try {
+        const res = await fetch("/api/route-metrics", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ date: day.iso, area: day.area, stops })
+        });
+        const text = await res.text();
+        if (cancelled) return;
+        if (!res.ok) {
+          throw new Error(text || "Failed to load travel metrics");
+        }
+        const data = JSON.parse(text) as any;
+        setTravel({
+          legs: Array.isArray(data.legs) ? data.legs : [],
+          totalDistanceMeters: Number(data.totalDistanceMeters ?? 0),
+          totalDurationSeconds: Number(data.totalDurationSeconds ?? 0)
+        });
+      } catch (e: any) {
+        if (!cancelled) setTravelError(e?.message ?? "Failed to load travel metrics");
+        setTravel(null);
+      } finally {
+        if (!cancelled) setTravelLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [day.iso, day.area, routeSignature, missingCoordsCount]);
+
+  function fmtDistance(meters: number) {
+    const km = meters / 1000;
+    if (km < 10) return `${km.toFixed(1)} km`;
+    return `${Math.round(km)} km`;
+  }
+
+  function fmtDuration(seconds: number) {
+    const minutes = Math.round(seconds / 60);
+    if (minutes < 60) return `${minutes} min`;
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return `${h}h ${m}m`;
+  }
+
+  function renderLeg(labelText: string, legIndex: number) {
+    if (!travel || !travel.legs?.[legIndex]) return null;
+    const leg = travel.legs[legIndex];
+    return (
+      <div className="rounded-lg border border-amber-200 bg-white/70 px-3 py-2">
+        <div className="flex items-center justify-between text-[11px] text-amber-900/80">
+          <span className="font-semibold">{labelText}</span>
+          <span>
+            {fmtDistance(leg.distanceMeters)} · {fmtDuration(leg.durationSeconds)}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`relative min-w-[240px] flex-shrink-0 border border-amber-200/70 rounded-xl shadow-inner p-3 flex flex-col gap-2 ${
+        isToday ? "bg-rose-50" : "bg-[#f6f0e7]/90"
+      } ${areaStyle?.ring ?? ""}`}
+    >
+      {isToday && (
+        <span
+          className="absolute inset-y-0 left-0 w-1 bg-rose-500 rounded-l-xl"
+          aria-hidden="true"
+        />
+      )}
+      <div className="mb-1">
+        <div className="text-center">
+          <div className="text-base font-extrabold text-amber-900 leading-tight">
+            {day.label}
+          </div>
+          <div className="text-sm font-semibold text-amber-900/90 leading-tight">
+            {format(day.date, "d/MM")}
+          </div>
+        </div>
+
+        <div className="mt-2 flex items-center justify-between gap-2">
+          {isToday ? (
+            <span className="inline-flex items-center px-2 py-1 text-[11px] font-semibold text-white bg-rose-500 rounded-full shadow">
+              Today
+            </span>
+          ) : (
+            <span />
+          )}
+          <button
+            className={`text-[11px] px-2 py-1 rounded-full border transition-colors ${
+              areaStyle?.badge ??
+              "border-amber-300 text-amber-800 bg-amber-50/70 hover:bg-amber-100"
+            }`}
+            onClick={() => {
+              const newLabel = prompt("Area label for this day:", day.area ?? "");
+              if (newLabel !== null) {
+                const trimmed = newLabel.trim();
+                onSetArea(day.iso, trimmed || undefined);
+              }
+            }}
+          >
+            {day.area ? day.area : "Set area"}
+          </button>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-amber-200 bg-white/70 px-3 py-2">
+        <div className="text-xs font-semibold text-amber-900">Travel</div>
+        {day.jobs.length === 0 ? (
+          <div className="text-[11px] text-amber-900/70">No jobs.</div>
+        ) : missingCoordsCount > 0 ? (
+          <div className="text-[11px] text-amber-900/70">
+            Missing coordinates for {missingCoordsCount} jobs (open the job and re-select the Client address from the dropdown, then Save)
+          </div>
+        ) : travelLoading ? (
+          <div className="text-[11px] text-amber-900/70">Calculating…</div>
+        ) : travelError ? (
+          <div className="text-[11px] text-red-700">Travel error</div>
+        ) : travel ? (
+          <div className="flex justify-between text-[11px] font-semibold text-amber-900">
+            <span>Total</span>
+            <span>
+              {fmtDistance(travel.totalDistanceMeters)} · {fmtDuration(travel.totalDurationSeconds)}
+            </span>
+          </div>
+        ) : (
+          <div className="text-[11px] text-amber-900/70">Set area to calculate.</div>
+        )}
+      </div>
+
+      <div className="flex-1 overflow-y-auto space-y-2">
+        {day.jobs.length > 0 &&
+        travel &&
+        !travelLoading &&
+        !travelError &&
+        missingCoordsCount === 0
+          ? renderLeg(`Leg 1: Base → ${day.jobs[0].clientName}`, 0)
+          : null}
+        {day.jobs.length === 0 ? (
+          <p className="text-[11px] text-amber-900/70">No jobs for this day.</p>
+        ) : (
+          day.jobs.map((j, idx) => (
+            <div key={j.id} className="space-y-2">
+              <JobCard job={j} />
+              {travel && !travelLoading && !travelError && missingCoordsCount === 0 ? (
+                idx < day.jobs.length - 1
+                  ? renderLeg(
+                      `Leg ${idx + 2}: ${j.clientName} → ${day.jobs[idx + 1].clientName}`,
+                      idx + 1
+                    )
+                  : renderLeg(`Leg ${idx + 2}: ${j.clientName} → Base`, idx + 1)
+              ) : null}
             </div>
-          );
-        })}
+          ))
+        )}
       </div>
     </div>
   );

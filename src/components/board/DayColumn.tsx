@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import JobCard from "../jobs/JobCard";
 import { Draggable } from "@hello-pangea/dnd";
 import { useSchedulerStore } from "@/store/useSchedulerStore";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 interface Props {
   label: string;
@@ -52,6 +52,16 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
   const area = dayAreaLabels[isoDate];
   const todayIso = new Date().toISOString().slice(0, 10);
   const isToday = isoDate === todayIso;
+  const [travel, setTravel] = useState<
+    | {
+        legs: Array<{ distanceMeters: number; durationSeconds: number }>;
+        totalDistanceMeters: number;
+        totalDurationSeconds: number;
+      }
+    | null
+  >(null);
+  const [travelError, setTravelError] = useState<string | null>(null);
+  const [travelLoading, setTravelLoading] = useState(false);
 
   const areaOptions = useMemo(() => {
     const set = new Set<string>(baseAreas);
@@ -69,6 +79,109 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
     0
   );
 
+  const missingCoordsCount = jobs.filter(
+    (j) => j.clientAddressLat == null || j.clientAddressLng == null
+  ).length;
+
+  const routeSignature = useMemo(
+    () =>
+      jobs
+        .map((j) => `${j.id}:${j.clientAddressLat ?? ""},${j.clientAddressLng ?? ""}`)
+        .join("|"),
+    [jobs]
+  );
+
+  useEffect(() => {
+    if (jobs.length === 0) {
+      setTravel(null);
+      setTravelError(null);
+      setTravelLoading(false);
+      return;
+    }
+
+    if (missingCoordsCount > 0) {
+      setTravel(null);
+      setTravelError(null);
+      setTravelLoading(false);
+      return;
+    }
+
+    if (!area) {
+      setTravel(null);
+      setTravelError(null);
+      setTravelLoading(false);
+      return;
+    }
+
+    const stops = jobs.map((j) => ({
+      id: j.id,
+      lat: j.clientAddressLat as number,
+      lng: j.clientAddressLng as number
+    }));
+
+    let cancelled = false;
+    setTravelLoading(true);
+    setTravelError(null);
+    void (async () => {
+      try {
+        const res = await fetch("/api/route-metrics", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ date: isoDate, area, stops })
+        });
+        const text = await res.text();
+        if (cancelled) return;
+        if (!res.ok) {
+          throw new Error(text || "Failed to load travel metrics");
+        }
+        const data = JSON.parse(text) as any;
+        setTravel({
+          legs: Array.isArray(data.legs) ? data.legs : [],
+          totalDistanceMeters: Number(data.totalDistanceMeters ?? 0),
+          totalDurationSeconds: Number(data.totalDurationSeconds ?? 0)
+        });
+      } catch (e: any) {
+        if (!cancelled) setTravelError(e?.message ?? "Failed to load travel metrics");
+        setTravel(null);
+      } finally {
+        if (!cancelled) setTravelLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isoDate, area, routeSignature, missingCoordsCount]);
+
+  function fmtDistance(meters: number) {
+    const km = meters / 1000;
+    if (km < 10) return `${km.toFixed(1)} km`;
+    return `${Math.round(km)} km`;
+  }
+
+  function fmtDuration(seconds: number) {
+    const minutes = Math.round(seconds / 60);
+    if (minutes < 60) return `${minutes} min`;
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return `${h}h ${m}m`;
+  }
+
+  function renderLeg(labelText: string, legIndex: number) {
+    if (!travel || !travel.legs?.[legIndex]) return null;
+    const leg = travel.legs[legIndex];
+    return (
+      <div className="rounded-lg border border-amber-200 bg-white/70 px-3 py-2">
+        <div className="flex items-center justify-between text-[11px] text-amber-900/80">
+          <span className="font-semibold">{labelText}</span>
+          <span>
+            {fmtDistance(leg.distanceMeters)} · {fmtDuration(leg.durationSeconds)}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className={`relative h-full rounded-2xl border border-amber-200/70 shadow-inner flex flex-col p-3 transition-shadow ${
@@ -81,21 +194,28 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
           aria-hidden="true"
         />
       )}
-      <div className="flex items-center justify-between mb-2">
-        <div>
-          <div className="text-sm font-semibold text-amber-900">
-            {label} {format(date, "d/MM")}
+      <div className="mb-2">
+        <div className="text-center">
+          <div className="text-lg font-extrabold text-amber-900 leading-tight">
+            {label}
           </div>
-          {isToday && (
-            <span className="inline-flex items-center px-2 py-1 mt-1 text-[11px] font-semibold text-white bg-rose-500 rounded-full shadow">
-              Today
-            </span>
-          )}
-          <div className="text-xs text-amber-900/70">
-            Total hours: {totalHours.toFixed(1)}h
+          <div className="text-base font-semibold text-amber-900/90 leading-tight">
+            {format(date, "d/MM")}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+
+        <div className="mt-2 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            {isToday && (
+              <span className="inline-flex items-center px-2 py-1 text-[11px] font-semibold text-white bg-rose-500 rounded-full shadow">
+                Today
+              </span>
+            )}
+            <div className="text-xs text-amber-900/70">
+              Total hours: {totalHours.toFixed(1)}h
+            </div>
+          </div>
+
           <select
             className={`text-[11px] px-2 py-1 rounded-full border transition-colors ${
               areaStyle?.badge ??
@@ -125,20 +245,56 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
         </div>
       </div>
 
+      <div className="mb-2 rounded-xl border border-amber-200 bg-white/70 px-3 py-2">
+        <div className="text-xs font-semibold text-amber-900">Travel</div>
+        {jobs.length === 0 ? (
+          <div className="text-[11px] text-amber-900/70">No jobs.</div>
+        ) : missingCoordsCount > 0 ? (
+          <div className="text-[11px] text-amber-900/70">
+            Missing coordinates for {missingCoordsCount} jobs (open the job and re-select the Client address from the dropdown, then Save)
+          </div>
+        ) : travelLoading ? (
+          <div className="text-[11px] text-amber-900/70">Calculating…</div>
+        ) : travelError ? (
+          <div className="text-[11px] text-red-700">Travel error</div>
+        ) : travel ? (
+          <div className="flex justify-between text-[11px] font-semibold text-amber-900">
+            <span>Total</span>
+            <span>
+              {fmtDistance(travel.totalDistanceMeters)} · {fmtDuration(travel.totalDurationSeconds)}
+            </span>
+          </div>
+        ) : (
+          <div className="text-[11px] text-amber-900/70">Set area to calculate.</div>
+        )}
+      </div>
+
       <div className="flex-1 overflow-y-auto space-y-2">
+        {jobs.length > 0 && travel && !travelLoading && !travelError && missingCoordsCount === 0
+          ? renderLeg(`Leg 1: Base → ${jobs[0].clientName}`, 0)
+          : null}
         {jobs.map((job, index) => (
-          <Draggable draggableId={job.id} index={index} key={job.id}>
-            {(provided) => (
-              <div
-                key={job.id}
-                ref={provided.innerRef}
-                {...provided.draggableProps}
-                {...provided.dragHandleProps}
-              >
-                <JobCard job={job} />
-              </div>
-            )}
-          </Draggable>
+          <div key={job.id} className="space-y-2">
+            <Draggable draggableId={job.id} index={index} key={job.id}>
+              {(provided) => (
+                <div
+                  ref={provided.innerRef}
+                  {...provided.draggableProps}
+                  {...provided.dragHandleProps}
+                >
+                  <JobCard job={job} />
+                </div>
+              )}
+            </Draggable>
+            {travel && !travelLoading && !travelError && missingCoordsCount === 0 ? (
+              index < jobs.length - 1
+                ? renderLeg(
+                    `Leg ${index + 2}: ${job.clientName} → ${jobs[index + 1].clientName}`,
+                    index + 1
+                  )
+                : renderLeg(`Leg ${index + 2}: ${job.clientName} → Base`, index + 1)
+            ) : null}
+          </div>
         ))}
       </div>
     </div>

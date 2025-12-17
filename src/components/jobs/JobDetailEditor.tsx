@@ -13,6 +13,8 @@ type FormState = {
   clientName: string;
   clientPhone: string;
   clientAddress: string;
+  clientAddressLat: string;
+  clientAddressLng: string;
   billingAddress: string;
   jobAddress: string;
   description: string;
@@ -82,6 +84,8 @@ export function JobDetailEditor({ job }: { job: Job }) {
     clientName: job.clientName ?? "",
     clientPhone: job.clientPhone ?? "",
     clientAddress: job.clientAddress ?? "",
+    clientAddressLat: job.clientAddressLat != null ? String(job.clientAddressLat) : "",
+    clientAddressLng: job.clientAddressLng != null ? String(job.clientAddressLng) : "",
     billingAddress: job.billingAddress ?? "",
     jobAddress: job.jobAddress ?? "",
     description: job.description ?? "",
@@ -119,7 +123,7 @@ export function JobDetailEditor({ job }: { job: Job }) {
   const telHref = toTelHref(form.clientPhone);
   const [addressQuery, setAddressQuery] = useState("");
   const [addressSuggestions, setAddressSuggestions] = useState<
-    Array<{ id: string; label: string; raw?: string }>
+    Array<{ id: string; label: string; raw?: string; lat?: number; lng?: number }>
   >([]);
   const [addressLoading, setAddressLoading] = useState(false);
   const [showAddressSuggestions, setShowAddressSuggestions] = useState(false);
@@ -188,6 +192,8 @@ export function JobDetailEditor({ job }: { job: Job }) {
       clientName: job.clientName ?? "",
       clientPhone: job.clientPhone ?? "",
       clientAddress: job.clientAddress ?? "",
+      clientAddressLat: job.clientAddressLat != null ? String(job.clientAddressLat) : "",
+      clientAddressLng: job.clientAddressLng != null ? String(job.clientAddressLng) : "",
       billingAddress: job.billingAddress ?? "",
       jobAddress: job.jobAddress ?? "",
       description: job.description ?? "",
@@ -277,7 +283,12 @@ export function JobDetailEditor({ job }: { job: Job }) {
           return;
         }
 
-        const data = JSON.parse(text) as Array<{ id: string; label: string }>;
+        const data = JSON.parse(text) as Array<{
+          id: string;
+          label: string;
+          lat?: number;
+          lng?: number;
+        }>;
         setAddressSuggestions(Array.isArray(data) ? data.slice(0, 6) : []);
       } catch (err) {
         console.error("Address search error", err);
@@ -294,9 +305,11 @@ export function JobDetailEditor({ job }: { job: Job }) {
     return () => window.clearTimeout(timer);
   }, [addressQuery]);
 
-  function selectClientAddress(nextAddress: string) {
+  function selectClientAddress(nextAddress: string, lat?: number, lng?: number) {
     const prevClientAddress = form.clientAddress;
     updateField("clientAddress", nextAddress);
+    updateField("clientAddressLat", lat != null ? String(lat) : "");
+    updateField("clientAddressLng", lng != null ? String(lng) : "");
     setAddressQuery(nextAddress);
     setShowAddressSuggestions(false);
 
@@ -319,6 +332,8 @@ export function JobDetailEditor({ job }: { job: Job }) {
       clientName: form.clientName.trim(),
       clientPhone: form.clientPhone.trim() || "N/A",
       clientAddress: form.clientAddress.trim(),
+      clientAddressLat: form.clientAddressLat.trim() ? Number(form.clientAddressLat) : null,
+      clientAddressLng: form.clientAddressLng.trim() ? Number(form.clientAddressLng) : null,
       billingAddress: form.billingAddress.trim() || form.clientAddress.trim(),
       jobAddress: form.jobAddress.trim(),
       description: form.description.trim() || "Job",
@@ -502,6 +517,8 @@ export function JobDetailEditor({ job }: { job: Job }) {
                   const next = e.target.value;
                   setAddressQuery(next);
                   updateField("clientAddress", next);
+                  updateField("clientAddressLat", "");
+                  updateField("clientAddressLng", "");
                   setShowAddressSuggestions(true);
                 }}
                 onFocus={() => setShowAddressSuggestions(true)}
@@ -516,13 +533,13 @@ export function JobDetailEditor({ job }: { job: Job }) {
                       Searching...
                     </div>
                   )}
-                  {addressSuggestions.map((s) => (
-                    <button
+                {addressSuggestions.map((s) => (
+                  <button
                       key={s.id}
                       type="button"
                       className="w-full text-left px-3 py-2 text-xs hover:bg-amber-50 border-t border-amber-100 first:border-t-0"
                       onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => selectClientAddress(s.label)}
+                      onClick={() => selectClientAddress(s.label, s.lat, s.lng)}
                     >
                       {s.label}
                     </button>

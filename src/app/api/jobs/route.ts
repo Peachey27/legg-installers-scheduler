@@ -26,6 +26,14 @@ export async function POST(req: NextRequest) {
       id,
       clientName: body.clientName ?? "",
       clientAddress: body.clientAddress ?? "",
+      clientAddressLat:
+        body.clientAddressLat != null && body.clientAddressLat !== ""
+          ? Number(body.clientAddressLat)
+          : null,
+      clientAddressLng:
+        body.clientAddressLng != null && body.clientAddressLng !== ""
+          ? Number(body.clientAddressLng)
+          : null,
       clientPhone: body.clientPhone ?? "",
       billingAddress: body.billingAddress ?? body.clientAddress ?? "",
       jobAddress: body.jobAddress ?? "",

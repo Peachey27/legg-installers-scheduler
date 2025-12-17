@@ -6,6 +6,8 @@ export const jobs = pgTable("jobs", {
 
   clientName: text("client_name").notNull(),
   clientAddress: text("client_address").notNull(),
+  clientAddressLat: real("client_address_lat"),
+  clientAddressLng: real("client_address_lng"),
   clientPhone: text("client_phone").notNull(),
   billingAddress: text("billing_address"),
   jobAddress: text("job_address").notNull(),
