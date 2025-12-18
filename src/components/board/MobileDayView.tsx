@@ -1,5 +1,6 @@
 "use client";
 
+import type { RefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSchedulerStore } from "@/store/useSchedulerStore";
 import type { Job } from "@/lib/types";
@@ -18,6 +19,8 @@ export default function MobileDayView() {
   const { jobs, dayAreaLabels, setDayAreaLabel, moveJob } = useSchedulerStore();
   const [weekOffset, setWeekOffset] = useState(0); // blocks of 5 weekdays
   const [orderByList, setOrderByList] = useState<Record<string, string[]>>({});
+  const [dragging, setDragging] = useState(false);
+  const boardScrollRef = useRef<HTMLDivElement | null>(null);
   const today = new Date();
   const startDate = addWeeks(today, weekOffset);
 
@@ -101,6 +104,7 @@ export default function MobileDayView() {
 
   const onDragEnd = useCallback(
     (result: DropResult) => {
+      setDragging(false);
       const { destination, source, draggableId } = result;
       if (!destination) return;
       if (
@@ -176,8 +180,13 @@ export default function MobileDayView() {
     [dayAreaLabels, jobs, moveJob]
   );
 
+  useAutoHorizontalScrollOnDrag(boardScrollRef, dragging);
+
   return (
-    <DragDropContext onDragEnd={onDragEnd}>
+    <DragDropContext
+      onDragStart={() => setDragging(true)}
+      onDragEnd={onDragEnd}
+    >
       <div className="flex flex-col h-[calc(100vh-56px)] overflow-hidden">
         <div className="flex items-center gap-2 px-3 py-2 text-xs text-amber-900/80">
           <button
@@ -205,6 +214,7 @@ export default function MobileDayView() {
           className="flex flex-1 overflow-x-auto overflow-y-hidden px-3 pb-4 gap-3"
           style={{ WebkitOverflowScrolling: "touch" }}
           data-scroll-container="board"
+          ref={boardScrollRef}
         >
           <MobileBacklogCard jobs={backlogJobs} />
           {jobsByDay.map((d) => (
@@ -237,6 +247,70 @@ function mergeOrder(existing: string[] | undefined, currentIds: string[]) {
     }
   }
   return merged;
+}
+
+function useAutoHorizontalScrollOnDrag(
+  containerRef: RefObject<HTMLElement | null>,
+  active: boolean
+) {
+  const lastPointRef = useRef<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    if (!active) {
+      lastPointRef.current = null;
+      return;
+    }
+
+    const onMouseMove = (e: MouseEvent) => {
+      lastPointRef.current = { x: e.clientX, y: e.clientY };
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      const t = e.touches?.[0];
+      if (!t) return;
+      lastPointRef.current = { x: t.clientX, y: t.clientY };
+    };
+
+    window.addEventListener("mousemove", onMouseMove, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: true });
+
+    let rafId = 0;
+    const tick = () => {
+      const el = containerRef.current;
+      const point = lastPointRef.current;
+      if (el && point) {
+        const rect = el.getBoundingClientRect();
+        const threshold = 64;
+        const maxSpeed = 26;
+
+        const clientWidth = (el as any).clientWidth as number | undefined;
+        const scale = clientWidth && clientWidth > 0 ? rect.width / clientWidth : 1;
+        const speedScale = scale > 0 ? 1 / scale : 1;
+
+        const leftZone = rect.left + threshold;
+        const rightZone = rect.right - threshold;
+
+        if (point.x < leftZone) {
+          const t = Math.min((leftZone - point.x) / threshold, 1);
+          el.scrollLeft -= maxSpeed * t * speedScale;
+        } else if (point.x > rightZone) {
+          const t = Math.min((point.x - rightZone) / threshold, 1);
+          el.scrollLeft += maxSpeed * t * speedScale;
+        }
+      }
+
+      rafId = window.requestAnimationFrame(tick);
+    };
+
+    rafId = window.requestAnimationFrame(tick);
+
+    return () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.cancelAnimationFrame(rafId);
+      lastPointRef.current = null;
+    };
+  }, [active, containerRef]);
 }
 
 function orderJobs(listId: string, orderByList: Record<string, string[]>, list: Job[]) {
