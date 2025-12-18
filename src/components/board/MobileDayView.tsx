@@ -216,14 +216,35 @@ export default function MobileDayView() {
           data-scroll-container="board"
           ref={boardScrollRef}
         >
-          <MobileBacklogCard jobs={backlogJobs} />
+          <Droppable droppableId="backlog">
+            {(provided) => (
+              <div
+                ref={provided.innerRef}
+                {...provided.droppableProps}
+                className="min-w-[240px] flex-shrink-0"
+              >
+                <MobileBacklogCard jobs={backlogJobs} placeholder={provided.placeholder} />
+              </div>
+            )}
+          </Droppable>
+
           {jobsByDay.map((d) => (
-            <MobileDayCard
-              key={d.iso}
-              day={d}
-              areaOptions={areaOptions}
-              onSetArea={(iso, next) => setDayAreaLabel(iso, next)}
-            />
+            <Droppable droppableId={d.iso} key={d.iso}>
+              {(provided) => (
+                <div
+                  ref={provided.innerRef}
+                  {...provided.droppableProps}
+                  className="min-w-[240px] flex-shrink-0"
+                >
+                  <MobileDayCard
+                    day={d}
+                    areaOptions={areaOptions}
+                    onSetArea={(iso, next) => setDayAreaLabel(iso, next)}
+                    placeholder={provided.placeholder}
+                  />
+                </div>
+              )}
+            </Droppable>
           ))}
         </div>
       </div>
@@ -334,11 +355,13 @@ function orderJobs(listId: string, orderByList: Record<string, string[]>, list: 
 function MobileDayCard({
   day,
   areaOptions,
-  onSetArea
+  onSetArea,
+  placeholder
 }: {
   day: { iso: string; date: Date; label: string; area?: string; jobs: Job[] };
   areaOptions: string[];
   onSetArea: (iso: string, label: string | undefined) => void;
+  placeholder: React.ReactNode;
 }) {
   const todayIso = new Date().toISOString().slice(0, 10);
   const isToday = day.iso === todayIso;
@@ -529,36 +552,32 @@ function MobileDayCard({
         )}
       </div>
 
-      <Droppable droppableId={day.iso}>
-        {(provided) => (
-          <div ref={provided.innerRef} {...provided.droppableProps} className="flex-1 overflow-y-auto space-y-2">
-            {day.jobs.length > 0 && travel && !travelLoading && !travelError && travel.unresolvedStopIds.length === 0
-              ? renderLeg(`Leg 1: Base -> ${day.jobs[0].clientName}`, 0)
-              : null}
+      <div className="flex-1 overflow-y-auto space-y-2">
+        {day.jobs.length > 0 && travel && !travelLoading && !travelError && travel.unresolvedStopIds.length === 0
+          ? renderLeg(`Leg 1: Base -> ${day.jobs[0].clientName}`, 0)
+          : null}
 
-            {day.jobs.length === 0 ? (
-              <p className="text-[11px] text-amber-900/70">No jobs for this day.</p>
-            ) : (
-              day.jobs.map((job, index) => (
-                <div key={job.id} className="space-y-2">
-                  <MobileJobDraggable job={job} index={index} />
-                  {travel && !travelLoading && !travelError && travel.unresolvedStopIds.length === 0 ? (
-                    index < day.jobs.length - 1
-                      ? renderLeg(`Leg ${index + 2}: ${job.clientName} -> ${day.jobs[index + 1].clientName}`, index + 1)
-                      : renderLeg(`Leg ${index + 2}: ${job.clientName} -> Base`, index + 1)
-                  ) : null}
-                </div>
-              ))
-            )}
-            {provided.placeholder}
-          </div>
+        {day.jobs.length === 0 ? (
+          <p className="text-[11px] text-amber-900/70">No jobs for this day.</p>
+        ) : (
+          day.jobs.map((job, index) => (
+            <div key={job.id} className="space-y-2">
+              <MobileJobDraggable job={job} index={index} />
+              {travel && !travelLoading && !travelError && travel.unresolvedStopIds.length === 0 ? (
+                index < day.jobs.length - 1
+                  ? renderLeg(`Leg ${index + 2}: ${job.clientName} -> ${day.jobs[index + 1].clientName}`, index + 1)
+                  : renderLeg(`Leg ${index + 2}: ${job.clientName} -> Base`, index + 1)
+              ) : null}
+            </div>
+          ))
         )}
-      </Droppable>
+        {placeholder}
+      </div>
     </div>
   );
 }
 
-function MobileBacklogCard({ jobs }: { jobs: Job[] }) {
+function MobileBacklogCard({ jobs, placeholder }: { jobs: Job[]; placeholder: React.ReactNode }) {
   return (
     <div className="relative min-w-[240px] flex-shrink-0 border border-amber-200/70 rounded-xl shadow-inner p-3 flex flex-col gap-2 bg-[#f6f0e7]/90">
       <div className="mb-1">
@@ -568,18 +587,14 @@ function MobileBacklogCard({ jobs }: { jobs: Job[] }) {
         </div>
       </div>
 
-      <Droppable droppableId="backlog">
-        {(provided) => (
-          <div ref={provided.innerRef} {...provided.droppableProps} className="flex-1 overflow-y-auto space-y-2">
-            {jobs.length === 0 ? (
-              <p className="text-[11px] text-amber-900/70">No backlog jobs.</p>
-            ) : (
-              jobs.map((job, index) => <MobileJobDraggable key={job.id} job={job} index={index} />)
-            )}
-            {provided.placeholder}
-          </div>
+      <div className="flex-1 overflow-y-auto space-y-2">
+        {jobs.length === 0 ? (
+          <p className="text-[11px] text-amber-900/70">No backlog jobs.</p>
+        ) : (
+          jobs.map((job, index) => <MobileJobDraggable key={job.id} job={job} index={index} />)
         )}
-      </Droppable>
+        {placeholder}
+      </div>
     </div>
   );
 }
