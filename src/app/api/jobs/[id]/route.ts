@@ -77,12 +77,22 @@ export async function GET(_req: NextRequest, { params }: Params) {
 export async function PUT(req: NextRequest, { params }: Params) {
   try {
     const body = await req.json();
-    const normalizedBody = {
+    const normalizedBody: any = {
       ...body,
       materialProductUpdates: Array.isArray(body.materialProductUpdates)
         ? body.materialProductUpdates
         : []
     };
+
+    // If the UI only sends jobAddress, keep clientAddress in sync for back-compat.
+    if (
+      (typeof normalizedBody.jobAddress === "string" && normalizedBody.jobAddress.trim()) &&
+      (!normalizedBody.clientAddress ||
+        (typeof normalizedBody.clientAddress === "string" &&
+          normalizedBody.clientAddress.trim() !== normalizedBody.jobAddress.trim()))
+    ) {
+      normalizedBody.clientAddress = normalizedBody.jobAddress;
+    }
 
     // Best-effort: if an address is provided but coords are missing, geocode to the closest AU match.
     if (

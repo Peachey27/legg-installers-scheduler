@@ -526,7 +526,7 @@ function MobileDayCard({
           <div className="space-y-1">
             {travel.unresolvedStopIds.length > 0 && (
               <div className="text-[11px] text-amber-900/70">
-                Could not locate {travel.unresolvedStopIds.length} jobs (check Client address spelling)
+                Could not locate {travel.unresolvedStopIds.length} jobs (check Job address spelling)
               </div>
             )}
             {travel.approximatedStopIds.length > 0 && (

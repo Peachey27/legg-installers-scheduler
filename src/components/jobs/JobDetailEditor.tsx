@@ -87,7 +87,7 @@ export function JobDetailEditor({ job }: { job: Job }) {
     clientAddressLat: job.clientAddressLat != null ? String(job.clientAddressLat) : "",
     clientAddressLng: job.clientAddressLng != null ? String(job.clientAddressLng) : "",
     billingAddress: job.billingAddress ?? "",
-    jobAddress: job.jobAddress ?? "",
+    jobAddress: job.jobAddress ?? job.clientAddress ?? "",
     description: job.description ?? "",
     measurements: job.measurements ?? "",
     glassOrProductDetails: job.glassOrProductDetails ?? "",
@@ -201,7 +201,7 @@ export function JobDetailEditor({ job }: { job: Job }) {
       clientAddressLat: job.clientAddressLat != null ? String(job.clientAddressLat) : "",
       clientAddressLng: job.clientAddressLng != null ? String(job.clientAddressLng) : "",
       billingAddress: job.billingAddress ?? "",
-      jobAddress: job.jobAddress ?? "",
+      jobAddress: job.jobAddress ?? job.clientAddress ?? "",
       description: job.description ?? "",
       measurements: job.measurements ?? "",
       glassOrProductDetails: job.glassOrProductDetails ?? "",
@@ -229,7 +229,7 @@ export function JobDetailEditor({ job }: { job: Job }) {
     setCustomMaterialLabel("");
     setMaterialDate("");
     setShowNotesModal(false);
-    setAddressQuery(job.clientAddress ?? "");
+    setAddressQuery(job.jobAddress ?? job.clientAddress ?? "");
     setAddressSuggestions([]);
     setAddressLoading(false);
     setShowAddressSuggestions(false);
@@ -262,7 +262,7 @@ export function JobDetailEditor({ job }: { job: Job }) {
   }
 
   useEffect(() => {
-    setAddressQuery(form.clientAddress);
+    setAddressQuery(form.jobAddress);
   }, []);
 
   useEffect(() => {
@@ -311,19 +311,14 @@ export function JobDetailEditor({ job }: { job: Job }) {
     return () => window.clearTimeout(timer);
   }, [addressQuery]);
 
-  function selectClientAddress(nextAddress: string, lat?: number, lng?: number) {
-    const prevClientAddress = form.clientAddress;
+  function selectJobAddress(nextAddress: string, lat?: number, lng?: number) {
+    // Keep both columns in sync; the UI only exposes a single "Job address".
+    updateField("jobAddress", nextAddress);
     updateField("clientAddress", nextAddress);
     updateField("clientAddressLat", lat != null ? String(lat) : "");
     updateField("clientAddressLng", lng != null ? String(lng) : "");
     setAddressQuery(nextAddress);
     setShowAddressSuggestions(false);
-
-    const shouldSyncJobAddress =
-      !form.jobAddress.trim() || form.jobAddress.trim() === (prevClientAddress ?? "").trim();
-    if (shouldSyncJobAddress) {
-      updateField("jobAddress", nextAddress);
-    }
   }
 
   useEffect(() => {
@@ -335,22 +330,23 @@ export function JobDetailEditor({ job }: { job: Job }) {
   }, [billingSameAsJob, form.jobAddress]);
 
   function buildPayload() {
-    const required = ["clientName", "clientAddress", "jobAddress"] as const;
+    const required = ["clientName", "jobAddress"] as const;
     for (const key of required) {
       if (!form[key].toString().trim()) {
-        throw new Error("Client name, client address, and job address are required.");
+        throw new Error("Client name and job address are required.");
       }
     }
 
     return {
       clientName: form.clientName.trim(),
       clientPhone: form.clientPhone.trim() || "N/A",
-      clientAddress: form.clientAddress.trim(),
+      // Back-compat: clientAddress is treated as the job location address.
+      clientAddress: form.jobAddress.trim(),
       clientAddressLat: form.clientAddressLat.trim() ? Number(form.clientAddressLat) : null,
       clientAddressLng: form.clientAddressLng.trim() ? Number(form.clientAddressLng) : null,
       billingAddress: billingSameAsJob
         ? form.jobAddress.trim()
-        : form.billingAddress.trim() || form.clientAddress.trim(),
+        : form.billingAddress.trim() || form.jobAddress.trim(),
       jobAddress: form.jobAddress.trim(),
       description: form.description.trim() || "Job",
       measurements: form.measurements.trim() || null,
@@ -524,7 +520,7 @@ export function JobDetailEditor({ job }: { job: Job }) {
             )}
           </label>
           <label className="block space-y-1 text-sm text-amber-900/80">
-            <span>Client address*</span>
+            <span>Job address* (used for location)</span>
             <div className="relative">
               <input
                 className="w-full rounded border border-amber-200 px-3 py-2 bg-white"
@@ -532,6 +528,7 @@ export function JobDetailEditor({ job }: { job: Job }) {
                 onChange={(e) => {
                   const next = e.target.value;
                   setAddressQuery(next);
+                  updateField("jobAddress", next);
                   updateField("clientAddress", next);
                   updateField("clientAddressLat", "");
                   updateField("clientAddressLng", "");
@@ -555,7 +552,7 @@ export function JobDetailEditor({ job }: { job: Job }) {
                       type="button"
                       className="w-full text-left px-3 py-2 text-xs hover:bg-amber-50 border-t border-amber-100 first:border-t-0"
                       onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => selectClientAddress(s.label, s.lat, s.lng)}
+                      onClick={() => selectJobAddress(s.label, s.lat, s.lng)}
                     >
                       {s.label}
                     </button>
@@ -596,21 +593,6 @@ export function JobDetailEditor({ job }: { job: Job }) {
 
         <section className="space-y-3 rounded-xl border border-amber-200 bg-amber-50/70 p-4">
           <div className="text-sm font-semibold text-amber-900">Job info</div>
-          <label className="space-y-1 text-sm text-amber-900/80">
-            <span>Job address* (used for location)</span>
-            <input
-              className="w-full rounded border border-amber-200 px-3 py-2 bg-white"
-              value={form.jobAddress}
-              onChange={(e) => {
-                const next = e.target.value;
-                updateField("jobAddress", next);
-                if (next.trim() && next.trim() !== form.clientAddress.trim()) {
-                  updateField("clientAddressLat", "");
-                  updateField("clientAddressLng", "");
-                }
-              }}
-            />
-          </label>
           <label className="space-y-1 text-sm text-amber-900/80">
             <span>Description</span>
             <textarea

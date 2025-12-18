@@ -110,12 +110,14 @@ export async function POST(req: NextRequest) {
     const payload = {
       id,
       clientName: body.clientName ?? "",
-      clientAddress: body.clientAddress ?? "",
+      // Back-compat: treat "clientAddress" as the job location address.
+      jobAddress: (body.jobAddress ?? body.clientAddress ?? "").toString(),
+      clientAddress: (body.jobAddress ?? body.clientAddress ?? "").toString(),
       clientAddressLat: Number.isFinite(clientAddressLat as any) ? clientAddressLat : null,
       clientAddressLng: Number.isFinite(clientAddressLng as any) ? clientAddressLng : null,
       clientPhone: body.clientPhone ?? "",
-      billingAddress: body.billingAddress ?? body.clientAddress ?? "",
-      jobAddress: body.jobAddress ?? "",
+      billingAddress:
+        body.billingAddress ?? body.jobAddress ?? body.clientAddress ?? "",
       dateTaken: body.dateTaken ?? today,
       totalPrice: body.totalPrice ?? null,
       description: body.description ?? "",
@@ -142,7 +144,7 @@ export async function POST(req: NextRequest) {
     };
 
     // Basic sanity check
-    const missing = ["clientName", "clientAddress", "jobAddress", "description"].filter(
+    const missing = ["clientName", "jobAddress", "description"].filter(
       (k) => !(payload as any)[k]
     );
     if (missing.length) {

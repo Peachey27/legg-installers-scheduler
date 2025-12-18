@@ -139,7 +139,7 @@ function AddJobModal({
   // avoid SSR mismatch for portal
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-  useEffect(() => setAddressQuery(values.clientAddress), []);
+  useEffect(() => setAddressQuery(values.jobAddress), []);
 
   useEffect(() => {
     const q = addressQuery.trim();
@@ -195,23 +195,19 @@ function AddJobModal({
   }
 
   function selectClientAddress(nextAddress: string, lat?: number, lng?: number) {
-    const prevClientAddress = values.clientAddress;
     setValues((prev) => ({
       ...prev,
       clientAddress: nextAddress,
+      jobAddress: nextAddress,
       clientAddressLat: lat != null ? lat : null,
-      clientAddressLng: lng != null ? lng : null,
-      jobAddress:
-        !prev.jobAddress.trim() || prev.jobAddress.trim() === prevClientAddress.trim()
-          ? nextAddress
-          : prev.jobAddress
+      clientAddressLng: lng != null ? lng : null
     }));
     setAddressQuery(nextAddress);
     setShowAddressSuggestions(false);
     if (billingSameAsJob) {
       setValues((prev) => ({
         ...prev,
-        billingAddress: (prev.jobAddress || nextAddress).trim()
+        billingAddress: nextAddress.trim()
       }));
     }
   }
@@ -225,7 +221,7 @@ function AddJobModal({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const required = ["clientName", "clientAddress", "jobAddress"] as const;
+    const required = ["clientName", "jobAddress"] as const;
     for (const key of required) {
       // @ts-ignore dynamic check
       if (!values[key]?.toString().trim()) {
@@ -238,12 +234,12 @@ function AddJobModal({
 
     await onSave({
       ...values,
-      jobAddress: values.jobAddress.trim() || values.clientAddress.trim(),
-      clientAddress: values.clientAddress.trim(),
+      jobAddress: values.jobAddress.trim(),
+      clientAddress: values.jobAddress.trim(),
       clientName: values.clientName.trim(),
       clientPhone: values.clientPhone.trim() || "N/A",
       billingAddress: billingSameAsJob
-        ? (values.jobAddress.trim() || values.clientAddress.trim())
+        ? values.jobAddress.trim()
         : values.billingAddress.trim(),
       description,
       areaTag: useCustomArea
@@ -295,7 +291,7 @@ function AddJobModal({
           </div>
 
           <div className="space-y-1 md:col-span-2">
-            <label className="block text-amber-900/80">Client address*</label>
+            <label className="block text-amber-900/80">Job address* (used for location)</label>
             <div className="relative">
               <input
                 className="w-full rounded border border-amber-200 px-3 py-2 text-amber-900 bg-white/80"
@@ -303,15 +299,11 @@ function AddJobModal({
                 onChange={(e) => {
                   const next = e.target.value;
                   setAddressQuery(next);
+                  handleChange("jobAddress", next);
                   handleChange("clientAddress", next);
                   handleChange("clientAddressLat", null);
                   handleChange("clientAddressLng", null);
-                  if (!values.jobAddress) {
-                    handleChange("jobAddress", next);
-                    if (billingSameAsJob) {
-                      handleChange("billingAddress", next);
-                    }
-                  }
+                  if (billingSameAsJob) handleChange("billingAddress", next);
                   setShowAddressSuggestions(true);
                 }}
                 onFocus={() => setShowAddressSuggestions(true)}
@@ -351,26 +343,6 @@ function AddJobModal({
                   </div>
                 )}
             </div>
-          </div>
-
-          <div className="space-y-1 md:col-span-2">
-            <label className="block text-amber-900/80">Job address* (used for location)</label>
-            <input
-              className="w-full rounded border border-amber-200 px-3 py-2 text-amber-900 bg-white/80"
-              value={values.jobAddress}
-              onChange={(e) => {
-                const next = e.target.value;
-                handleChange("jobAddress", next);
-                if (billingSameAsJob) {
-                  handleChange("billingAddress", next);
-                }
-                if (next.trim() && next.trim() !== values.clientAddress.trim()) {
-                  handleChange("clientAddressLat", null);
-                  handleChange("clientAddressLng", null);
-                }
-              }}
-              required
-            />
           </div>
 
           <div className="space-y-1 md:col-span-2">
