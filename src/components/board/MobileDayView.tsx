@@ -211,7 +211,7 @@ export default function MobileDayView() {
         </div>
 
         <div
-          className="flex flex-1 overflow-x-auto overflow-y-hidden px-3 pb-4 gap-3"
+          className="flex flex-1 items-stretch overflow-x-auto overflow-y-hidden px-3 pb-4 gap-3"
           style={{ WebkitOverflowScrolling: "touch" }}
           data-scroll-container="board"
           ref={boardScrollRef}
@@ -221,7 +221,7 @@ export default function MobileDayView() {
               <div
                 ref={provided.innerRef}
                 {...provided.droppableProps}
-                className="min-w-[240px] flex-shrink-0"
+                className="min-w-[240px] h-full flex-shrink-0"
               >
                 <MobileBacklogCard jobs={backlogJobs} placeholder={provided.placeholder} />
               </div>
@@ -234,7 +234,7 @@ export default function MobileDayView() {
                 <div
                   ref={provided.innerRef}
                   {...provided.droppableProps}
-                  className="min-w-[240px] flex-shrink-0"
+                  className="min-w-[240px] h-full flex-shrink-0"
                 >
                   <MobileDayCard
                     day={d}
@@ -482,7 +482,7 @@ function MobileDayCard({
 
   return (
     <div
-      className={`relative min-w-[240px] flex-shrink-0 border border-amber-200/70 rounded-xl shadow-inner p-3 flex flex-col gap-2 ${
+      className={`relative h-full w-full border border-amber-200/70 rounded-xl shadow-inner p-3 flex flex-col gap-2 ${
         isToday ? "bg-rose-50" : "bg-[#f6f0e7]/90"
       } ${areaStyle?.ring ?? ""}`}
     >
@@ -579,7 +579,7 @@ function MobileDayCard({
 
 function MobileBacklogCard({ jobs, placeholder }: { jobs: Job[]; placeholder: React.ReactNode }) {
   return (
-    <div className="relative min-w-[240px] flex-shrink-0 border border-amber-200/70 rounded-xl shadow-inner p-3 flex flex-col gap-2 bg-[#f6f0e7]/90">
+    <div className="relative h-full w-full border border-amber-200/70 rounded-xl shadow-inner p-3 flex flex-col gap-2 bg-[#f6f0e7]/90">
       <div className="mb-1">
         <div className="text-center">
           <div className="text-base font-extrabold text-amber-900 leading-tight">Backlog</div>

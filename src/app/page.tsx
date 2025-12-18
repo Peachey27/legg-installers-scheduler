@@ -196,7 +196,7 @@ export default function HomePage() {
       </section>
 
       {/* Mobile view-only list */}
-      <section className="block md:hidden flex-1 mobile-scale">
+      <section className="block md:hidden flex-1">
         <MobileDayView />
       </section>
     </main>
