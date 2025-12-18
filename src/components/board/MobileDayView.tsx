@@ -14,6 +14,7 @@ import {
 } from "@hello-pangea/dnd";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
+import { formatClientName } from "@/lib/formatClientName";
 
 export default function MobileDayView() {
   const { jobs, dayAreaLabels, setDayAreaLabel, moveJob } = useSchedulerStore();
@@ -385,7 +386,7 @@ function MobileDayCard({
       day.jobs
         .map(
           (j) =>
-            `${j.id}:${j.clientAddressLat ?? ""},${j.clientAddressLng ?? ""}:${(j.clientAddress ?? "")
+            `${j.id}:${j.clientAddressLat ?? ""},${j.clientAddressLng ?? ""}:${(j.jobAddress ?? "")
               .trim()
               .toLowerCase()}`
         )
@@ -401,16 +402,9 @@ function MobileDayCard({
       return;
     }
 
-    if (!day.area) {
-      setTravel(null);
-      setTravelError(null);
-      setTravelLoading(false);
-      return;
-    }
-
     const stops = day.jobs.map((j) => ({
       id: j.id,
-      address: j.clientAddress || j.jobAddress,
+      address: j.jobAddress || j.clientAddress,
       lat: j.clientAddressLat,
       lng: j.clientAddressLng
     }));
@@ -548,14 +542,14 @@ function MobileDayCard({
             </div>
           </div>
         ) : (
-          <div className="text-[11px] text-amber-900/70">Set area to calculate.</div>
+          <div className="text-[11px] text-amber-900/70">Travel not available.</div>
         )}
       </div>
 
       <div className="flex-1 overflow-y-auto space-y-2">
-        {day.jobs.length > 0 && travel && !travelLoading && !travelError && travel.unresolvedStopIds.length === 0
-          ? renderLeg(`Leg 1: Base -> ${day.jobs[0].clientName}`, 0)
-          : null}
+            {day.jobs.length > 0 && travel && !travelLoading && !travelError && travel.unresolvedStopIds.length === 0
+              ? renderLeg(`Leg 1: Base -> ${formatClientName(day.jobs[0].clientName)}`, 0)
+              : null}
 
         {day.jobs.length === 0 ? (
           <p className="text-[11px] text-amber-900/70">No jobs for this day.</p>
@@ -563,14 +557,19 @@ function MobileDayCard({
           day.jobs.map((job, index) => (
             <div key={job.id} className="space-y-2">
               <MobileJobDraggable job={job} index={index} />
-              {travel && !travelLoading && !travelError && travel.unresolvedStopIds.length === 0 ? (
-                index < day.jobs.length - 1
-                  ? renderLeg(`Leg ${index + 2}: ${job.clientName} -> ${day.jobs[index + 1].clientName}`, index + 1)
-                  : renderLeg(`Leg ${index + 2}: ${job.clientName} -> Base`, index + 1)
-              ) : null}
-            </div>
-          ))
-        )}
+                  {travel && !travelLoading && !travelError && travel.unresolvedStopIds.length === 0 ? (
+                    index < day.jobs.length - 1
+                      ? renderLeg(
+                          `Leg ${index + 2}: ${formatClientName(job.clientName)} -> ${formatClientName(
+                            day.jobs[index + 1].clientName
+                          )}`,
+                          index + 1
+                        )
+                      : renderLeg(`Leg ${index + 2}: ${formatClientName(job.clientName)} -> Base`, index + 1)
+                  ) : null}
+                </div>
+              ))
+            )}
         {placeholder}
       </div>
     </div>

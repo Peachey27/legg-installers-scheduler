@@ -78,6 +78,7 @@ type AddJobFormValues = {
   clientAddress: string;
   clientAddressLat: number | null;
   clientAddressLng: number | null;
+  billingAddress: string;
   jobAddress: string;
   description: string;
   estimatedDurationHours: number | null;
@@ -109,11 +110,13 @@ function AddJobModal({
     clientAddress: "",
     clientAddressLat: null,
     clientAddressLng: null,
+    billingAddress: "",
     jobAddress: "",
     description: "New Window/Doors",
     estimatedDurationHours: null,
     areaTag: "Other"
   });
+  const [billingSameAsJob, setBillingSameAsJob] = useState(true);
   const [customDescription, setCustomDescription] = useState("");
   const [useCustomArea, setUseCustomArea] = useState(false);
   const [customAreaTag, setCustomAreaTag] = useState("");
@@ -205,6 +208,12 @@ function AddJobModal({
     }));
     setAddressQuery(nextAddress);
     setShowAddressSuggestions(false);
+    if (billingSameAsJob) {
+      setValues((prev) => ({
+        ...prev,
+        billingAddress: (prev.jobAddress || nextAddress).trim()
+      }));
+    }
   }
 
   function getDescriptionValue() {
@@ -233,6 +242,9 @@ function AddJobModal({
       clientAddress: values.clientAddress.trim(),
       clientName: values.clientName.trim(),
       clientPhone: values.clientPhone.trim() || "N/A",
+      billingAddress: billingSameAsJob
+        ? (values.jobAddress.trim() || values.clientAddress.trim())
+        : values.billingAddress.trim(),
       description,
       areaTag: useCustomArea
         ? customAreaTag.trim() || "Other"
@@ -296,6 +308,9 @@ function AddJobModal({
                   handleChange("clientAddressLng", null);
                   if (!values.jobAddress) {
                     handleChange("jobAddress", next);
+                    if (billingSameAsJob) {
+                      handleChange("billingAddress", next);
+                    }
                   }
                   setShowAddressSuggestions(true);
                 }}
@@ -339,12 +354,49 @@ function AddJobModal({
           </div>
 
           <div className="space-y-1 md:col-span-2">
-            <label className="block text-amber-900/80">Job address*</label>
+            <label className="block text-amber-900/80">Job address* (used for location)</label>
             <input
               className="w-full rounded border border-amber-200 px-3 py-2 text-amber-900 bg-white/80"
               value={values.jobAddress}
-              onChange={(e) => handleChange("jobAddress", e.target.value)}
+              onChange={(e) => {
+                const next = e.target.value;
+                handleChange("jobAddress", next);
+                if (billingSameAsJob) {
+                  handleChange("billingAddress", next);
+                }
+                if (next.trim() && next.trim() !== values.clientAddress.trim()) {
+                  handleChange("clientAddressLat", null);
+                  handleChange("clientAddressLng", null);
+                }
+              }}
               required
+            />
+          </div>
+
+          <div className="space-y-1 md:col-span-2">
+            <label className="block text-amber-900/80">Billing address</label>
+            <div className="flex items-center gap-2 text-xs text-amber-900/70 mb-1">
+              <input
+                type="checkbox"
+                checked={billingSameAsJob}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setBillingSameAsJob(checked);
+                  if (checked) {
+                    setValues((prev) => ({
+                      ...prev,
+                      billingAddress: (prev.jobAddress.trim() || prev.clientAddress.trim())
+                    }));
+                  }
+                }}
+              />
+              <span>Same as job address</span>
+            </div>
+            <input
+              className="w-full rounded border border-amber-200 px-3 py-2 text-amber-900 bg-white/80"
+              value={values.billingAddress}
+              onChange={(e) => handleChange("billingAddress", e.target.value)}
+              disabled={billingSameAsJob}
             />
           </div>
 

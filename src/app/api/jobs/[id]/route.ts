@@ -92,12 +92,12 @@ export async function PUT(req: NextRequest, { params }: Params) {
       normalizedBody.clientAddressLng === ""
     ) {
       const candidateAddress =
+        (typeof normalizedBody.jobAddress === "string" && normalizedBody.jobAddress.trim()
+          ? normalizedBody.jobAddress
+          : null) ??
         (typeof normalizedBody.clientAddress === "string" &&
         normalizedBody.clientAddress.trim()
           ? normalizedBody.clientAddress
-          : null) ??
-        (typeof normalizedBody.jobAddress === "string" && normalizedBody.jobAddress.trim()
-          ? normalizedBody.jobAddress
           : null);
 
       if (candidateAddress) {

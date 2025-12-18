@@ -109,6 +109,12 @@ export function JobDetailEditor({ job }: { job: Job }) {
     photo3Url: job.photo3Url ?? "",
     materialProductUpdates: job.materialProductUpdates ?? []
   }));
+  const [billingSameAsJob, setBillingSameAsJob] = useState(() => {
+    const billing = (job.billingAddress ?? "").trim();
+    const jobAddr = (job.jobAddress ?? "").trim();
+    if (!billing && jobAddr) return true;
+    return billing.toLowerCase() === jobAddr.toLowerCase();
+  });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedMessage, setSavedMessage] = useState("");
@@ -320,6 +326,14 @@ export function JobDetailEditor({ job }: { job: Job }) {
     }
   }
 
+  useEffect(() => {
+    if (!billingSameAsJob) return;
+    setForm((prev) => ({
+      ...prev,
+      billingAddress: prev.jobAddress
+    }));
+  }, [billingSameAsJob, form.jobAddress]);
+
   function buildPayload() {
     const required = ["clientName", "clientAddress", "jobAddress"] as const;
     for (const key of required) {
@@ -334,7 +348,9 @@ export function JobDetailEditor({ job }: { job: Job }) {
       clientAddress: form.clientAddress.trim(),
       clientAddressLat: form.clientAddressLat.trim() ? Number(form.clientAddressLat) : null,
       clientAddressLng: form.clientAddressLng.trim() ? Number(form.clientAddressLng) : null,
-      billingAddress: form.billingAddress.trim() || form.clientAddress.trim(),
+      billingAddress: billingSameAsJob
+        ? form.jobAddress.trim()
+        : form.billingAddress.trim() || form.clientAddress.trim(),
       jobAddress: form.jobAddress.trim(),
       description: form.description.trim() || "Job",
       measurements: form.measurements.trim() || null,
@@ -555,10 +571,25 @@ export function JobDetailEditor({ job }: { job: Job }) {
           </label>
           <label className="block space-y-1 text-sm text-amber-900/80">
             <span>Billing address</span>
+            <div className="flex items-center gap-2 text-xs text-amber-900/70">
+              <input
+                type="checkbox"
+                checked={billingSameAsJob}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setBillingSameAsJob(checked);
+                  if (checked) {
+                    updateField("billingAddress", form.jobAddress);
+                  }
+                }}
+              />
+              <span>Same as job address</span>
+            </div>
             <input
               className="w-full rounded border border-amber-200 px-3 py-2 bg-white"
               value={form.billingAddress}
               onChange={(e) => updateField("billingAddress", e.target.value)}
+              disabled={billingSameAsJob}
             />
           </label>
         </section>
@@ -566,11 +597,18 @@ export function JobDetailEditor({ job }: { job: Job }) {
         <section className="space-y-3 rounded-xl border border-amber-200 bg-amber-50/70 p-4">
           <div className="text-sm font-semibold text-amber-900">Job info</div>
           <label className="space-y-1 text-sm text-amber-900/80">
-            <span>Job address*</span>
+            <span>Job address* (used for location)</span>
             <input
               className="w-full rounded border border-amber-200 px-3 py-2 bg-white"
               value={form.jobAddress}
-              onChange={(e) => updateField("jobAddress", e.target.value)}
+              onChange={(e) => {
+                const next = e.target.value;
+                updateField("jobAddress", next);
+                if (next.trim() && next.trim() !== form.clientAddress.trim()) {
+                  updateField("clientAddressLat", "");
+                  updateField("clientAddressLng", "");
+                }
+              }}
             />
           </label>
           <label className="space-y-1 text-sm text-amber-900/80">

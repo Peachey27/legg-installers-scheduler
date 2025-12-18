@@ -6,6 +6,7 @@ import JobCard from "../jobs/JobCard";
 import { Draggable } from "@hello-pangea/dnd";
 import { useSchedulerStore } from "@/store/useSchedulerStore";
 import { useEffect, useMemo, useState } from "react";
+import { formatClientName } from "@/lib/formatClientName";
 
 interface Props {
   label: string;
@@ -91,7 +92,7 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
         .map(
           (j) =>
             `${j.id}:${j.clientAddressLat ?? ""},${j.clientAddressLng ?? ""}:${(
-              j.clientAddress ?? ""
+              j.jobAddress ?? ""
             )
               .trim()
               .toLowerCase()}`
@@ -108,17 +109,10 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
       return;
     }
 
-    if (!area) {
-      setTravel(null);
-      setTravelError(null);
-      setTravelLoading(false);
-      return;
-    }
-
     const stops = jobs.map((j) => ({
       id: j.id,
-      // Prefer client address coords, but fall back to job address text for geocoding if needed.
-      address: j.clientAddress || j.jobAddress,
+      // Use job address as the location; fall back to client address text for geocoding.
+      address: j.jobAddress || j.clientAddress,
       lat: j.clientAddressLat,
       lng: j.clientAddressLng
     }));
@@ -284,13 +278,13 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
             </div>
           </div>
         ) : (
-          <div className="text-[11px] text-amber-900/70">Set area to calculate.</div>
+          <div className="text-[11px] text-amber-900/70">Travel not available.</div>
         )}
       </div>
 
       <div className="flex-1 overflow-y-auto space-y-2">
         {jobs.length > 0 && travel && !travelLoading && !travelError && travel.unresolvedStopIds.length === 0
-          ? renderLeg(`Leg 1: Base → ${jobs[0].clientName}`, 0)
+          ? renderLeg(`Leg 1: Base → ${formatClientName(jobs[0].clientName)}`, 0)
           : null}
         {jobs.map((job, index) => (
           <div key={job.id} className="space-y-2">
@@ -308,10 +302,12 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
             {travel && !travelLoading && !travelError && travel.unresolvedStopIds.length === 0 ? (
               index < jobs.length - 1
                 ? renderLeg(
-                    `Leg ${index + 2}: ${job.clientName} → ${jobs[index + 1].clientName}`,
+                    `Leg ${index + 2}: ${formatClientName(job.clientName)} → ${formatClientName(
+                      jobs[index + 1].clientName
+                    )}`,
                     index + 1
                   )
-                : renderLeg(`Leg ${index + 2}: ${job.clientName} → Base`, index + 1)
+                : renderLeg(`Leg ${index + 2}: ${formatClientName(job.clientName)} → Base`, index + 1)
             ) : null}
           </div>
         ))}

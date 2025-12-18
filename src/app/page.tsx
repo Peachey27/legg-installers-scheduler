@@ -5,6 +5,7 @@ import { useSchedulerStore } from "@/store/useSchedulerStore";
 import WeekBoard from "@/components/board/WeekBoard";
 import MobileDayView from "@/components/board/MobileDayView";
 import { useRouter } from "next/navigation";
+import { formatClientName } from "@/lib/formatClientName";
 
 export default function HomePage() {
   const router = useRouter();
@@ -155,7 +156,7 @@ export default function HomePage() {
                       scrollToJob(j.id);
                     }}
                   >
-                    <div className="font-semibold">{j.clientName}</div>
+                    <div className="font-semibold">{formatClientName(j.clientName)}</div>
                     <div className="text-xs text-slate-600 truncate">
                       {j.jobAddress}
                     </div>

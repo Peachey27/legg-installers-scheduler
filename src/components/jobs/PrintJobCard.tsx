@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import type { Job } from "@/lib/types";
+import { formatClientName } from "@/lib/formatClientName";
 
 export function PrintJobCard({ job }: { job: Job }) {
   const hasPrintedRef = useRef(false);
@@ -124,7 +125,7 @@ export function PrintJobCard({ job }: { job: Job }) {
           <div style={{ flex: 1.2 }}>
             <div style={{ display: "flex", alignItems: "center", gap: "2mm" }}>
               <span className="label">Name:</span>
-              <span className="value">{job.clientName}</span>
+              <span className="value">{formatClientName(job.clientName)}</span>
             </div>
             <div
               style={{

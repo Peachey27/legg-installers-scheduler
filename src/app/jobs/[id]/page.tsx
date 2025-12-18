@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { headers } from "next/headers";
 import JobDetailEditor from "@/components/jobs/JobDetailEditor";
+import { formatClientName } from "@/lib/formatClientName";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -59,7 +60,7 @@ export default async function JobDetailPage({ params }: Params) {
               Job #{job.id}
             </p>
             <h1 className="text-2xl font-semibold text-slate-900">
-              {job.clientName}
+              {formatClientName(job.clientName)}
             </h1>
             {telHref ? (
               <a className="text-sm text-slate-700 underline" href={telHref}>

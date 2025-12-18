@@ -92,11 +92,11 @@ export async function POST(req: NextRequest) {
 
     if (clientAddressLat == null || clientAddressLng == null) {
       const candidateAddress =
-        (typeof body.clientAddress === "string" && body.clientAddress.trim()
-          ? body.clientAddress
-          : null) ??
         (typeof body.jobAddress === "string" && body.jobAddress.trim()
           ? body.jobAddress
+          : null) ??
+        (typeof body.clientAddress === "string" && body.clientAddress.trim()
+          ? body.clientAddress
           : null);
       if (candidateAddress) {
         const geo = await geocodeAuAddress(candidateAddress);

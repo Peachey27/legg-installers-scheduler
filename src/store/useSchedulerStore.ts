@@ -5,6 +5,7 @@ type NewJobInput = {
   clientName: string;
   clientAddress: string;
   clientPhone: string;
+  billingAddress?: string;
   jobAddress: string;
   description: string;
   clientAddressLat?: number | null;
@@ -111,7 +112,7 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
       const payload = {
         ...input,
         dateTaken: today,
-        billingAddress: input.clientAddress,
+        billingAddress: input.billingAddress ?? input.jobAddress ?? input.clientAddress,
         areaTag: input.areaTag ?? "Other",
         totalPrice: null,
         invoiceNumber: null,

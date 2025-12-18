@@ -2,6 +2,7 @@
 
 import type { Job } from "@/lib/types";
 import { useRouter } from "next/navigation";
+import { formatClientName } from "@/lib/formatClientName";
 
 function areaColor(area: Job["areaTag"]) {
   const normalized = area?.toLowerCase().replace(/[^a-z]/g, "") ?? "";
@@ -63,7 +64,7 @@ export default function JobCard({ job, openOnClick = true, onOpen }: Props) {
       />
       <div className={`h-1 rounded-t-xl -mx-3 mb-1 ${areaColor(job.areaTag)}`} />
       <div className="text-base font-semibold text-slate-900 truncate">
-        {job.clientName}
+        {formatClientName(job.clientName)}
       </div>
       <div className="text-xs text-slate-700 truncate">
         {job.jobAddress}
