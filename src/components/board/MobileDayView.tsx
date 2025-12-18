@@ -642,23 +642,34 @@ function MobileJobCard({
   const draggingArmedRef = useRef(false);
   const [armed, setArmed] = useState(false);
 
-  const { onTouchStart: libTouchStart, onMouseDown: libMouseDown, onKeyDown: libKeyDown, ...handleAttrs } =
-    dragHandleProps ?? {};
+  const {
+    onTouchStart: libTouchStart,
+    onTouchMove: libTouchMove,
+    onTouchEnd: libTouchEnd,
+    onTouchCancel: libTouchCancel,
+    onMouseDown: libMouseDown,
+    onKeyDown: libKeyDown,
+    ...handleAttrs
+  } = dragHandleProps ?? {};
 
-  const clearTimer = useCallback(() => {
+  const clearHoldTimeout = useCallback(() => {
     if (timerRef.current != null) {
       window.clearTimeout(timerRef.current);
       timerRef.current = null;
     }
+  }, []);
+
+  const resetArmed = useCallback(() => {
+    clearHoldTimeout();
     draggingArmedRef.current = false;
     setArmed(false);
-  }, []);
+  }, [clearHoldTimeout]);
 
   const openJob = useCallback(() => {
     router.push(`/jobs/${job.id}`);
   }, [job.id, router]);
 
-  useEffect(() => clearTimer, [clearTimer]);
+  useEffect(() => resetArmed, [resetArmed]);
 
   return (
     <div
@@ -679,7 +690,7 @@ function MobileJobCard({
         draggingArmedRef.current = false;
         setArmed(false);
 
-        if (timerRef.current != null) window.clearTimeout(timerRef.current);
+        clearHoldTimeout();
         timerRef.current = window.setTimeout(() => {
           draggingArmedRef.current = true;
           setArmed(true);
@@ -687,27 +698,41 @@ function MobileJobCard({
         }, 2000);
       }}
       onTouchMove={(e) => {
+        if (draggingArmedRef.current) {
+          libTouchMove?.(e);
+          return;
+        }
         const current = touchStartRef.current;
-        if (!current || draggingArmedRef.current) return;
+        if (!current) return;
         const x = e.touches[0]?.clientX ?? 0;
         const y = e.touches[0]?.clientY ?? 0;
         const dx = Math.abs(x - current.x);
         const dy = Math.abs(y - current.y);
         if (dx > 10 || dy > 10) {
           current.moved = true;
-          clearTimer();
+          resetArmed();
         }
       }}
-      onTouchCancel={() => {
-        clearTimer();
+      onTouchCancel={(e) => {
+        if (draggingArmedRef.current) {
+          libTouchCancel?.(e);
+        }
+        resetArmed();
       }}
-      onTouchEnd={() => {
+      onTouchEnd={(e) => {
         const touch = touchStartRef.current;
         const wasTap = touch && !touch.moved;
         const wasArmed = draggingArmedRef.current;
-        clearTimer();
+        clearHoldTimeout();
 
-        if (!wasTap || wasArmed || isDragging) return;
+        if (wasArmed) {
+          libTouchEnd?.(e);
+          resetArmed();
+          return;
+        }
+
+        resetArmed();
+        if (!wasTap || isDragging) return;
         const now = Date.now();
         const last = lastTapAtRef.current;
         lastTapAtRef.current = now;
