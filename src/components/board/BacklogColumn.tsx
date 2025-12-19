@@ -10,9 +10,10 @@ import { useSchedulerStore } from "@/store/useSchedulerStore";
 
 interface Props {
   jobs: Job[];
+  placeholder?: React.ReactNode;
 }
 
-export default function BacklogColumn({ jobs }: Props) {
+export default function BacklogColumn({ jobs, placeholder }: Props) {
   const { showAddJobForm, openAddJobForm, closeAddJobForm, createJob, error } =
     useSchedulerStore();
   const [saving, setSaving] = useState(false);
@@ -42,6 +43,7 @@ export default function BacklogColumn({ jobs }: Props) {
             )}
           </Draggable>
         ))}
+        {placeholder}
       </div>
       {showAddJobForm ? (
         <AddJobModal

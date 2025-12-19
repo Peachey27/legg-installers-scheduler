@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSchedulerStore } from "@/store/useSchedulerStore";
 import WeekBoard from "@/components/board/WeekBoard";
 import MobileDayView from "@/components/board/MobileDayView";
+import FourWeekBoard from "@/components/board/FourWeekBoard";
 import { useRouter } from "next/navigation";
 import { formatClientName } from "@/lib/formatClientName";
 
@@ -12,6 +13,8 @@ export default function HomePage() {
   const { fetchJobs, fetchDayAreaLabels, loading, error, openAddJobForm, jobs } =
     useSchedulerStore();
   const [search, setSearch] = useState("");
+  const [desktopView, setDesktopView] = useState<"week" | "four-week">("week");
+  const [weekOffset, setWeekOffset] = useState(0);
   const baseAreas = ["Bairnsdale", "Lakes", "Sale", "Melbourne", "Saphire Coast"];
   const ringPalette = [
     "border-[12px] border-blue-400 shadow-lg",
@@ -192,8 +195,34 @@ export default function HomePage() {
       )}
 
       {/* Desktop corkboard */}
-      <section className="hidden md:block flex-1 overflow-x-auto">
-        <WeekBoard />
+      <section className="hidden md:flex flex-1 flex-col overflow-x-auto">
+        <div className="flex items-center gap-2 px-4 pt-3 text-sm text-amber-900">
+          <button
+            className={`px-3 py-1 rounded border ${desktopView === "week" ? "bg-amber-500 text-white border-amber-600" : "border-amber-300 bg-amber-50 hover:bg-amber-100"}`}
+            onClick={() => setDesktopView("week")}
+          >
+            Week view
+          </button>
+          <button
+            className={`px-3 py-1 rounded border ${desktopView === "four-week" ? "bg-amber-500 text-white border-amber-600" : "border-amber-300 bg-amber-50 hover:bg-amber-100"}`}
+            onClick={() => setDesktopView("four-week")}
+          >
+            View 4 weeks
+          </button>
+        </div>
+
+        {desktopView === "four-week" ? (
+          <FourWeekBoard
+            weekOffset={weekOffset}
+            onWeekOffsetChange={setWeekOffset}
+            onZoomToWeek={(offset) => {
+              setWeekOffset(offset);
+              setDesktopView("week");
+            }}
+          />
+        ) : (
+          <WeekBoard weekOffset={weekOffset} onWeekOffsetChange={setWeekOffset} />
+        )}
       </section>
 
       {/* Mobile view-only list */}

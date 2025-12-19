@@ -5,25 +5,33 @@ import { DragDropContext, Droppable, DropResult } from "@hello-pangea/dnd";
 import { useSchedulerStore } from "@/store/useSchedulerStore";
 import DayColumn from "./DayColumn";
 import BacklogColumn from "./BacklogColumn";
-import { addDays, format } from "date-fns";
+import { addDays, format, startOfWeek } from "date-fns";
 
-export default function WeekBoard() {
+type Props = {
+  weekOffset?: number;
+  onWeekOffsetChange?: (offset: number) => void;
+};
+
+export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
   const { jobs, moveJob, dayAreaLabels } = useSchedulerStore();
-  const [weekOffset, setWeekOffset] = useState(0); // 0 = start at today, each step = 5 weekdays
+  const [internalWeekOffset, setInternalWeekOffset] = useState(0); // 0 = start at today, each step = 5 weekdays
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [scrollPos, setScrollPos] = useState(0);
   const [scrollMax, setScrollMax] = useState(0);
 
+  const activeWeekOffset = weekOffset ?? internalWeekOffset;
+  const setOffset = onWeekOffsetChange ?? setInternalWeekOffset;
+
   const today = new Date();
-  const startDate = addDays(today, weekOffset * 5); // shift in 5-day (workweek) blocks
+  const startDate = startOfWeek(addDays(today, activeWeekOffset * 7), { weekStartsOn: 1 });
 
   const days = useMemo(() => {
     const result: { label: string; date: Date; iso: string }[] = [];
     let cursor = startDate;
-    // Build 25 weekdays starting from startDate, skipping weekends
-    while (result.length < 25) {
+    // Build 24 working days (Mon-Sat) starting from the Monday startDate, skipping Sundays
+    while (result.length < 24) {
       const day = cursor.getDay();
-      if (day !== 0 && day !== 6) {
+      if (day !== 0) {
         const iso = format(cursor, "yyyy-MM-dd");
         result.push({ label: format(cursor, "EEE"), date: new Date(cursor), iso });
       }
@@ -108,19 +116,19 @@ export default function WeekBoard() {
         <div className="flex items-center gap-2 px-4 pt-3 text-sm text-amber-900">
           <button
             className="px-3 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
-            onClick={() => setWeekOffset((v) => v - 1)}
+            onClick={() => setOffset((v) => v - 1)}
           >
             ← Prev week
           </button>
           <button
             className="px-3 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
-            onClick={() => setWeekOffset(0)}
+            onClick={() => setOffset(0)}
           >
             Today
           </button>
           <button
             className="px-3 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
-            onClick={() => setWeekOffset((v) => v + 1)}
+            onClick={() => setOffset((v) => v + 1)}
           >
             Next week →
           </button>
@@ -141,8 +149,7 @@ export default function WeekBoard() {
                 {...provided.droppableProps}
                 className="w-64 flex-shrink-0"
               >
-                <BacklogColumn jobs={backlogJobs} />
-                {provided.placeholder}
+                <BacklogColumn jobs={backlogJobs} placeholder={provided.placeholder} />
               </div>
             )}
           </Droppable>

@@ -25,9 +25,10 @@ interface Props {
   job: Job;
   openOnClick?: boolean;
   onOpen?: () => void;
+  compact?: boolean;
 }
 
-export default function JobCard({ job, openOnClick = true, onOpen }: Props) {
+export default function JobCard({ job, openOnClick = true, onOpen, compact = false }: Props) {
   const router = useRouter();
   const hasMaterialNotes = Array.isArray((job as any).materialProductUpdates)
     ? ((job as any).materialProductUpdates as any[]).length > 0
@@ -35,6 +36,8 @@ export default function JobCard({ job, openOnClick = true, onOpen }: Props) {
   const hasAnyNotes = hasMaterialNotes || Boolean(job.internalNotes);
 
   const openJob = onOpen ?? (() => router.push(`/jobs/${job.id}`));
+
+  const cardPadding = compact ? "px-2 py-1.5" : "px-3 py-2";
 
   return (
     <div
@@ -50,10 +53,10 @@ export default function JobCard({ job, openOnClick = true, onOpen }: Props) {
                 e.preventDefault();
                 openJob();
               }
-            }
+          }
           : undefined
       }
-      className={`w-full text-left bg-white rounded-xl border border-slate-200 shadow-sm px-3 py-2 relative hover:shadow-md transition-shadow ${
+      className={`w-full text-left bg-white rounded-xl border border-slate-200 shadow-sm ${cardPadding} relative hover:shadow-md transition-shadow ${
         openOnClick ? "cursor-pointer" : ""
       }`}
     >
@@ -63,22 +66,24 @@ export default function JobCard({ job, openOnClick = true, onOpen }: Props) {
         )} shadow`}
       />
       <div className={`h-1 rounded-t-xl -mx-3 mb-1 ${areaColor(job.areaTag)}`} />
-      <div className="text-base font-semibold text-slate-900 truncate">
+      <div className={`${compact ? "text-sm" : "text-base"} font-semibold text-slate-900 truncate`}>
         {formatClientName(job.clientName)}
       </div>
-      <div className="text-xs text-slate-700 truncate">
+      <div className="text-[11px] text-slate-700 truncate">
         {job.jobAddress}
       </div>
-      <div className="text-xs text-slate-500 line-clamp-2 mt-1">
-        {job.description}
-      </div>
+      {!compact && (
+        <div className="text-xs text-slate-500 line-clamp-2 mt-1">
+          {job.description}
+        </div>
+      )}
       {hasAnyNotes ? (
-        <div className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
+        <div className="mt-1 inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700">
           <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
           <span>See Note</span>
         </div>
       ) : null}
-      {job.estimatedDurationHours && (
+      {!compact && job.estimatedDurationHours && (
         <div className="mt-1 text-[11px] text-slate-500">
           ~{job.estimatedDurationHours}h - {job.crew ?? "Install crew"}
         </div>
