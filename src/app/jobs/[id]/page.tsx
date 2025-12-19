@@ -55,20 +55,6 @@ export default async function JobDetailPage({ params }: Params) {
               Taken: {job.dateTaken} · Area: {job.areaTag}
             </p>
           </div>
-          <div className="flex flex-wrap gap-2 text-sm">
-            <Link
-              href={`/jobs/${job.id}/print`}
-              className="px-3 py-1.5 rounded-lg bg-slate-800 text-white hover:bg-slate-700"
-            >
-              Print card
-            </Link>
-            <Link
-              href="/"
-              className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50"
-            >
-              Back to board
-            </Link>
-          </div>
         </div>
 
         <JobDetailEditor job={job} />
