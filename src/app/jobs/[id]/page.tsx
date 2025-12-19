@@ -1,7 +1,9 @@
 import Link from "next/link";
 import JobDetailEditor from "@/components/jobs/JobDetailEditor";
+import { headers } from "next/headers";
 
-
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 interface Params {
   params: { id: string };
@@ -10,12 +12,10 @@ interface Params {
 export default async function JobDetailPage({ params }: Params) {
   let job: any = null;
   try {
-    const baseUrl =
-      process.env.VERCEL_URL?.startsWith("http")
-        ? process.env.VERCEL_URL
-        : process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : "http://localhost:3000";
+    const hdrs = headers();
+    const proto = hdrs.get("x-forwarded-proto") ?? "https";
+    const host = hdrs.get("x-forwarded-host") ?? hdrs.get("host") ?? "localhost:3000";
+    const baseUrl = `${proto}://${host}`;
     const res = await fetch(`${baseUrl}/api/jobs/${params.id}`, {
       cache: "no-store"
     });
