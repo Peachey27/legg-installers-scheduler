@@ -493,15 +493,29 @@ export function JobDetailEditor({ job }: { job: Job }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="md:hidden flex justify-end">
-        <button
-          type="button"
-          className="px-4 py-2 rounded border border-emerald-300 text-emerald-900 bg-emerald-50 hover:bg-emerald-100"
-          onClick={() => setShowNotesModal(true)}
-          disabled={saving || copying || deleting}
-        >
-          Material/Product notes
-        </button>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href={`/jobs/${job.id}/print`}
+            className="px-3 py-2 rounded border border-slate-300 text-slate-800 bg-white hover:bg-slate-50 text-sm"
+          >
+            Print card
+          </Link>
+          <Link
+            href="/"
+            className="px-3 py-2 rounded border border-slate-300 text-slate-800 bg-white hover:bg-slate-50 text-sm"
+          >
+            Back to board
+          </Link>
+          <button
+            type="button"
+            className="px-3 py-2 rounded border border-emerald-300 text-emerald-900 bg-emerald-50 hover:bg-emerald-100 text-sm"
+            onClick={() => setShowNotesModal(true)}
+            disabled={saving || copying || deleting}
+          >
+            Material/Product notes
+          </button>
+        </div>
       </div>
 
       <div className="grid md:grid-cols-2 gap-3">
@@ -823,57 +837,46 @@ export function JobDetailEditor({ job }: { job: Job }) {
         </section>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="submit"
-          className="px-4 py-2 rounded bg-amber-700 text-white hover:bg-amber-600 disabled:opacity-60"
-          disabled={saving || copying || deleting}
-        >
-          {saving ? "Saving..." : "Save changes"}
-        </button>
-        <button
-          type="button"
-          className="px-4 py-2 rounded border border-amber-300 text-amber-900 hover:bg-amber-50"
-          onClick={resetForm}
-          disabled={saving || copying || deleting}
-        >
-          Reset
-        </button>
-        <button
-          type="button"
-          className="px-4 py-2 rounded border border-emerald-300 text-emerald-900 bg-emerald-50 hover:bg-emerald-100"
-          onClick={() => setShowNotesModal(true)}
-          disabled={saving || copying || deleting}
-        >
-          Material/Product notes
-        </button>
-        <button
-          type="button"
-          className="px-4 py-2 rounded border border-slate-300 text-slate-800 bg-white hover:bg-slate-50"
-          onClick={handleCopyJob}
-          disabled={saving || copying || deleting}
-        >
-          {copying ? "Copying..." : "Copy card"}
-        </button>
-        <button
-          type="button"
-          className="px-4 py-2 rounded border border-red-300 text-red-800 bg-red-50 hover:bg-red-100"
-          onClick={handleDeleteJob}
-          disabled={saving || copying || deleting}
-        >
-          {deleting ? "Deleting..." : "Delete card"}
-        </button>
-        {savedMessage && <span className="text-green-700 text-sm">{savedMessage}</span>}
-        {error && <span className="text-red-700 text-sm">{error}</span>}
-      </div>
-
-      <div className="md:hidden">
-        <Link
-          href="/"
-          className="block w-full text-center px-4 py-2 rounded border border-slate-300 text-slate-800 bg-white hover:bg-slate-50"
-        >
-          Back to board
-        </Link>
+      <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3">
+        <div className="flex gap-2">
+          <button
+            type="submit"
+            className="flex-1 px-4 py-2 rounded bg-amber-700 text-white hover:bg-amber-600 disabled:opacity-60"
+            disabled={saving || copying || deleting}
+          >
+            {saving ? "Saving..." : "Save changes"}
+          </button>
+          <button
+            type="button"
+            className="px-4 py-2 rounded border border-amber-300 text-amber-900 hover:bg-amber-50"
+            onClick={resetForm}
+            disabled={saving || copying || deleting}
+          >
+            Reset
+          </button>
+        </div>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            className="flex-1 px-4 py-2 rounded border border-slate-300 text-slate-800 bg-white hover:bg-slate-50"
+            onClick={handleCopyJob}
+            disabled={saving || copying || deleting}
+          >
+            {copying ? "Copying..." : "Copy card"}
+          </button>
+          <button
+            type="button"
+            className="flex-1 px-4 py-2 rounded border border-red-300 text-red-800 bg-red-50 hover:bg-red-100"
+            onClick={handleDeleteJob}
+            disabled={saving || copying || deleting}
+          >
+            {deleting ? "Deleting..." : "Delete card"}
+          </button>
+        </div>
+        <div className="flex items-center gap-2 text-sm">
+          {savedMessage && <span className="text-green-700">{savedMessage}</span>}
+          {error && <span className="text-red-700">{error}</span>}
+        </div>
       </div>
 
       {showNotesModal && (
