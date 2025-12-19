@@ -10,7 +10,13 @@ interface Params {
 export default async function JobDetailPage({ params }: Params) {
   let job: any = null;
   try {
-    const res = await fetch(`/api/jobs/${params.id}`, {
+    const baseUrl =
+      process.env.VERCEL_URL?.startsWith("http")
+        ? process.env.VERCEL_URL
+        : process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : "http://localhost:3000";
+    const res = await fetch(`${baseUrl}/api/jobs/${params.id}`, {
       cache: "no-store"
     });
     if (!res.ok) {
