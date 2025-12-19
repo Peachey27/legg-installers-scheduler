@@ -20,7 +20,14 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
   const [scrollMax, setScrollMax] = useState(0);
 
   const activeWeekOffset = weekOffset ?? internalWeekOffset;
-  const setOffset = onWeekOffsetChange ?? setInternalWeekOffset;
+
+  function setOffset(next: number) {
+    if (onWeekOffsetChange) {
+      onWeekOffsetChange(next);
+    } else {
+      setInternalWeekOffset(next);
+    }
+  }
 
   const today = new Date();
   const startDate = startOfWeek(addDays(today, activeWeekOffset * 7), { weekStartsOn: 1 });
@@ -116,7 +123,7 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
         <div className="flex items-center gap-2 px-4 pt-3 text-sm text-amber-900">
           <button
             className="px-3 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
-            onClick={() => (onWeekOffsetChange ? onWeekOffsetChange(activeWeekOffset - 1) : setOffset((v) => v - 1))}
+            onClick={() => setOffset(activeWeekOffset - 1)}
           >
             ← Prev week
           </button>
@@ -128,7 +135,7 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
           </button>
           <button
             className="px-3 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
-            onClick={() => (onWeekOffsetChange ? onWeekOffsetChange(activeWeekOffset + 1) : setOffset((v) => v + 1))}
+            onClick={() => setOffset(activeWeekOffset + 1)}
           >
             Next week →
           </button>
