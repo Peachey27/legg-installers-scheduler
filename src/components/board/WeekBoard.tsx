@@ -116,7 +116,7 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
         <div className="flex items-center gap-2 px-4 pt-3 text-sm text-amber-900">
           <button
             className="px-3 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
-            onClick={() => setOffset((v) => v - 1)}
+            onClick={() => (onWeekOffsetChange ? onWeekOffsetChange(activeWeekOffset - 1) : setOffset((v) => v - 1))}
           >
             ← Prev week
           </button>
@@ -128,7 +128,7 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
           </button>
           <button
             className="px-3 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
-            onClick={() => setOffset((v) => v + 1)}
+            onClick={() => (onWeekOffsetChange ? onWeekOffsetChange(activeWeekOffset + 1) : setOffset((v) => v + 1))}
           >
             Next week →
           </button>
