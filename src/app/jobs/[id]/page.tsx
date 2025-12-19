@@ -8,12 +8,9 @@ interface Params {
 }
 
 export default async function JobDetailPage({ params }: Params) {
-    let job: any = null;
+  let job: any = null;
   try {
     const res = await fetch(`/api/jobs/${params.id}`, {
-  cache: "no-store",
-});
-
       cache: "no-store"
     });
     if (!res.ok) {
