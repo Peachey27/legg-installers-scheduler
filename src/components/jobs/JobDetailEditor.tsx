@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   AreaTag,
@@ -492,6 +493,17 @@ export function JobDetailEditor({ job }: { job: Job }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="md:hidden flex justify-end">
+        <button
+          type="button"
+          className="px-4 py-2 rounded border border-emerald-300 text-emerald-900 bg-emerald-50 hover:bg-emerald-100"
+          onClick={() => setShowNotesModal(true)}
+          disabled={saving || copying || deleting}
+        >
+          Material/Product notes
+        </button>
+      </div>
+
       <div className="grid md:grid-cols-2 gap-3">
         <section className="space-y-3 rounded-xl border border-amber-200 bg-amber-50/70 p-4">
           <div className="text-sm font-semibold text-amber-900">Client</div>
@@ -853,6 +865,15 @@ export function JobDetailEditor({ job }: { job: Job }) {
         </button>
         {savedMessage && <span className="text-green-700 text-sm">{savedMessage}</span>}
         {error && <span className="text-red-700 text-sm">{error}</span>}
+      </div>
+
+      <div className="md:hidden">
+        <Link
+          href="/"
+          className="block w-full text-center px-4 py-2 rounded border border-slate-300 text-slate-800 bg-white hover:bg-slate-50"
+        >
+          Back to board
+        </Link>
       </div>
 
       {showNotesModal && (

@@ -1,35 +1,19 @@
 import Link from "next/link";
-import { headers } from "next/headers";
 import JobDetailEditor from "@/components/jobs/JobDetailEditor";
-import { formatClientName } from "@/lib/formatClientName";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
 
-function getBaseUrlFromHeaders() {
-  const h = headers();
-  const proto = h.get("x-forwarded-proto") ?? "https";
-  const host = h.get("x-forwarded-host") ?? h.get("host");
-  if (!host) return "http://localhost:3000";
-  return `${proto}://${host}`;
-}
-
-function toTelHref(phone: string | null | undefined) {
-  const raw = (phone ?? "").trim();
-  if (!raw || raw.toLowerCase() === "n/a") return null;
-  const normalized = raw.replace(/[^\d+]/g, "");
-  return `tel:${normalized || raw}`;
-}
 
 interface Params {
   params: { id: string };
 }
 
 export default async function JobDetailPage({ params }: Params) {
-  const baseUrl = getBaseUrlFromHeaders();
-  let job: any = null;
+    let job: any = null;
   try {
-    const res = await fetch(`${baseUrl}/api/jobs/${params.id}`, {
+    const res = await fetch(`/api/jobs/${params.id}`, {
+  cache: "no-store",
+});
+
       cache: "no-store"
     });
     if (!res.ok) {
@@ -49,7 +33,6 @@ export default async function JobDetailPage({ params }: Params) {
 
   const statusLabel = job.status.replace("_", " ");
   const scheduleLabel = job.assignedDate ? `Scheduled ${job.assignedDate}` : "Backlog";
-  const telHref = toTelHref(job.clientPhone);
 
   return (
     <main className="min-h-screen p-4 bg-slate-100">
@@ -60,15 +43,8 @@ export default async function JobDetailPage({ params }: Params) {
               Job #{job.id}
             </p>
             <h1 className="text-2xl font-semibold text-slate-900">
-              {formatClientName(job.clientName)}
+              {job.clientName}
             </h1>
-            {telHref ? (
-              <a className="text-sm text-slate-700 underline" href={telHref}>
-                {job.clientPhone}
-              </a>
-            ) : (
-              <p className="text-sm text-slate-600">{job.clientPhone}</p>
-            )}
             <p className="text-sm text-slate-600">
               {statusLabel} · {scheduleLabel}
             </p>
