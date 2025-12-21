@@ -528,7 +528,7 @@ function MobileBacklogCard({ jobs, placeholder }: { jobs: Job[]; placeholder: Re
   );
 }
 
-function MobileJobDraggable({ job, index }: { job: Job; index: number }) {({ job, index }: { job: Job; index: number }) {
+function MobileJobDraggable({ job, index }: { job: Job; index: number }) {
   return (
     <Draggable draggableId={job.id} index={index}>
       {(provided, snapshot) => (
