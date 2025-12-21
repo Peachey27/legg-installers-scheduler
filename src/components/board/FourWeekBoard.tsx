@@ -137,30 +137,6 @@ export default function FourWeekBoard({
     <DragDropContext onDragEnd={onDragEnd}>
       <div className="flex flex-col gap-2 h-[calc(100vh-56px)] overflow-y-auto">
         <div className="px-4 pt-3 space-y-2">
-          <div className="flex items-center gap-2 text-sm text-amber-900">
-            <button
-              className="px-3 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
-              onClick={() => onWeekOffsetChange(weekOffset - 1)}
-            >
-              Prev weeks
-            </button>
-            <button
-              className="px-3 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
-              onClick={() => onWeekOffsetChange(0)}
-            >
-              Today
-            </button>
-            <button
-              className="px-3 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
-              onClick={() => onWeekOffsetChange(weekOffset + 1)}
-            >
-              Next weeks
-            </button>
-            <span className="ml-auto text-xs">
-              Starting {format(weeks[0].days[0].date, "d MMM")}
-            </span>
-          </div>
-
           <div className="flex items-center justify-between text-sm text-amber-900">
             <div className="flex items-center gap-2">
               <span className="font-semibold">Backlog</span>
