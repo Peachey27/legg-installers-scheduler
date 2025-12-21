@@ -167,12 +167,8 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
   return (
     <DragDropContext onDragEnd={onDragEnd}>
       <div className="flex flex-col h-[calc(100vh-56px)]">
-        <div className="flex items-center justify-end px-4 pt-3 text-xs text-amber-900">
-          <span>Starting {format(days[0].date, "d MMM")}</span>
-        </div>
-
         <div
-          className="flex-1 flex overflow-x-auto overflow-y-hidden px-4 pb-6 pt-3 gap-3 scrollbar-thin board-scroll"
+          className="flex-1 flex overflow-x-auto overflow-y-hidden px-4 pb-6 pt-1 gap-3 scrollbar-thin board-scroll"
           data-scroll-container="board"
           ref={scrollRef}
         >
