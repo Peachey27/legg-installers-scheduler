@@ -1,11 +1,11 @@
 "use client";
 
 import { useMemo } from "react";
-import { DragDropContext, Droppable, DropResult } from "@hello-pangea/dnd";
+import { DragDropContext, Droppable, DropResult, Draggable } from "@hello-pangea/dnd";
 import { addDays, format, startOfWeek } from "date-fns";
 import { useSchedulerStore } from "@/store/useSchedulerStore";
-import BacklogColumn from "./BacklogColumn";
 import CompactDayColumn from "./CompactDayColumn";
+import JobCard from "../jobs/JobCard";
 
 type Props = {
   weekOffset: number;
@@ -110,39 +110,36 @@ export default function FourWeekBoard({
   return (
     <DragDropContext onDragEnd={onDragEnd}>
       <div className="flex flex-col gap-2 h-[calc(100vh-56px)] overflow-y-auto">
-        <div className="flex items-center gap-2 px-4 pt-3 text-sm text-amber-900">
-          <button
-            className="px-3 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
-            onClick={() => onWeekOffsetChange(weekOffset - 1)}
-          >
-            ƒÅ? Prev weeks
-          </button>
-          <button
-            className="px-3 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
-            onClick={() => onWeekOffsetChange(0)}
-          >
-            Today
-          </button>
-          <button
-            className="px-3 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
-            onClick={() => onWeekOffsetChange(weekOffset + 1)}
-          >
-            Next weeks ƒÅ'
-          </button>
-          <span className="ml-auto text-xs">
-            Starting {format(weeks[0].days[0].date, "d MMM")}
-          </span>
-        </div>
-
-        <div className="px-4">
-          <Droppable droppableId="backlog">
+        <div className="px-4 pt-3 space-y-2">
+          <div className="flex items-center justify-between text-sm text-amber-900">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold">Backlog</span>
+              <span className="text-xs text-amber-900/70">Unschedule jobs — drag onto a day.</span>
+            </div>
+            <span className="text-xs">Starting {format(weeks[0].days[0].date, "d MMM")}</span>
+          </div>
+          <Droppable droppableId="backlog" direction="horizontal">
             {(provided) => (
               <div
                 ref={provided.innerRef}
                 {...provided.droppableProps}
-                className="w-full max-w-xl"
+                className="flex gap-2 overflow-x-auto rounded-2xl border border-amber-200/70 bg-[#f6f0e7]/90 p-3 shadow-inner"
               >
-                <BacklogColumn jobs={backlogJobs} placeholder={provided.placeholder} />
+                {backlogJobs.map((j, index) => (
+                  <Draggable key={j.id} draggableId={j.id} index={index}>
+                    {(dragProvided) => (
+                      <div
+                        ref={dragProvided.innerRef}
+                        {...dragProvided.draggableProps}
+                        {...dragProvided.dragHandleProps}
+                        className="min-w-[240px] max-w-[280px] flex-shrink-0"
+                      >
+                        <JobCard job={j} />
+                      </div>
+                    )}
+                  </Draggable>
+                ))}
+                {provided.placeholder}
               </div>
             )}
           </Droppable>
