@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db/client";
 import { jobs } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { normalizeClientName } from "@/lib/normalizeClientName";
 
 interface Params {
   params: { id: string };
@@ -83,6 +84,9 @@ export async function PUT(req: NextRequest, { params }: Params) {
         ? body.materialProductUpdates
         : []
     };
+    if (typeof normalizedBody.clientName === "string") {
+      normalizedBody.clientName = normalizeClientName(normalizedBody.clientName);
+    }
 
     // If the UI only sends jobAddress, keep clientAddress in sync for back-compat.
     if (

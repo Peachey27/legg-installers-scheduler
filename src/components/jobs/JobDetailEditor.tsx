@@ -9,6 +9,7 @@ import type {
   MaterialProductUpdate
 } from "@/lib/types";
 import { useRouter } from "next/navigation";
+import { normalizeClientName } from "@/lib/normalizeClientName";
 
 type FormState = {
   clientName: string;
@@ -338,8 +339,10 @@ export function JobDetailEditor({ job }: { job: Job }) {
       }
     }
 
+    const clientName = normalizeClientName(form.clientName);
+
     return {
-      clientName: form.clientName.trim(),
+      clientName,
       clientPhone: form.clientPhone.trim() || "N/A",
       // Back-compat: clientAddress is treated as the job location address.
       clientAddress: form.jobAddress.trim(),

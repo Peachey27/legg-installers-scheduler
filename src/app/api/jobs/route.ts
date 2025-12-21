@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import { jobs } from "@/db/schema";
 import { randomUUID } from "crypto";
 import { isNull } from "drizzle-orm";
+import { normalizeClientName } from "@/lib/normalizeClientName";
 
 async function geocodeAuAddress(address: string) {
   const q = (address ?? "").trim();
@@ -80,6 +81,7 @@ export async function POST(req: NextRequest) {
 
     const today = new Date().toISOString().slice(0, 10);
     const id = randomUUID();
+    const clientName = normalizeClientName(body.clientName);
 
     let clientAddressLat =
       body.clientAddressLat != null && body.clientAddressLat !== ""
@@ -109,7 +111,7 @@ export async function POST(req: NextRequest) {
 
     const payload = {
       id,
-      clientName: body.clientName ?? "",
+      clientName,
       // Back-compat: treat "clientAddress" as the job location address.
       jobAddress: (body.jobAddress ?? body.clientAddress ?? "").toString(),
       clientAddress: (body.jobAddress ?? body.clientAddress ?? "").toString(),

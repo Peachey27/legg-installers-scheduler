@@ -7,6 +7,7 @@ import type { Job } from "@/lib/types";
 import JobCard from "../jobs/JobCard";
 import { Draggable } from "@hello-pangea/dnd";
 import { useSchedulerStore } from "@/store/useSchedulerStore";
+import { normalizeClientName } from "@/lib/normalizeClientName";
 
 interface Props {
   jobs: Job[];
@@ -233,12 +234,13 @@ function AddJobModal({
     }
 
     const description = getDescriptionValue();
+    const clientName = normalizeClientName(values.clientName);
 
     await onSave({
       ...values,
       jobAddress: values.jobAddress.trim(),
       clientAddress: values.jobAddress.trim(),
-      clientName: values.clientName.trim(),
+      clientName,
       clientPhone: values.clientPhone.trim() || "N/A",
       billingAddress: billingSameAsJob
         ? values.jobAddress.trim()
