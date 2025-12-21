@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { DragDropContext, Droppable, DropResult, Draggable } from "@hello-pangea/dnd";
 import { addDays, format, startOfWeek } from "date-fns";
 import { useSchedulerStore } from "@/store/useSchedulerStore";
@@ -25,6 +25,7 @@ export default function FourWeekBoard({
   onZoomToWeek
 }: Props) {
   const { jobs, moveJob, dayAreaLabels } = useSchedulerStore();
+  const [orderByList, setOrderByList] = useState<Record<string, string[]>>({});
 
   const baseStart = useMemo(
     () => startOfWeek(addDays(new Date(), weekOffset * 7), { weekStartsOn: 1 }),
@@ -34,8 +35,8 @@ export default function FourWeekBoard({
   const weeks: Week[] = useMemo(() => {
     const buildWeek = (start: Date) => {
       const days: Week["days"] = [];
-      // Monday through Saturday (Sunday excluded)
-      for (let i = 0; i < 6; i++) {
+      // Monday through Friday (Sunday/Saturday excluded)
+      for (let i = 0; i < 5; i++) {
         const dayDate = addDays(start, i);
         const iso = format(dayDate, "yyyy-MM-dd");
         days.push({ label: format(dayDate, "EEE"), date: dayDate, iso });
@@ -59,6 +60,7 @@ export default function FourWeekBoard({
       j.status !== "completed" &&
       j.status !== "cancelled"
   );
+  const orderedBacklogJobs = orderJobs("backlog", orderByList, backlogJobs);
 
   const jobsByDate: Record<string, typeof jobs> = {};
   for (const w of weeks) {
@@ -86,6 +88,30 @@ export default function FourWeekBoard({
     const target = destination.droppableId;
     const assignedDate = target === "backlog" ? null : target;
 
+    // Handle backlog ordering
+    if (source.droppableId === "backlog" || destination.droppableId === "backlog") {
+      setOrderByList((prev) => {
+        const currentIds = orderedBacklogJobs.map((j) => j.id);
+        let next = mergeOrder(prev.backlog, currentIds);
+
+        // remove dragged card from current ordering
+        next = next.filter((id) => id !== draggableId);
+
+        // insert when dropping into backlog
+        if (!assignedDate) {
+          const insertAt = Math.min(Math.max(destination.index, 0), next.length);
+          next.splice(insertAt, 0, draggableId);
+        }
+
+        return { ...prev, backlog: next };
+      });
+    }
+
+    // If just reordering inside backlog, no backend call needed.
+    if (source.droppableId === "backlog" && destination.droppableId === "backlog") {
+      return;
+    }
+
     if (assignedDate) {
       const job = jobs.find((j) => j.id === draggableId);
       const dayArea = dayAreaLabels[assignedDate];
@@ -111,12 +137,36 @@ export default function FourWeekBoard({
     <DragDropContext onDragEnd={onDragEnd}>
       <div className="flex flex-col gap-2 h-[calc(100vh-56px)] overflow-y-auto">
         <div className="px-4 pt-3 space-y-2">
+          <div className="flex items-center gap-2 text-sm text-amber-900">
+            <button
+              className="px-3 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
+              onClick={() => onWeekOffsetChange(weekOffset - 1)}
+            >
+              Prev weeks
+            </button>
+            <button
+              className="px-3 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
+              onClick={() => onWeekOffsetChange(0)}
+            >
+              Today
+            </button>
+            <button
+              className="px-3 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
+              onClick={() => onWeekOffsetChange(weekOffset + 1)}
+            >
+              Next weeks
+            </button>
+            <span className="ml-auto text-xs">
+              Starting {format(weeks[0].days[0].date, "d MMM")}
+            </span>
+          </div>
+
           <div className="flex items-center justify-between text-sm text-amber-900">
             <div className="flex items-center gap-2">
               <span className="font-semibold">Backlog</span>
               <span className="text-xs text-amber-900/70">Unschedule jobs — drag onto a day.</span>
             </div>
-            <span className="text-xs">Starting {format(weeks[0].days[0].date, "d MMM")}</span>
+            <span className="text-xs">Week range {weeks[0].displayRange}</span>
           </div>
           <Droppable droppableId="backlog" direction="horizontal">
             {(provided) => (
@@ -125,14 +175,14 @@ export default function FourWeekBoard({
                 {...provided.droppableProps}
                 className="flex gap-2 overflow-x-auto rounded-2xl border border-amber-200/70 bg-[#f6f0e7]/90 p-3 shadow-inner"
               >
-                {backlogJobs.map((j, index) => (
+                {orderedBacklogJobs.map((j, index) => (
                   <Draggable key={j.id} draggableId={j.id} index={index}>
                     {(dragProvided) => (
                       <div
                         ref={dragProvided.innerRef}
                         {...dragProvided.draggableProps}
                         {...dragProvided.dragHandleProps}
-                        className="min-w-[240px] max-w-[280px] flex-shrink-0"
+                        className="min-w-[200px] max-w-[220px] flex-shrink-0"
                       >
                         <JobCard job={j} />
                       </div>
@@ -193,4 +243,44 @@ export default function FourWeekBoard({
 
 function normalize(val?: string | null) {
   return val?.trim().toLowerCase() ?? "";
+}
+
+function mergeOrder(existing: string[] | undefined, currentIds: string[]) {
+  const merged: string[] = [];
+  const seen = new Set<string>();
+  for (const id of existing ?? []) {
+    if (!seen.has(id) && currentIds.includes(id)) {
+      merged.push(id);
+      seen.add(id);
+    }
+  }
+  for (const id of currentIds) {
+    if (!seen.has(id)) {
+      merged.push(id);
+      seen.add(id);
+    }
+  }
+  return merged;
+}
+
+function orderJobs<T extends { id: string }>(
+  listId: string,
+  orderByList: Record<string, string[]>,
+  list: T[]
+): T[] {
+  const currentIds = list.map((j) => j.id);
+  const merged = mergeOrder(orderByList[listId], currentIds);
+  const index = new Map<string, number>();
+  merged.forEach((id, i) => index.set(id, i));
+  const stablePos = new Map<string, number>();
+  list.forEach((j, i) => stablePos.set(j.id, i));
+
+  return [...list].sort((a, b) => {
+    const ai = index.get(a.id);
+    const bi = index.get(b.id);
+    if (ai != null && bi != null) return ai - bi;
+    if (ai != null) return -1;
+    if (bi != null) return 1;
+    return (stablePos.get(a.id) ?? 0) - (stablePos.get(b.id) ?? 0);
+  });
 }
