@@ -405,16 +405,6 @@ function MobileDayCard({
     );
   }
   return (
-      <div className="rounded-md border border-amber-200 bg-white/70 px-2 py-1.5">
-        <div className="flex items-center justify-between text-[10px] text-amber-900/80">
-          <span className="font-semibold">{labelText}</span>
-          <span>{fmtDistance(leg.distanceMeters)} -> {fmtDuration(leg.durationSeconds)}</span>
-        </div>
-      </div>
-    );
-  }
-
-  return (
     <div
       className={`relative h-full w-full border border-amber-200/70 rounded-lg shadow-inner p-2 flex flex-col gap-1.5 ${
         isToday ? "bg-rose-50" : "bg-[#f6f0e7]/90"
