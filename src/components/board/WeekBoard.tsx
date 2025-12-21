@@ -14,6 +14,7 @@ type Props = {
 
 export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
   const { jobs, moveJob, dayAreaLabels } = useSchedulerStore();
+  const [orderByList, setOrderByList] = useState<Record<string, string[]>>({});
   const [internalWeekOffset, setInternalWeekOffset] = useState(0); // 0 = start at today, each step = 5 weekdays
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [scrollPos, setScrollPos] = useState(0);
@@ -53,6 +54,7 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
       j.status !== "completed" &&
       j.status !== "cancelled"
   );
+  const orderedBacklogJobs = orderJobs("backlog", orderByList, backlogJobs);
 
   const jobsByDate: Record<string, typeof jobs> = {};
   for (const d of days) {
@@ -78,6 +80,30 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
 
     const target = destination.droppableId;
     const assignedDate = target === "backlog" ? null : target;
+
+    // track manual order for backlog list
+    if (source.droppableId === "backlog" || destination.droppableId === "backlog") {
+      setOrderByList((prev) => {
+        const currentIds = orderedBacklogJobs.map((j) => j.id);
+        let next = mergeOrder(prev.backlog, currentIds);
+
+        if (source.droppableId === "backlog") {
+          next = next.filter((id) => id !== draggableId);
+        }
+
+        if (destination.droppableId === "backlog") {
+          if (!next.includes(draggableId)) next.push(draggableId);
+          const insertAt = Math.min(
+            Math.max(destination.index, 0),
+            next.length
+          );
+          next = next.filter((id) => id !== draggableId);
+          next.splice(insertAt, 0, draggableId);
+        }
+
+        return { ...prev, backlog: next };
+      });
+    }
 
     // Warn if dropping onto a day with a different area label.
     if (assignedDate) {
@@ -116,6 +142,27 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
       window.removeEventListener("resize", handle);
     };
   }, [days]);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem("boardOrder-v1");
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Record<string, string[]>;
+      if (parsed && typeof parsed === "object") {
+        setOrderByList(parsed);
+      }
+    } catch {
+      // ignore bad cached order
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("boardOrder-v1", JSON.stringify(orderByList));
+    } catch {
+      // ignore storage failures
+    }
+  }, [orderByList]);
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
@@ -156,7 +203,7 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
                 {...provided.droppableProps}
                 className="w-64 flex-shrink-0"
               >
-                <BacklogColumn jobs={backlogJobs} placeholder={provided.placeholder} />
+                <BacklogColumn jobs={orderedBacklogJobs} placeholder={provided.placeholder} />
               </div>
             )}
           </Droppable>
@@ -204,4 +251,44 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
 
 function normalize(val?: string | null) {
   return val?.trim().toLowerCase() ?? "";
+}
+
+function mergeOrder(existing: string[] | undefined, currentIds: string[]) {
+  const merged: string[] = [];
+  const seen = new Set<string>();
+  for (const id of existing ?? []) {
+    if (!seen.has(id) && currentIds.includes(id)) {
+      merged.push(id);
+      seen.add(id);
+    }
+  }
+  for (const id of currentIds) {
+    if (!seen.has(id)) {
+      merged.push(id);
+      seen.add(id);
+    }
+  }
+  return merged;
+}
+
+function orderJobs<T extends { id: string }>(
+  listId: string,
+  orderByList: Record<string, string[]>,
+  list: T[]
+): T[] {
+  const currentIds = list.map((j) => j.id);
+  const merged = mergeOrder(orderByList[listId], currentIds);
+  const index = new Map<string, number>();
+  merged.forEach((id, i) => index.set(id, i));
+  const stablePos = new Map<string, number>();
+  list.forEach((j, i) => stablePos.set(j.id, i));
+
+  return [...list].sort((a, b) => {
+    const ai = index.get(a.id);
+    const bi = index.get(b.id);
+    if (ai != null && bi != null) return ai - bi;
+    if (ai != null) return -1;
+    if (bi != null) return 1;
+    return (stablePos.get(a.id) ?? 0) - (stablePos.get(b.id) ?? 0);
+  });
 }

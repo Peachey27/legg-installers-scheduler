@@ -340,7 +340,7 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
         <div className="flex items-center justify-between text-[11px] text-amber-900/80">
           <span className="font-semibold">{labelText}</span>
           <span>
-            {fmtDistance(leg.distanceMeters)} -> {fmtDuration(leg.durationSeconds)}
+            {fmtDistance(leg.distanceMeters)} → {fmtDuration(leg.durationSeconds)}
           </span>
         </div>
       </div>
