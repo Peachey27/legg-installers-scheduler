@@ -36,13 +36,20 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
   const days = useMemo(() => {
     const result: { label: string; date: Date; iso: string }[] = [];
     let cursor = startDate;
-    // Build 24 working days (Mon-Sat) starting from the Monday startDate, skipping Sundays
-    while (result.length < 24) {
+    const weekdayTarget = 5; // one week of Mon-Fri
+    let weekdayCount = 0;
+
+    // Build working days (Mon-Fri only), skipping weekends.
+    while (weekdayCount < weekdayTarget) {
       const day = cursor.getDay();
-      if (day !== 0) {
-        const iso = format(cursor, "yyyy-MM-dd");
+      const iso = format(cursor, "yyyy-MM-dd");
+      const isWeekend = day === 0 || day === 6;
+
+      if (!isWeekend) {
         result.push({ label: format(cursor, "EEE"), date: new Date(cursor), iso });
+        weekdayCount += 1;
       }
+
       cursor = addDays(cursor, 1);
     }
     return result;
