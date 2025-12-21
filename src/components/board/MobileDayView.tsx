@@ -399,7 +399,9 @@ function MobileDayCard({
       <div className="rounded-md border border-amber-200 bg-white/70 px-2 py-1.5">
         <div className="flex items-center justify-between text-[10px] text-amber-900/80">
           <span className="font-semibold">{labelText}</span>
-          <span>{fmtDistance(leg.distanceMeters)} -> {fmtDuration(leg.durationSeconds)}</span>
+          <span>
+            {fmtDistance(leg.distanceMeters)} &rarr; {fmtDuration(leg.durationSeconds)}
+          </span>
         </div>
       </div>
     );
