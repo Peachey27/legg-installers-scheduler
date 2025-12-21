@@ -433,7 +433,7 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
             <div className="flex justify-between text-[11px] font-semibold text-amber-900">
               <span>{useBlockTrip ? `Block total (${blockLabel})` : "Total"}</span>
               <span>
-                {fmtDistance(travelData.totalDistanceMeters)} -> {fmtDuration(travelData.totalDurationSeconds)}
+                {fmtDistance(travelData.totalDistanceMeters)} → {fmtDuration(travelData.totalDurationSeconds)}
               </span>
             </div>
           </div>
