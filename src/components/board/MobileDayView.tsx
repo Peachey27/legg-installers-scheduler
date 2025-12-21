@@ -1,6 +1,5 @@
 "use client";
 
-import type { RefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSchedulerStore } from "@/store/useSchedulerStore";
 import type { Job } from "@/lib/types";
@@ -181,15 +180,13 @@ export default function MobileDayView() {
     [dayAreaLabels, jobs, moveJob]
   );
 
-  useAutoHorizontalScrollOnDrag(boardScrollRef, dragging);
-
   return (
     <DragDropContext
       onDragStart={() => setDragging(true)}
       onDragEnd={onDragEnd}
     >
       <div className="flex flex-col h-[calc(100vh-56px)] overflow-hidden">
-        <div className="flex items-center gap-2 px-3 py-2 text-xs text-amber-900/80">
+        <div className="flex items-center gap-1.5 px-2 py-1 text-[10px] text-amber-900/80">
           <button
             className="px-2 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
             onClick={() => setWeekOffset((v) => v - 1)}
@@ -212,7 +209,7 @@ export default function MobileDayView() {
         </div>
 
         <div
-          className="flex flex-1 items-stretch overflow-x-auto overflow-y-hidden px-3 pb-4 gap-3"
+          className="flex flex-1 items-stretch overflow-x-auto overflow-y-hidden px-2 pb-2 gap-2"
           style={{ WebkitOverflowScrolling: "touch" }}
           data-scroll-container="board"
           ref={boardScrollRef}
@@ -222,7 +219,7 @@ export default function MobileDayView() {
               <div
                 ref={provided.innerRef}
                 {...provided.droppableProps}
-                className="min-w-[240px] h-full flex-shrink-0"
+                className="min-w-[200px] h-full flex-shrink-0"
               >
                 <MobileBacklogCard jobs={backlogJobs} placeholder={provided.placeholder} />
               </div>
@@ -235,7 +232,7 @@ export default function MobileDayView() {
                 <div
                   ref={provided.innerRef}
                   {...provided.droppableProps}
-                  className="min-w-[240px] h-full flex-shrink-0"
+                  className="min-w-[200px] h-full flex-shrink-0"
                 >
                   <MobileDayCard
                     day={d}
@@ -269,70 +266,6 @@ function mergeOrder(existing: string[] | undefined, currentIds: string[]) {
     }
   }
   return merged;
-}
-
-function useAutoHorizontalScrollOnDrag(
-  containerRef: RefObject<HTMLElement | null>,
-  active: boolean
-) {
-  const lastPointRef = useRef<{ x: number; y: number } | null>(null);
-
-  useEffect(() => {
-    if (!active) {
-      lastPointRef.current = null;
-      return;
-    }
-
-    const onMouseMove = (e: MouseEvent) => {
-      lastPointRef.current = { x: e.clientX, y: e.clientY };
-    };
-
-    const onTouchMove = (e: TouchEvent) => {
-      const t = e.touches?.[0];
-      if (!t) return;
-      lastPointRef.current = { x: t.clientX, y: t.clientY };
-    };
-
-    window.addEventListener("mousemove", onMouseMove, { passive: true });
-    window.addEventListener("touchmove", onTouchMove, { passive: true });
-
-    let rafId = 0;
-    const tick = () => {
-      const el = containerRef.current;
-      const point = lastPointRef.current;
-      if (el && point) {
-        const rect = el.getBoundingClientRect();
-        const threshold = 64;
-        const maxSpeed = 26;
-
-        const clientWidth = (el as any).clientWidth as number | undefined;
-        const scale = clientWidth && clientWidth > 0 ? rect.width / clientWidth : 1;
-        const speedScale = scale > 0 ? 1 / scale : 1;
-
-        const leftZone = rect.left + threshold;
-        const rightZone = rect.right - threshold;
-
-        if (point.x < leftZone) {
-          const t = Math.min((leftZone - point.x) / threshold, 1);
-          el.scrollLeft -= maxSpeed * t * speedScale;
-        } else if (point.x > rightZone) {
-          const t = Math.min((point.x - rightZone) / threshold, 1);
-          el.scrollLeft += maxSpeed * t * speedScale;
-        }
-      }
-
-      rafId = window.requestAnimationFrame(tick);
-    };
-
-    rafId = window.requestAnimationFrame(tick);
-
-    return () => {
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("touchmove", onTouchMove);
-      window.cancelAnimationFrame(rafId);
-      lastPointRef.current = null;
-    };
-  }, [active, containerRef]);
 }
 
 function orderJobs(listId: string, orderByList: Record<string, string[]>, list: Job[]) {
@@ -463,12 +396,19 @@ function MobileDayCard({
     if (!travel || !travel.legs?.[legIndex]) return null;
     const leg = travel.legs[legIndex];
     return (
-      <div className="rounded-lg border border-amber-200 bg-white/70 px-3 py-2">
-        <div className="flex items-center justify-between text-[11px] text-amber-900/80">
+      <div className="rounded-md border border-amber-200 bg-white/70 px-2 py-1.5">
+        <div className="flex items-center justify-between text-[10px] text-amber-900/80">
           <span className="font-semibold">{labelText}</span>
-          <span>
-            {fmtDistance(leg.distanceMeters)} · {fmtDuration(leg.durationSeconds)}
-          </span>
+          <span>{fmtDistance(leg.distanceMeters)} -> {fmtDuration(leg.durationSeconds)}</span>
+        </div>
+      </div>
+    );
+  }
+  return (
+      <div className="rounded-md border border-amber-200 bg-white/70 px-2 py-1.5">
+        <div className="flex items-center justify-between text-[10px] text-amber-900/80">
+          <span className="font-semibold">{labelText}</span>
+          <span>{fmtDistance(leg.distanceMeters)} -> {fmtDuration(leg.durationSeconds)}</span>
         </div>
       </div>
     );
@@ -476,7 +416,7 @@ function MobileDayCard({
 
   return (
     <div
-      className={`relative h-full w-full border border-amber-200/70 rounded-xl shadow-inner p-3 flex flex-col gap-2 ${
+      className={`relative h-full w-full border border-amber-200/70 rounded-lg shadow-inner p-2 flex flex-col gap-1.5 ${
         isToday ? "bg-rose-50" : "bg-[#f6f0e7]/90"
       } ${areaStyle?.ring ?? ""}`}
     >
@@ -485,13 +425,13 @@ function MobileDayCard({
       )}
       <div className="mb-1">
         <div className="text-center">
-          <div className="text-base font-extrabold text-amber-900 leading-tight">{day.label}</div>
-          <div className="text-sm font-semibold text-amber-900/90 leading-tight">{format(day.date, "d/MM")}</div>
+          <div className="text-sm font-semibold text-amber-900 leading-tight">{day.label}</div>
+          <div className="text-xs font-semibold text-amber-900/90 leading-tight">{format(day.date, "d/MM")}</div>
         </div>
 
         <div className="mt-2 flex items-center justify-between gap-2">
           {isToday ? (
-            <span className="inline-flex items-center px-2 py-1 text-[11px] font-semibold text-white bg-rose-500 rounded-full shadow">
+            <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-semibold text-white bg-rose-500 rounded-full shadow">
               Today
             </span>
           ) : (
@@ -514,7 +454,7 @@ function MobileDayCard({
         </div>
       </div>
 
-      <div className="rounded-xl border border-amber-200 bg-white/70 px-3 py-2">
+      <div className="rounded-lg border border-amber-200 bg-white/70 px-2 py-1.5">
         <div className="text-xs font-semibold text-amber-900">Travel</div>
         {day.jobs.length === 0 ? (
           <div className="text-[11px] text-amber-900/70">No jobs.</div>
@@ -537,7 +477,7 @@ function MobileDayCard({
             <div className="flex justify-between text-[11px] font-semibold text-amber-900">
               <span>Total</span>
               <span>
-                {fmtDistance(travel.totalDistanceMeters)} · {fmtDuration(travel.totalDurationSeconds)}
+                {fmtDistance(travel.totalDistanceMeters)} -> {fmtDuration(travel.totalDurationSeconds)}
               </span>
             </div>
           </div>
@@ -546,7 +486,7 @@ function MobileDayCard({
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto space-y-2">
+      <div className="flex-1 overflow-y-auto space-y-1.5">
             {day.jobs.length > 0 && travel && !travelLoading && !travelError && travel.unresolvedStopIds.length === 0
               ? renderLeg(`Leg 1: Base -> ${formatClientName(day.jobs[0].clientName)}`, 0)
               : null}
@@ -578,15 +518,15 @@ function MobileDayCard({
 
 function MobileBacklogCard({ jobs, placeholder }: { jobs: Job[]; placeholder: React.ReactNode }) {
   return (
-    <div className="relative h-full w-full border border-amber-200/70 rounded-xl shadow-inner p-3 flex flex-col gap-2 bg-[#f6f0e7]/90">
-      <div className="mb-1">
+    <div className="relative h-full w-full border border-amber-200/70 rounded-lg shadow-inner p-2 flex flex-col gap-1.5 bg-[#f6f0e7]/90">
+      <div className="mb-0.5">
         <div className="text-center">
-          <div className="text-base font-extrabold text-amber-900 leading-tight">Backlog</div>
-          <div className="text-[11px] text-amber-900/70 leading-tight">Hold 2s to drag</div>
+          <div className="text-sm font-semibold text-amber-900 leading-tight">Backlog</div>
+          <div className="text-[10px] text-amber-900/70 leading-tight">Hold 2s to drag</div>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto space-y-2">
+      <div className="flex-1 overflow-y-auto space-y-1.5">
         {jobs.length === 0 ? (
           <p className="text-[11px] text-amber-900/70">No backlog jobs.</p>
         ) : (
@@ -598,7 +538,7 @@ function MobileBacklogCard({ jobs, placeholder }: { jobs: Job[]; placeholder: Re
   );
 }
 
-function MobileJobDraggable({ job, index }: { job: Job; index: number }) {
+function MobileJobDraggable({ job, index }: { job: Job; index: number }) {({ job, index }: { job: Job; index: number }) {
   return (
     <Draggable draggableId={job.id} index={index}>
       {(provided, snapshot) => (
@@ -795,3 +735,13 @@ function getAreaStyle(label: string | undefined, order: string[]) {
 function normalize(val?: string | null) {
   return val?.trim().toLowerCase() ?? "";
 }
+
+
+
+
+
+
+
+
+
+
