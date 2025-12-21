@@ -1,7 +1,7 @@
-"use client";
+﻿"use client";
 
 import type { Job } from "@/lib/types";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import JobCard from "../jobs/JobCard";
 import { Draggable } from "@hello-pangea/dnd";
 import { useSchedulerStore } from "@/store/useSchedulerStore";
@@ -41,6 +41,33 @@ function normalizeArea(area?: string | null) {
   return (area ?? "").trim().toLowerCase();
 }
 
+function getConsecutiveBlockDates(
+  isoDate: string,
+  areaLabel: string | undefined,
+  labels: Record<string, string | undefined>
+) {
+  if (!areaLabel) return [isoDate];
+  const target = normalizeArea(areaLabel);
+  const dates = Object.entries(labels)
+    .filter(([, label]) => normalizeArea(label) === target)
+    .map(([date]) => date)
+    .sort();
+  const idx = dates.indexOf(isoDate);
+  if (idx === -1) return [isoDate];
+
+  const isNextDay = (a: string, b: string) =>
+    Math.abs(
+      (parseISO(b).getTime() - parseISO(a).getTime()) / (1000 * 60 * 60 * 24)
+    ) === 1;
+
+  let start = idx;
+  while (start > 0 && isNextDay(dates[start - 1], dates[start])) start -= 1;
+  let end = idx;
+  while (end < dates.length - 1 && isNextDay(dates[end], dates[end + 1])) end += 1;
+
+  return dates.slice(start, end + 1);
+}
+
 function getDynamicStyle(area: string | undefined, order: string[]) {
   if (!area) return null;
   const idx = order.findIndex((a) => normalizeArea(a) === normalizeArea(area));
@@ -49,7 +76,7 @@ function getDynamicStyle(area: string | undefined, order: string[]) {
 }
 
 export default function DayColumn({ label, date, isoDate, jobs }: Props) {
-  const { dayAreaLabels, setDayAreaLabel } = useSchedulerStore();
+  const { dayAreaLabels, setDayAreaLabel, jobs: allJobs } = useSchedulerStore();
   const area = dayAreaLabels[isoDate];
   const todayIso = new Date().toISOString().slice(0, 10);
   const isToday = isoDate === todayIso;
@@ -65,6 +92,15 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
   >(null);
   const [travelError, setTravelError] = useState<string | null>(null);
   const [travelLoading, setTravelLoading] = useState(false);
+  const [blockTravel, setBlockTravel] = useState<typeof travel>(null);
+  const [blockTravelError, setBlockTravelError] = useState<string | null>(null);
+  const [blockTravelLoading, setBlockTravelLoading] = useState(false);
+
+  const jobById = useMemo(() => {
+    const map = new Map<string, Job>();
+    allJobs.forEach((j) => map.set(j.id, j));
+    return map;
+  }, [allJobs]);
 
   const areaOptions = useMemo(() => {
     const set = new Set<string>(baseAreas);
@@ -86,19 +122,68 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
     (j) => j.clientAddressLat == null || j.clientAddressLng == null
   ).length;
 
+  const dayStops = useMemo(
+    () =>
+      jobs.map((j) => ({
+        id: j.id,
+        // Use job address as the location; fall back to client address text for geocoding.
+        address: j.jobAddress || j.clientAddress,
+        lat: j.clientAddressLat,
+        lng: j.clientAddressLng
+      })),
+    [jobs]
+  );
+
   const routeSignature = useMemo(
     () =>
-      jobs
+      dayStops
         .map(
-          (j) =>
-            `${j.id}:${j.clientAddressLat ?? ""},${j.clientAddressLng ?? ""}:${(
-              j.jobAddress ?? ""
-            )
-              .trim()
-              .toLowerCase()}`
+          (s) =>
+            `${s.id}:${s.lat ?? ""},${s.lng ?? ""}:${(s.address ?? "").trim().toLowerCase()}`
         )
         .join("|"),
-    [jobs]
+    [dayStops]
+  );
+
+  const blockDates = useMemo(
+    () => getConsecutiveBlockDates(isoDate, area, dayAreaLabels),
+    [isoDate, area, dayAreaLabels]
+  );
+  const hasMultiDayBlock = blockDates.length >= 2;
+
+  const blockStops = useMemo(() => {
+    if (!hasMultiDayBlock) return [];
+    const stops: Array<{ id: string; address: string; lat: number | null; lng: number | null }> = [];
+    for (const d of blockDates) {
+      allJobs
+        .filter(
+          (j) =>
+            j.assignedDate === d &&
+            j.status !== "cancelled" &&
+            j.status !== "completed" &&
+            !j.deletedAt
+        )
+        .forEach((j) => {
+          stops.push({
+            id: j.id,
+            address: j.jobAddress || j.clientAddress,
+            lat: j.clientAddressLat,
+            lng: j.clientAddressLng
+          });
+        });
+    }
+    return stops;
+  }, [allJobs, blockDates, hasMultiDayBlock]);
+
+  const blockSignature = useMemo(
+    () =>
+      blockStops
+        .map(
+          (s) =>
+            `${s.id}:${s.lat ?? ""},${s.lng ?? ""}:${(s.address ?? "").trim().toLowerCase()}`
+        )
+        .join("|"),
+    [blockStops]
   );
 
   useEffect(() => {
@@ -109,14 +194,6 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
       return;
     }
 
-    const stops = jobs.map((j) => ({
-      id: j.id,
-      // Use job address as the location; fall back to client address text for geocoding.
-      address: j.jobAddress || j.clientAddress,
-      lat: j.clientAddressLat,
-      lng: j.clientAddressLng
-    }));
-
     let cancelled = false;
     setTravelLoading(true);
     setTravelError(null);
@@ -125,7 +202,7 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
         const res = await fetch("/api/route-metrics", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ date: isoDate, area, stops })
+          body: JSON.stringify({ date: isoDate, area, stops: dayStops })
         });
         const text = await res.text();
         if (cancelled) return;
@@ -155,7 +232,78 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [isoDate, area, routeSignature, missingCoordsCount]);
+  }, [isoDate, area, routeSignature, missingCoordsCount, dayStops]);
+
+  useEffect(() => {
+    if (!hasMultiDayBlock || blockStops.length === 0) {
+      setBlockTravel(null);
+      setBlockTravelError(null);
+      setBlockTravelLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setBlockTravelLoading(true);
+    setBlockTravelError(null);
+    void (async () => {
+      try {
+        const res = await fetch("/api/route-metrics", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            date: `${blockDates[0]}_${blockDates[blockDates.length - 1]}`,
+            area,
+            stops: blockStops
+          })
+        });
+        const text = await res.text();
+        if (cancelled) return;
+        if (!res.ok) {
+          throw new Error(text || "Failed to load travel metrics");
+        }
+        const data = JSON.parse(text) as any;
+        setBlockTravel({
+          legs: Array.isArray(data.legs) ? data.legs : [],
+          totalDistanceMeters: Number(data.totalDistanceMeters ?? 0),
+          totalDurationSeconds: Number(data.totalDurationSeconds ?? 0),
+          approximatedStopIds: Array.isArray(data.approximatedStopIds)
+            ? data.approximatedStopIds
+            : [],
+          unresolvedStopIds: Array.isArray(data.unresolvedStopIds)
+            ? data.unresolvedStopIds
+            : []
+        });
+      } catch (e: any) {
+        if (!cancelled) setBlockTravelError(e?.message ?? "Failed to load travel metrics");
+        setBlockTravel(null);
+      } finally {
+        if (!cancelled) setBlockTravelLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [area, blockDates, blockSignature, blockStops, hasMultiDayBlock]);
+
+  const baseLegDistanceMeters = blockTravel?.legs?.[0]?.distanceMeters ?? 0;
+  const useBlockTrip =
+    hasMultiDayBlock &&
+    blockTravel &&
+    baseLegDistanceMeters >= 200_000;
+
+  const travelData = useBlockTrip ? blockTravel : travel;
+  const travelDataLoading = useBlockTrip ? blockTravelLoading : travelLoading;
+  const travelDataError = useBlockTrip ? blockTravelError : travelError;
+  const travelUnresolved = travelData?.unresolvedStopIds ?? [];
+  const travelApprox = travelData?.approximatedStopIds ?? [];
+  const blockLabel = useMemo(
+    () =>
+      blockDates
+        .map((d) => format(parseISO(d), "EEE d/MM"))
+        .join(", "),
+    [blockDates]
+  );
 
   function fmtDistance(meters: number) {
     const km = meters / 1000;
@@ -171,15 +319,23 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
     return `${h}h ${m}m`;
   }
 
-  function renderLeg(labelText: string, legIndex: number) {
-    if (!travel || !travel.legs?.[legIndex]) return null;
-    const leg = travel.legs[legIndex];
+  function formatStopLabel(id: string) {
+    if (id === "base") return "Base";
+    const job = jobById.get(id);
+    if (job) return formatClientName(job.clientName);
+    return "Stop";
+  }
+
+  function renderLeg(legIndex: number) {
+    if (!travelData || !travelData.legs?.[legIndex]) return null;
+    const leg = travelData.legs[legIndex];
+    const labelText = `${formatStopLabel(leg.fromId)} -> ${formatStopLabel(leg.toId)}`;
     return (
       <div className="rounded-lg border border-amber-200 bg-white/70 px-3 py-2">
         <div className="flex items-center justify-between text-[11px] text-amber-900/80">
           <span className="font-semibold">{labelText}</span>
           <span>
-            {fmtDistance(leg.distanceMeters)} · {fmtDuration(leg.durationSeconds)}
+            {fmtDistance(leg.distanceMeters)} -> {fmtDuration(leg.durationSeconds)}
           </span>
         </div>
       </div>
@@ -253,27 +409,26 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
         <div className="text-xs font-semibold text-amber-900">Travel</div>
         {jobs.length === 0 ? (
           <div className="text-[11px] text-amber-900/70">No jobs.</div>
-        ) : travelLoading ? (
+        ) : travelDataLoading ? (
           <div className="text-[11px] text-amber-900/70">Calculating…</div>
-        ) : travelError ? (
+        ) : travelDataError ? (
           <div className="text-[11px] text-red-700">Travel error</div>
-        ) : travel ? (
+        ) : travelData ? (
           <div className="space-y-1">
-            {travel.unresolvedStopIds.length > 0 && (
+            {travelUnresolved.length > 0 && (
               <div className="text-[11px] text-amber-900/70">
-                Could not locate {travel.unresolvedStopIds.length} jobs (check Job address spelling)
+                Could not locate {travelUnresolved.length} jobs (check Job address spelling)
               </div>
             )}
-            {travel.approximatedStopIds.length > 0 && (
+            {travelApprox.length > 0 && (
               <div className="text-[11px] text-amber-900/70">
-                Using closest address for {travel.approximatedStopIds.length} jobs
+                Using closest address for {travelApprox.length} jobs
               </div>
             )}
             <div className="flex justify-between text-[11px] font-semibold text-amber-900">
-              <span>Total</span>
+              <span>{useBlockTrip ? `Block total (${blockLabel})` : "Total"}</span>
               <span>
-                {fmtDistance(travel.totalDistanceMeters)} ·{" "}
-                {fmtDuration(travel.totalDurationSeconds)}
+                {fmtDistance(travelData.totalDistanceMeters)} -> {fmtDuration(travelData.totalDurationSeconds)}
               </span>
             </div>
           </div>
@@ -283,9 +438,25 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
       </div>
 
       <div className="flex-1 overflow-y-auto space-y-2">
-        {jobs.length > 0 && travel && !travelLoading && !travelError && travel.unresolvedStopIds.length === 0
-          ? renderLeg(`Leg 1: Base → ${formatClientName(jobs[0].clientName)}`, 0)
-          : null}
+        {(() => {
+          if (
+            jobs.length === 0 ||
+            !travelData ||
+            travelDataLoading ||
+            travelDataError ||
+            travelUnresolved.length > 0
+          ) {
+            return null;
+          }
+
+          const stops = useBlockTrip ? blockStops : dayStops;
+          const stopIndex = new Map<string, number>();
+          stops.forEach((s, idx) => stopIndex.set(s.id, idx));
+
+          const firstJob = jobs[0];
+          const firstIdx = firstJob ? stopIndex.get(firstJob.id) : null;
+          return firstIdx != null ? renderLeg(firstIdx) : null;
+        })()}
         {jobs.map((job, index) => (
           <div key={job.id} className="space-y-2">
             <Draggable draggableId={job.id} index={index} key={job.id}>
@@ -299,19 +470,27 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
                 </div>
               )}
             </Draggable>
-            {travel && !travelLoading && !travelError && travel.unresolvedStopIds.length === 0 ? (
-              index < jobs.length - 1
-                ? renderLeg(
-                    `Leg ${index + 2}: ${formatClientName(job.clientName)} → ${formatClientName(
-                      jobs[index + 1].clientName
-                    )}`,
-                    index + 1
-                  )
-                : renderLeg(`Leg ${index + 2}: ${formatClientName(job.clientName)} → Base`, index + 1)
-            ) : null}
+            {(() => {
+              if (
+                !travelData ||
+                travelDataLoading ||
+                travelDataError ||
+                travelUnresolved.length > 0
+              ) {
+                return null;
+              }
+              const stops = useBlockTrip ? blockStops : dayStops;
+              const stopIndex = new Map<string, number>();
+              stops.forEach((s, idx) => stopIndex.set(s.id, idx));
+              const idxInTrip = stopIndex.get(job.id);
+              if (idxInTrip == null) return null;
+              const legIdx = idxInTrip + 1;
+              return travelData.legs?.[legIdx] ? renderLeg(legIdx) : null;
+            })()}
           </div>
         ))}
       </div>
     </div>
   );
 }
+
