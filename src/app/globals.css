@@ -4,7 +4,7 @@
 
 body {
   @apply antialiased;
-  overflow-y: hidden; /* Hide vertical scrollbar on main views */
+  overflow-y: auto; /* Allow vertical scroll for tall pages like edit card */
 }
 
 /* Global scrollbar defaults */
