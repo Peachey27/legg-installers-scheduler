@@ -82,7 +82,12 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
   const isToday = isoDate === todayIso;
   const [travel, setTravel] = useState<
     | {
-        legs: Array<{ distanceMeters: number; durationSeconds: number }>;
+        legs: Array<{
+          fromId: string;
+          toId: string;
+          distanceMeters: number;
+          durationSeconds: number;
+        }>;
         totalDistanceMeters: number;
         totalDurationSeconds: number;
         approximatedStopIds: string[];
