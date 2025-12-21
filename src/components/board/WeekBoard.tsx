@@ -167,28 +167,8 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
   return (
     <DragDropContext onDragEnd={onDragEnd}>
       <div className="flex flex-col h-[calc(100vh-56px)]">
-        <div className="flex items-center gap-2 px-4 pt-3 text-sm text-amber-900">
-          <button
-            className="px-3 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
-            onClick={() => setOffset(activeWeekOffset - 1)}
-          >
-            ← Prev week
-          </button>
-          <button
-            className="px-3 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
-            onClick={() => setOffset(0)}
-          >
-            Today
-          </button>
-          <button
-            className="px-3 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
-            onClick={() => setOffset(activeWeekOffset + 1)}
-          >
-            Next week →
-          </button>
-          <span className="ml-auto text-xs">
-            Starting {format(days[0].date, "d MMM")}
-          </span>
+        <div className="flex items-center justify-end px-4 pt-3 text-xs text-amber-900">
+          <span>Starting {format(days[0].date, "d MMM")}</span>
         </div>
 
         <div

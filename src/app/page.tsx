@@ -196,19 +196,41 @@ export default function HomePage() {
 
       {/* Desktop corkboard */}
       <section className="hidden md:flex flex-1 flex-col overflow-x-auto">
-        <div className="flex items-center gap-2 px-4 pt-3 text-sm text-amber-900">
-          <button
-            className={`px-3 py-1 rounded border ${desktopView === "week" ? "bg-amber-500 text-white border-amber-600" : "border-amber-300 bg-amber-50 hover:bg-amber-100"}`}
-            onClick={() => setDesktopView("week")}
-          >
-            Week view
-          </button>
-          <button
-            className={`px-3 py-1 rounded border ${desktopView === "four-week" ? "bg-amber-500 text-white border-amber-600" : "border-amber-300 bg-amber-50 hover:bg-amber-100"}`}
-            onClick={() => setDesktopView("four-week")}
-          >
-            View 4 weeks
-          </button>
+        <div className="flex items-center gap-2 px-4 pt-3 text-sm text-amber-900 flex-wrap md:flex-nowrap">
+          <div className="flex items-center gap-2">
+            <button
+              className={`px-3 py-1 rounded border ${desktopView === "week" ? "bg-amber-500 text-white border-amber-600" : "border-amber-300 bg-amber-50 hover:bg-amber-100"}`}
+              onClick={() => setDesktopView("week")}
+            >
+              Week view
+            </button>
+            <button
+              className={`px-3 py-1 rounded border ${desktopView === "four-week" ? "bg-amber-500 text-white border-amber-600" : "border-amber-300 bg-amber-50 hover:bg-amber-100"}`}
+              onClick={() => setDesktopView("four-week")}
+            >
+              View 4 weeks
+            </button>
+          </div>
+          <div className="flex items-center gap-2 md:ml-3">
+            <button
+              className="px-3 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
+              onClick={() => setWeekOffset((v) => v - 1)}
+            >
+              Prev week
+            </button>
+            <button
+              className="px-3 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
+              onClick={() => setWeekOffset(0)}
+            >
+              Today
+            </button>
+            <button
+              className="px-3 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
+              onClick={() => setWeekOffset((v) => v + 1)}
+            >
+              Next week
+            </button>
+          </div>
         </div>
 
         {desktopView === "four-week" ? (

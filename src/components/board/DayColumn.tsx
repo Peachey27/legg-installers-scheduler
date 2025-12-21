@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import type { Job } from "@/lib/types";
 import { format, parseISO } from "date-fns";
@@ -6,7 +6,6 @@ import JobCard from "../jobs/JobCard";
 import { Draggable } from "@hello-pangea/dnd";
 import { useSchedulerStore } from "@/store/useSchedulerStore";
 import { useEffect, useMemo, useState } from "react";
-import { formatClientName } from "@/lib/formatClientName";
 
 interface Props {
   label: string;
@@ -100,12 +99,6 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
   const [blockTravel, setBlockTravel] = useState<typeof travel>(null);
   const [blockTravelError, setBlockTravelError] = useState<string | null>(null);
   const [blockTravelLoading, setBlockTravelLoading] = useState(false);
-
-  const jobById = useMemo(() => {
-    const map = new Map<string, Job>();
-    allJobs.forEach((j) => map.set(j.id, j));
-    return map;
-  }, [allJobs]);
 
   const areaOptions = useMemo(() => {
     const set = new Set<string>(baseAreas);
@@ -324,24 +317,13 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
     return `${h}h ${m}m`;
   }
 
-  function formatStopLabel(id: string) {
-    if (id === "base") return "Base";
-    const job = jobById.get(id);
-    if (job) return formatClientName(job.clientName);
-    return "Stop";
-  }
-
   function renderLeg(legIndex: number) {
     if (!travelData || !travelData.legs?.[legIndex]) return null;
     const leg = travelData.legs[legIndex];
-    const labelText = `${formatStopLabel(leg.fromId)} -> ${formatStopLabel(leg.toId)}`;
     return (
       <div className="rounded-lg border border-amber-200 bg-white/70 px-3 py-2">
-        <div className="flex items-center justify-between text-[11px] text-amber-900/80">
-          <span className="font-semibold">{labelText}</span>
-          <span>
-            {fmtDistance(leg.distanceMeters)} → {fmtDuration(leg.durationSeconds)}
-          </span>
+        <div className="flex items-center justify-center text-[11px] font-semibold text-amber-900/80">
+          {fmtDistance(leg.distanceMeters)} - {fmtDuration(leg.durationSeconds)}
         </div>
       </div>
     );
@@ -411,15 +393,25 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
       </div>
 
       <div className="mb-2 rounded-xl border border-amber-200 bg-white/70 px-3 py-2">
-        <div className="text-xs font-semibold text-amber-900">Travel</div>
+        <div className="flex items-center justify-between text-xs font-semibold text-amber-900">
+          <span>Travel</span>
+          {jobs.length > 0 &&
+          travelData &&
+          !travelDataLoading &&
+          !travelDataError ? (
+            <span>
+              {fmtDistance(travelData.totalDistanceMeters)} - {fmtDuration(travelData.totalDurationSeconds)}
+            </span>
+          ) : null}
+        </div>
         {jobs.length === 0 ? (
           <div className="text-[11px] text-amber-900/70">No jobs.</div>
         ) : travelDataLoading ? (
-          <div className="text-[11px] text-amber-900/70">Calculating…</div>
+          <div className="text-[11px] text-amber-900/70">Calculating...</div>
         ) : travelDataError ? (
           <div className="text-[11px] text-red-700">Travel error</div>
         ) : travelData ? (
-          <div className="space-y-1">
+          <div className="mt-1 space-y-1">
             {travelUnresolved.length > 0 && (
               <div className="text-[11px] text-amber-900/70">
                 Could not locate {travelUnresolved.length} jobs (check Job address spelling)
@@ -430,12 +422,9 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
                 Using closest address for {travelApprox.length} jobs
               </div>
             )}
-            <div className="flex justify-between text-[11px] font-semibold text-amber-900">
-              <span>{useBlockTrip ? `Block total (${blockLabel})` : "Total"}</span>
-              <span>
-                {fmtDistance(travelData.totalDistanceMeters)} → {fmtDuration(travelData.totalDurationSeconds)}
-              </span>
-            </div>
+            {useBlockTrip && (
+              <div className="text-[11px] text-amber-900/70">Block total ({blockLabel})</div>
+            )}
           </div>
         ) : (
           <div className="text-[11px] text-amber-900/70">Travel not available.</div>
@@ -498,4 +487,5 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
     </div>
   );
 }
+
 
