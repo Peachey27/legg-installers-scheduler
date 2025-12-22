@@ -1,7 +1,7 @@
 "use client";
 
 import type { Job } from "@/lib/types";
-import { format, parseISO } from "date-fns";
+import { addDays, format, parseISO } from "date-fns";
 import JobCard from "../jobs/JobCard";
 import { Draggable } from "@hello-pangea/dnd";
 import { useSchedulerStore } from "@/store/useSchedulerStore";
@@ -75,10 +75,25 @@ function getDynamicStyle(area: string | undefined, order: string[]) {
   return { ring: ringPalette[pos], badge: badgePalette[pos] };
 }
 
+function getTodayIsoTz() {
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Australia/Melbourne",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(new Date());
+  const date = new Date(`${fmt}T00:00:00Z`);
+  const dow = date.getUTCDay();
+  // Align with weekday-only columns: bump Sunday to Monday, Saturday to Friday.
+  const adjusted =
+    dow === 0 ? addDays(date, 1) : dow === 6 ? addDays(date, -1) : date;
+  return adjusted.toISOString().slice(0, 10);
+}
+
 export default function DayColumn({ label, date, isoDate, jobs }: Props) {
   const { dayAreaLabels, setDayAreaLabel, jobs: allJobs } = useSchedulerStore();
   const area = dayAreaLabels[isoDate];
-  const todayIso = new Date().toISOString().slice(0, 10);
+  const todayIso = getTodayIsoTz();
   const isToday = isoDate === todayIso;
   const [travel, setTravel] = useState<
     | {
