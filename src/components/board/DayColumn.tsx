@@ -99,6 +99,8 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
   const [blockTravel, setBlockTravel] = useState<typeof travel>(null);
   const [blockTravelError, setBlockTravelError] = useState<string | null>(null);
   const [blockTravelLoading, setBlockTravelLoading] = useState(false);
+  const [sendingNextId, setSendingNextId] = useState<string | null>(null);
+  const [sendingError, setSendingError] = useState<string | null>(null);
 
   const areaOptions = useMemo(() => {
     const set = new Set<string>(baseAreas);
@@ -329,6 +331,37 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
     );
   }
 
+  async function sendNextJobText(job: Job, nextJob: Job, legIndex: number | null) {
+    if (!nextJob.clientPhone) {
+      alert("Next job is missing a phone number.");
+      return;
+    }
+    const leg = legIndex != null && travelData?.legs?.[legIndex] ? travelData.legs[legIndex] : null;
+    setSendingError(null);
+    setSendingNextId(job.id);
+    try {
+      const res = await fetch("/api/notify-next-job", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          currentJobId: job.id,
+          nextJobId: nextJob.id,
+          to: nextJob.clientPhone,
+          distanceMeters: leg?.distanceMeters ?? null,
+          durationSeconds: leg?.durationSeconds ?? null
+        })
+      });
+      const text = await res.text();
+      if (!res.ok) {
+        throw new Error(text || "Failed to send text");
+      }
+    } catch (e: any) {
+      setSendingError(e?.message ?? "Failed to send text");
+    } finally {
+      setSendingNextId(null);
+    }
+  }
+
   return (
     <div
       className={`relative h-full rounded-2xl border border-amber-200/70 shadow-inner flex flex-col p-3 transition-shadow ${
@@ -465,6 +498,32 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
               )}
             </Draggable>
             {(() => {
+              const nextJob = jobs[index + 1];
+              if (!nextJob) return null;
+
+              // Try to find the leg between current and next job if travel data is available.
+              let legIdx: number | null = null;
+              if (travelData && !travelDataLoading && !travelDataError) {
+                const stops = useBlockTrip ? blockStops : dayStops;
+                const stopIndex = new Map<string, number>();
+                stops.forEach((s, idx) => stopIndex.set(s.id, idx));
+                const idxInTrip = stopIndex.get(job.id);
+                if (idxInTrip != null) legIdx = idxInTrip + 1;
+              }
+
+              const disabled = sendingNextId === job.id || !nextJob.clientPhone?.trim();
+              return (
+                <button
+                  className="text-[11px] px-2 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100 disabled:opacity-60 disabled:cursor-not-allowed"
+                  onClick={() => sendNextJobText(job, nextJob, legIdx)}
+                  disabled={disabled}
+                  title={nextJob.clientPhone?.trim() ? undefined : "Next job has no phone number"}
+                >
+                  {disabled ? "Sending..." : "Text next job"}
+                </button>
+              );
+            })()}
+            {(() => {
               if (
                 !travelData ||
                 travelDataLoading ||
@@ -483,6 +542,9 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
             })()}
           </div>
         ))}
+        {sendingError && (
+          <div className="text-[11px] text-red-700">{sendingError}</div>
+        )}
       </div>
     </div>
   );
