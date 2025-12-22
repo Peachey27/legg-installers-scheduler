@@ -219,7 +219,7 @@ export default function MobileDayView() {
               <div
                 ref={provided.innerRef}
                 {...provided.droppableProps}
-                className="min-w-[200px] h-full flex-shrink-0"
+                className="min-w-[170px] h-full flex-shrink-0"
               >
                 <MobileBacklogCard jobs={backlogJobs} placeholder={provided.placeholder} />
               </div>
@@ -232,7 +232,7 @@ export default function MobileDayView() {
                 <div
                   ref={provided.innerRef}
                   {...provided.droppableProps}
-                  className="min-w-[200px] h-full flex-shrink-0"
+                  className="min-w-[170px] h-full flex-shrink-0"
                 >
                   <MobileDayCard
                     day={d}
@@ -450,7 +450,7 @@ function MobileDayCard({
   }
   return (
     <div
-      className={`relative h-full w-full border border-amber-200/70 rounded-lg shadow-inner p-2 flex flex-col gap-1.5 ${
+      className={`relative h-full w-full border border-amber-200/70 rounded-lg shadow-inner p-1.5 flex flex-col gap-1 ${
         isToday ? "bg-rose-50" : "bg-[#f6f0e7]/90"
       } ${areaStyle?.ring ?? ""}`}
     >
@@ -488,7 +488,7 @@ function MobileDayCard({
         </div>
       </div>
 
-      <div className="rounded-lg border border-amber-200 bg-white/70 px-2 py-1.5">
+      <div className="rounded-lg border border-amber-200 bg-white/70 px-1.5 py-1">
         <div className="text-xs font-semibold text-amber-900">Travel</div>
         {dragging ? (
           <div className="text-[11px] text-amber-900/70">Travel paused while dragging.</div>
@@ -552,16 +552,16 @@ function MobileDayCard({
 
                 const disabled = sendingNextId === job.id || !nextJob.clientPhone?.trim();
                 return (
-                  <div className="flex items-center justify-between gap-2 rounded border border-amber-200 bg-white/70 px-2 py-1">
+                  <div className="flex items-center justify-between gap-2 rounded border border-amber-200 bg-white/70 px-1.5 py-1">
                     <button
-                      className="text-[11px] px-2 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100 disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="text-[10px] px-2 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100 disabled:opacity-60 disabled:cursor-not-allowed"
                       onClick={() => sendNextJobText(job, nextJob, legIdx)}
                       disabled={disabled}
                       title={nextJob.clientPhone?.trim() ? undefined : "Next job has no phone number"}
                     >
                       {disabled ? "Sending..." : "Text next job"}
                     </button>
-                    <div className="text-[11px] font-semibold text-amber-900 min-w-[110px] text-right">
+                    <div className="text-[10px] font-semibold text-amber-900 min-w-[95px] text-right">
                       {leg
                         ? `${fmtDistance(leg.distanceMeters)} → ${fmtDuration(leg.durationSeconds)}`
                         : legAvailable
@@ -716,7 +716,7 @@ function MobileJobCard({
           draggingArmedRef.current = true;
           setArmed(true);
           libTouchStart?.(e);
-        }, 2000);
+        }, 1000);
       }}
       onTouchMove={(e) => {
         if (draggingArmedRef.current) {
@@ -729,7 +729,7 @@ function MobileJobCard({
         const y = e.touches[0]?.clientY ?? 0;
         const dx = Math.abs(x - current.x);
         const dy = Math.abs(y - current.y);
-        if (dx > 10 || dy > 10) {
+        if (dx > 6 || dy > 6) {
           current.moved = true;
           resetArmed();
         }
@@ -763,7 +763,7 @@ function MobileJobCard({
       }}
       className={`${isDragging ? "opacity-70" : ""} ${armed ? "ring-2 ring-amber-400 rounded-xl" : ""}`}
     >
-      <JobCard job={job} openOnClick={false} />
+      <JobCard job={job} openOnClick={false} compact />
     </div>
   );
 }
