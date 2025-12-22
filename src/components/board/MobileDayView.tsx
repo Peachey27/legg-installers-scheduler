@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSchedulerStore } from "@/store/useSchedulerStore";
 import type { Job } from "@/lib/types";
-import { addDays, format, parseISO, startOfToday } from "date-fns";
+import { addDays, format, parseISO } from "date-fns";
 import JobCard from "../jobs/JobCard";
 import {
   DragDropContext,
@@ -19,27 +19,16 @@ export default function MobileDayView() {
   const { jobs, dayAreaLabels, setDayAreaLabel } = useSchedulerStore();
   const [orderByList, setOrderByList] = useState<Record<string, string[]>>({});
   const [dragging, setDragging] = useState(false);
-  const [selectedDateIso, setSelectedDateIso] = useState(
-    startOfToday().toISOString().slice(0, 10)
-  );
+  const [selectedDateIso, setSelectedDateIso] = useState(getTodayIsoTz());
   const [slideOffset, setSlideOffset] = useState(0);
   const [showMenu, setShowMenu] = useState(false);
   const [search, setSearch] = useState("");
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
-  const adjustIfSunday = useCallback((date: Date, direction: number) => {
-    if (date.getDay() === 0) {
-      return addDays(date, direction >= 0 ? 1 : -1 || 1);
-    }
-    return date;
-  }, []);
-
   useEffect(() => {
-    const today = startOfToday();
-    if (today.getDay() === 0) {
-      const next = addDays(today, 1);
-      setSelectedDateIso(next.toISOString().slice(0, 10));
-    }
+    // Ensure initial date is weekday in Melbourne TZ
+    const todayIso = getTodayIsoTz();
+    setSelectedDateIso(todayIso);
   }, []);
 
   useEffect(() => {
@@ -154,17 +143,17 @@ export default function MobileDayView() {
     [jobs]
   );
 
-  const goToDate = useCallback(
-    (delta: number) => {
-      setSlideOffset(delta > 0 ? 100 : -100);
-      setSelectedDateIso((iso) => {
-        const next = addDays(parseISO(iso), delta);
-        const adjusted = adjustIfSunday(next, delta);
-        return adjusted.toISOString().slice(0, 10);
-      });
-    },
-    [adjustIfSunday]
-  );
+  const goToDate = useCallback((delta: number) => {
+    setSlideOffset(delta > 0 ? 100 : -100);
+    setSelectedDateIso((iso) => {
+      let next = addDays(parseISO(iso), delta);
+      // Skip weekends: if landing on Saturday, go back to Friday if delta<0 else forward to Monday.
+      while (next.getDay() === 0 || next.getDay() === 6) {
+        next = addDays(next, delta > 0 ? 1 : -1);
+      }
+      return next.toISOString().slice(0, 10);
+    });
+  }, []);
 
   useEffect(() => {
     if (slideOffset !== 0) {
@@ -299,11 +288,7 @@ export default function MobileDayView() {
                   </button>
                   <button
                     className="px-2 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100 text-sm"
-                    onClick={() => {
-                      const today = startOfToday();
-                      const adjusted = today.getDay() === 0 ? addDays(today, 1) : today;
-                      setSelectedDateIso(adjusted.toISOString().slice(0, 10));
-                    }}
+                    onClick={() => setSelectedDateIso(getTodayIsoTz())}
                   >
                     Today
                   </button>
@@ -869,4 +854,18 @@ function getAreaStyle(label: string | undefined, order: string[]) {
 
 function normalize(val?: string | null) {
   return val?.trim().toLowerCase() ?? "";
+}
+
+function getTodayIsoTz() {
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Australia/Melbourne",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(new Date());
+  const date = parseISO(fmt);
+  let adjusted = date;
+  if (adjusted.getDay() === 0) adjusted = addDays(adjusted, 1); // Sunday -> Monday
+  if (adjusted.getDay() === 6) adjusted = addDays(adjusted, -1); // Saturday -> Friday
+  return adjusted.toISOString().slice(0, 10);
 }
