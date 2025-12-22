@@ -27,6 +27,21 @@ export default function MobileDayView() {
   const [search, setSearch] = useState("");
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
+  const adjustIfSunday = useCallback((date: Date, direction: number) => {
+    if (date.getDay() === 0) {
+      return addDays(date, direction >= 0 ? 1 : -1 || 1);
+    }
+    return date;
+  }, []);
+
+  useEffect(() => {
+    const today = startOfToday();
+    if (today.getDay() === 0) {
+      const next = addDays(today, 1);
+      setSelectedDateIso(next.toISOString().slice(0, 10));
+    }
+  }, []);
+
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem("mobileJobOrder-v1");
@@ -139,10 +154,17 @@ export default function MobileDayView() {
     [jobs]
   );
 
-  const goToDate = useCallback((delta: number) => {
-    setSlideOffset(delta > 0 ? 100 : -100);
-    setSelectedDateIso((iso) => addDays(parseISO(iso), delta).toISOString().slice(0, 10));
-  }, []);
+  const goToDate = useCallback(
+    (delta: number) => {
+      setSlideOffset(delta > 0 ? 100 : -100);
+      setSelectedDateIso((iso) => {
+        const next = addDays(parseISO(iso), delta);
+        const adjusted = adjustIfSunday(next, delta);
+        return adjusted.toISOString().slice(0, 10);
+      });
+    },
+    [adjustIfSunday]
+  );
 
   useEffect(() => {
     if (slideOffset !== 0) {
@@ -277,7 +299,11 @@ export default function MobileDayView() {
                   </button>
                   <button
                     className="px-2 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100 text-sm"
-                    onClick={() => setSelectedDateIso(startOfToday().toISOString().slice(0, 10))}
+                    onClick={() => {
+                      const today = startOfToday();
+                      const adjusted = today.getDay() === 0 ? addDays(today, 1) : today;
+                      setSelectedDateIso(adjusted.toISOString().slice(0, 10));
+                    }}
                   >
                     Today
                   </button>
@@ -627,7 +653,7 @@ function MobileDayCard({
                     </button>
                     <div className="text-[10px] font-semibold text-amber-900 min-w-[95px] text-right">
                       {leg
-                        ? `${fmtDistance(leg.distanceMeters)} -> ${fmtDuration(leg.durationSeconds)}`
+                        ? `${fmtDistance(leg.distanceMeters)} \u2192 ${fmtDuration(leg.durationSeconds)}`
                         : legAvailable
                         ? "No travel"
                         : "Travel unavailable"}
