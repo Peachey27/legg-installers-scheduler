@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSchedulerStore } from "@/store/useSchedulerStore";
 import type { Job } from "@/lib/types";
-import { addDays, format } from "date-fns";
+import { addDays, format, parseISO } from "date-fns";
 import JobCard from "../jobs/JobCard";
 import {
   DragDropContext,
