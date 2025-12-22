@@ -22,6 +22,7 @@ export default function MobileDayView() {
   const [selectedDateIso, setSelectedDateIso] = useState(
     startOfToday().toISOString().slice(0, 10)
   );
+  const [slideOffset, setSlideOffset] = useState(0);
   const [showMenu, setShowMenu] = useState(false);
   const [search, setSearch] = useState("");
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -139,8 +140,17 @@ export default function MobileDayView() {
   );
 
   const goToDate = useCallback((delta: number) => {
+    setSlideOffset(delta > 0 ? 100 : -100);
     setSelectedDateIso((iso) => addDays(parseISO(iso), delta).toISOString().slice(0, 10));
   }, []);
+
+  useEffect(() => {
+    if (slideOffset !== 0) {
+      // allow the offset to apply, then animate back to center
+      const id = requestAnimationFrame(() => setSlideOffset(0));
+      return () => cancelAnimationFrame(id);
+    }
+  }, [slideOffset, selectedDateIso]);
 
   return (
     <DragDropContext
@@ -199,7 +209,8 @@ export default function MobileDayView() {
               <div
                 ref={provided.innerRef}
                 {...provided.droppableProps}
-                className="p-2"
+                className="p-2 transition-transform duration-300"
+                style={{ transform: `translateX(${slideOffset}%)` }}
               >
                 <MobileDayCard
                   day={day}
