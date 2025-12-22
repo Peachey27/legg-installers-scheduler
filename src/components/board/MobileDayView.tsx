@@ -184,6 +184,7 @@ export default function MobileDayView() {
     <DragDropContext
       onDragStart={() => setDragging(true)}
       onDragEnd={onDragEnd}
+      autoScrollerOptions={{ disabled: true }}
     >
       <div className="flex flex-col h-[calc(100vh-56px)] overflow-hidden">
         <div className="flex items-center gap-1.5 px-2 py-1 text-[10px] text-amber-900/80">
@@ -490,7 +491,9 @@ function MobileDayCard({
 
       <div className="rounded-lg border border-amber-200 bg-white/70 px-2 py-1.5">
         <div className="text-xs font-semibold text-amber-900">Travel</div>
-        {day.jobs.length === 0 ? (
+        {dragging ? (
+          <div className="text-[11px] text-amber-900/70">Travel paused while dragging.</div>
+        ) : day.jobs.length === 0 ? (
           <div className="text-[11px] text-amber-900/70">No jobs.</div>
         ) : travelLoading ? (
           <div className="text-[11px] text-amber-900/70">Calculating…</div>
