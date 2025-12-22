@@ -1,6 +1,4 @@
 {
-  "/jobs/[id]/page": "app/jobs/[id]/page.js",
-  "/api/notify-next-job/route": "app/api/notify-next-job/route.js",
   "/api/route-metrics/route": "app/api/route-metrics/route.js",
   "/page": "app/page.js"
 }

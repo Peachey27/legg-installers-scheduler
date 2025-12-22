@@ -313,6 +313,8 @@ function MobileDayCard({
   >(null);
   const [travelError, setTravelError] = useState<string | null>(null);
   const [travelLoading, setTravelLoading] = useState(false);
+  const [sendingNextId, setSendingNextId] = useState<string | null>(null);
+  const [sendingError, setSendingError] = useState<string | null>(null);
 
   const routeSignature = useMemo(
     () =>
@@ -406,6 +408,37 @@ function MobileDayCard({
       </div>
     );
   }
+
+  async function sendNextJobText(job: Job, nextJob: Job, legIndex: number | null) {
+    if (!nextJob.clientPhone) {
+      alert("Next job is missing a phone number.");
+      return;
+    }
+    const leg = legIndex != null && travel?.legs?.[legIndex] ? travel.legs[legIndex] : null;
+    setSendingError(null);
+    setSendingNextId(job.id);
+    try {
+      const res = await fetch("/api/notify-next-job", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          currentJobId: job.id,
+          nextJobId: nextJob.id,
+          to: nextJob.clientPhone,
+          distanceMeters: leg?.distanceMeters ?? null,
+          durationSeconds: leg?.durationSeconds ?? null
+        })
+      });
+      const text = await res.text();
+      if (!res.ok) {
+        throw new Error(text || "Failed to send text");
+      }
+    } catch (e: any) {
+      setSendingError(e?.message ?? "Failed to send text");
+    } finally {
+      setSendingNextId(null);
+    }
+  }
   return (
     <div
       className={`relative h-full w-full border border-amber-200/70 rounded-lg shadow-inner p-2 flex flex-col gap-1.5 ${
@@ -479,9 +512,13 @@ function MobileDayCard({
       </div>
 
       <div className="flex-1 overflow-y-auto space-y-1.5">
-            {day.jobs.length > 0 && travel && !travelLoading && !travelError && travel.unresolvedStopIds.length === 0
-              ? renderLeg(`Leg 1: Base -> ${formatClientName(day.jobs[0].clientName)}`, 0)
-              : null}
+        {day.jobs.length > 0 &&
+        travel &&
+        !travelLoading &&
+        !travelError &&
+        travel.unresolvedStopIds.length === 0
+          ? renderLeg(`Leg 1: Base -> ${formatClientName(day.jobs[0].clientName)}`, 0)
+          : null}
 
         {day.jobs.length === 0 ? (
           <p className="text-[11px] text-amber-900/70">No jobs for this day.</p>
@@ -489,19 +526,46 @@ function MobileDayCard({
           day.jobs.map((job, index) => (
             <div key={job.id} className="space-y-2">
               <MobileJobDraggable job={job} index={index} />
-                  {travel && !travelLoading && !travelError && travel.unresolvedStopIds.length === 0 ? (
-                    index < day.jobs.length - 1
-                      ? renderLeg(
-                          `Leg ${index + 2}: ${formatClientName(job.clientName)} -> ${formatClientName(
-                            day.jobs[index + 1].clientName
-                          )}`,
-                          index + 1
-                        )
-                      : renderLeg(`Leg ${index + 2}: ${formatClientName(job.clientName)} -> Base`, index + 1)
-                  ) : null}
+              {(() => {
+                const nextJob = day.jobs[index + 1];
+                const legAvailable =
+                  travel && !travelLoading && !travelError && travel.unresolvedStopIds.length === 0;
+                const legIdx = index + 1;
+                const leg =
+                  legAvailable && travel?.legs?.[legIdx] ? travel.legs[legIdx] : null;
+
+                if (!nextJob) {
+                  // still show final leg to base if available
+                  return leg ? renderLeg(`Leg ${index + 2}: ${formatClientName(job.clientName)} -> Base`, legIdx) : null;
+                }
+
+                const disabled = sendingNextId === job.id || !nextJob.clientPhone?.trim();
+                return (
+                  <div className="flex items-center justify-between gap-2 rounded border border-amber-200 bg-white/70 px-2 py-1">
+                    <button
+                      className="text-[11px] px-2 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100 disabled:opacity-60 disabled:cursor-not-allowed"
+                      onClick={() => sendNextJobText(job, nextJob, legIdx)}
+                      disabled={disabled}
+                      title={nextJob.clientPhone?.trim() ? undefined : "Next job has no phone number"}
+                    >
+                      {disabled ? "Sending..." : "Text next job"}
+                    </button>
+                    <div className="text-[11px] font-semibold text-amber-900 min-w-[110px] text-right">
+                      {leg
+                        ? `${fmtDistance(leg.distanceMeters)} → ${fmtDuration(leg.durationSeconds)}`
+                        : legAvailable
+                        ? "No travel"
+                        : "Travel unavailable"}
+                    </div>
+                  </div>
+                );
+              })()}
                 </div>
               ))
             )}
+        {sendingError && (
+          <div className="text-[11px] text-red-700">{sendingError}</div>
+        )}
         {placeholder}
       </div>
     </div>

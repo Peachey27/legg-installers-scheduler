@@ -426,16 +426,23 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
       </div>
 
       <div className="mb-2 rounded-xl border border-amber-200 bg-white/70 px-3 py-2">
-        <div className="flex items-center justify-between text-xs font-semibold text-amber-900">
-          <span>Travel</span>
-          {jobs.length > 0 &&
-          travelData &&
-          !travelDataLoading &&
-          !travelDataError ? (
-            <span>
-              {fmtDistance(travelData.totalDistanceMeters)} - {fmtDuration(travelData.totalDurationSeconds)}
+        <div className="flex items-center justify-between gap-2 text-xs font-semibold text-amber-900">
+          <div className="flex items-center gap-2">
+            <span>Travel</span>
+            {jobs.length > 0 &&
+            travelData &&
+            !travelDataLoading &&
+            !travelDataError ? (
+              <span>
+                {fmtDistance(travelData.totalDistanceMeters)} - {fmtDuration(travelData.totalDurationSeconds)}
+              </span>
+            ) : null}
+          </div>
+          {jobs.length > 1 && travelData && !travelDataLoading && !travelDataError && (
+            <span className="text-[11px] font-normal text-amber-900/80">
+              Use “Text next job” buttons below to notify the following stop.
             </span>
-          ) : null}
+          )}
         </div>
         {jobs.length === 0 ? (
           <div className="text-[11px] text-amber-900/70">No jobs.</div>
@@ -501,44 +508,39 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
               const nextJob = jobs[index + 1];
               if (!nextJob) return null;
 
-              // Try to find the leg between current and next job if travel data is available.
-              let legIdx: number | null = null;
-              if (travelData && !travelDataLoading && !travelDataError) {
-                const stops = useBlockTrip ? blockStops : dayStops;
-                const stopIndex = new Map<string, number>();
-                stops.forEach((s, idx) => stopIndex.set(s.id, idx));
-                const idxInTrip = stopIndex.get(job.id);
-                if (idxInTrip != null) legIdx = idxInTrip + 1;
-              }
-
-              const disabled = sendingNextId === job.id || !nextJob.clientPhone?.trim();
-              return (
-                <button
-                  className="text-[11px] px-2 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100 disabled:opacity-60 disabled:cursor-not-allowed"
-                  onClick={() => sendNextJobText(job, nextJob, legIdx)}
-                  disabled={disabled}
-                  title={nextJob.clientPhone?.trim() ? undefined : "Next job has no phone number"}
-                >
-                  {disabled ? "Sending..." : "Text next job"}
-                </button>
-              );
-            })()}
-            {(() => {
-              if (
-                !travelData ||
-                travelDataLoading ||
-                travelDataError ||
-                travelUnresolved.length > 0
-              ) {
-                return null;
-              }
               const stops = useBlockTrip ? blockStops : dayStops;
               const stopIndex = new Map<string, number>();
               stops.forEach((s, idx) => stopIndex.set(s.id, idx));
               const idxInTrip = stopIndex.get(job.id);
-              if (idxInTrip == null) return null;
-              const legIdx = idxInTrip + 1;
-              return travelData.legs?.[legIdx] ? renderLeg(legIdx) : null;
+              const legIdx = idxInTrip != null ? idxInTrip + 1 : null;
+              const leg =
+                legIdx != null &&
+                !travelDataLoading &&
+                !travelDataError &&
+                travelData?.legs?.[legIdx]
+                  ? travelData.legs[legIdx]
+                  : null;
+              const disabled = sendingNextId === job.id || !nextJob.clientPhone?.trim();
+
+              return (
+                <div className="flex items-center justify-between gap-2">
+                  <button
+                    className="text-[11px] px-2 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100 disabled:opacity-60 disabled:cursor-not-allowed"
+                    onClick={() => sendNextJobText(job, nextJob, legIdx)}
+                    disabled={disabled}
+                    title={nextJob.clientPhone?.trim() ? undefined : "Next job has no phone number"}
+                  >
+                    {disabled ? "Sending..." : "Text next job"}
+                  </button>
+                  <div className="text-[11px] font-semibold text-amber-900 min-w-[110px] text-right">
+                    {leg
+                      ? `${fmtDistance(leg.distanceMeters)} - ${fmtDuration(leg.durationSeconds)}`
+                      : travelDataLoading || travelDataError || travelUnresolved.length > 0
+                      ? "Travel unavailable"
+                      : ""}
+                  </div>
+                </div>
+              );
             })()}
           </div>
         ))}
