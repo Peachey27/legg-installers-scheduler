@@ -55,23 +55,31 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
     return result;
   }, [startDate]);
 
-  const backlogJobs = jobs.filter(
-    (j) =>
-      (!j.assignedDate || j.status === "backlog") &&
-      j.status !== "completed" &&
-      j.status !== "cancelled"
-  );
-  const orderedBacklogJobs = orderJobs("backlog", orderByList, backlogJobs);
-
-  const jobsByDate: Record<string, typeof jobs> = {};
-  for (const d of days) {
-    jobsByDate[d.iso] = jobs.filter(
+  const listJobs = (listId: string) => {
+    if (listId === "backlog") {
+      return jobs.filter(
+        (j) =>
+          (!j.assignedDate || j.status === "backlog") &&
+          j.status !== "completed" &&
+          j.status !== "cancelled" &&
+          !j.deletedAt
+      );
+    }
+    return jobs.filter(
       (j) =>
-        j.assignedDate === d.iso &&
+        j.assignedDate === listId &&
         j.status !== "cancelled" &&
         j.status !== "completed" &&
         !j.deletedAt
     );
+  };
+
+  const orderedBacklogJobs = orderJobs("backlog", orderByList, listJobs("backlog"));
+
+  const jobsByDate: Record<string, typeof jobs> = {};
+  for (const d of days) {
+    const raw = listJobs(d.iso);
+    jobsByDate[d.iso] = orderJobs(d.iso, orderByList, raw);
   }
 
   function onDragEnd(result: DropResult) {
@@ -88,29 +96,30 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
     const target = destination.droppableId;
     const assignedDate = target === "backlog" ? null : target;
 
-    // track manual order for backlog list
-    if (source.droppableId === "backlog" || destination.droppableId === "backlog") {
-      setOrderByList((prev) => {
-        const currentIds = orderedBacklogJobs.map((j) => j.id);
-        let next = mergeOrder(prev.backlog, currentIds);
+    // track manual order for any list (day or backlog)
+    setOrderByList((prev) => {
+      const getIds = (listId: string) =>
+        orderJobs(listId, prev, listJobs(listId)).map((j) => j.id);
 
-        if (source.droppableId === "backlog") {
-          next = next.filter((id) => id !== draggableId);
-        }
+      const sourceIds = getIds(source.droppableId).filter((id) => id !== draggableId);
 
-        if (destination.droppableId === "backlog") {
-          if (!next.includes(draggableId)) next.push(draggableId);
-          const insertAt = Math.min(
-            Math.max(destination.index, 0),
-            next.length
-          );
-          next = next.filter((id) => id !== draggableId);
-          next.splice(insertAt, 0, draggableId);
-        }
+      if (source.droppableId === destination.droppableId) {
+        const insertAt = Math.min(Math.max(destination.index, 0), sourceIds.length);
+        const nextIds = [...sourceIds];
+        nextIds.splice(insertAt, 0, draggableId);
+        return { ...prev, [source.droppableId]: nextIds };
+      }
 
-        return { ...prev, backlog: next };
-      });
-    }
+      const destIds = getIds(destination.droppableId).filter((id) => id !== draggableId);
+      const insertAt = Math.min(Math.max(destination.index, 0), destIds.length);
+      destIds.splice(insertAt, 0, draggableId);
+
+      return {
+        ...prev,
+        [source.droppableId]: sourceIds,
+        [destination.droppableId]: destIds
+      };
+    });
 
     // Warn if dropping onto a day with a different area label.
     if (assignedDate) {
