@@ -5,7 +5,7 @@ import { format, parseISO } from "date-fns";
 import JobCard from "../jobs/JobCard";
 import { Draggable } from "@hello-pangea/dnd";
 import { useSchedulerStore } from "@/store/useSchedulerStore";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 interface Props {
   label: string;
