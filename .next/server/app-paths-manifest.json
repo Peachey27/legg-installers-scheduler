@@ -1,4 +1,4 @@
 {
-  "/api/route-metrics/route": "app/api/route-metrics/route.js",
-  "/page": "app/page.js"
+  "/page": "app/page.js",
+  "/api/route-metrics/route": "app/api/route-metrics/route.js"
 }

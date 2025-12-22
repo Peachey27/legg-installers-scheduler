@@ -438,11 +438,6 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
               </span>
             ) : null}
           </div>
-          {jobs.length > 1 && travelData && !travelDataLoading && !travelDataError && (
-            <span className="text-[11px] font-normal text-amber-900/80">
-              Use “Text next job” buttons below to notify the following stop.
-            </span>
-          )}
         </div>
         {jobs.length === 0 ? (
           <div className="text-[11px] text-amber-900/70">No jobs.</div>
