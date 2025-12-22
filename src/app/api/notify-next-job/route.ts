@@ -31,7 +31,7 @@ function formatMessage(distanceMeters?: number | null, durationSeconds?: number 
     pieces.push("and are on their way.");
   }
 
-  pieces.push("Do not reply to this message. contact us, call 5155 3477.");
+  pieces.push("Do not reply to this message. If required contact us, call 5155 3477.");
 
   return pieces.join(" ");
 }
