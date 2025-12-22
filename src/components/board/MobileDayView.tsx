@@ -20,6 +20,7 @@ export default function MobileDayView() {
   const [weekOffset, setWeekOffset] = useState(0); // blocks of 5 weekdays
   const [orderByList, setOrderByList] = useState<Record<string, string[]>>({});
   const [dragging, setDragging] = useState(false);
+  const [showBacklog, setShowBacklog] = useState(false);
   const boardScrollRef = useRef<HTMLDivElement | null>(null);
   const today = new Date();
   const startDate = addWeeks(today, weekOffset);
@@ -206,6 +207,12 @@ export default function MobileDayView() {
             Next week
           </button>
           <span className="ml-auto text-[11px]">Week of {format(days[0].date, "d MMM")}</span>
+          <button
+            className="px-2 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
+            onClick={() => setShowBacklog((v) => !v)}
+          >
+            {showBacklog ? "Hide backlog" : "Show backlog"}
+          </button>
         </div>
 
         <div
@@ -219,9 +226,23 @@ export default function MobileDayView() {
               <div
                 ref={provided.innerRef}
                 {...provided.droppableProps}
-                className="min-w-[170px] h-full flex-shrink-0"
+                className={`h-full flex-shrink-0 ${showBacklog ? "min-w-[170px]" : "min-w-[80px]"}`}
               >
-                <MobileBacklogCard jobs={backlogJobs} placeholder={provided.placeholder} />
+                {showBacklog ? (
+                  <MobileBacklogCard jobs={backlogJobs} placeholder={provided.placeholder} />
+                ) : (
+                  <div className="relative h-full w-full border border-amber-200/70 rounded-lg shadow-inner p-2 flex flex-col gap-1 bg-[#f6f0e7]/90 items-center justify-center text-center text-[11px] text-amber-900/80">
+                    <div className="font-semibold text-amber-900">Backlog</div>
+                    <div className="text-[10px]">Drop here to backlog</div>
+                    <button
+                      className="mt-1 px-2 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100 text-[10px]"
+                      onClick={() => setShowBacklog(true)}
+                    >
+                      Expand
+                    </button>
+                    {provided.placeholder}
+                  </div>
+                )}
               </div>
             )}
           </Droppable>
@@ -232,7 +253,7 @@ export default function MobileDayView() {
                 <div
                   ref={provided.innerRef}
                   {...provided.droppableProps}
-                  className="min-w-[170px] h-full flex-shrink-0"
+                  className={`h-full flex-shrink-0 ${showBacklog ? "min-w-[170px]" : "min-w-[170px]"}`}
                 >
                   <MobileDayCard
                     day={d}
