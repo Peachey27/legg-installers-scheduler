@@ -103,7 +103,6 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
   const [sendingNextId, setSendingNextId] = useState<string | null>(null);
   const [sendingError, setSendingError] = useState<string | null>(null);
   const fetchTimerRef = useRef<number | null>(null);
-  const [manualRequestedAt, setManualRequestedAt] = useState<number>(0);
 
   const areaOptions = useMemo(() => {
     const set = new Set<string>(baseAreas);
@@ -243,16 +242,21 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
 
   // Auto-fetch only on mount/initial load
   useEffect(() => {
-    const cancel = requestTravel({ force: true });
+    if (fetchTimerRef.current != null) {
+      window.clearTimeout(fetchTimerRef.current);
+      fetchTimerRef.current = null;
+    }
+    fetchTimerRef.current = window.setTimeout(() => {
+      requestTravel({ force: true });
+      fetchTimerRef.current = null;
+    }, 1200);
     return () => {
-      cancel?.();
       if (fetchTimerRef.current != null) {
         window.clearTimeout(fetchTimerRef.current);
         fetchTimerRef.current = null;
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [requestTravel, isoDate, area, routeSignature, missingCoordsCount]);
 
   const requestBlockTravel = useCallback(() => {
     if (!hasMultiDayBlock || blockStops.length === 0 || blockTravelLoading) {
@@ -511,7 +515,18 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
             </div>
           </div>
         ) : (
-          <div className="text-[11px] text-amber-900/70">Travel not available.</div>
+          <div className="text-[11px] text-amber-900/70">
+            Travel not available.
+            <div>
+              <button
+                className="mt-1 text-[10px] px-2 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
+                onClick={() => requestTravel({ force: true })}
+                disabled={travelDataLoading}
+              >
+                Refresh travel
+              </button>
+            </div>
+          </div>
         )}
       </div>
 
