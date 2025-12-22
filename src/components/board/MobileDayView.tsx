@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSchedulerStore } from "@/store/useSchedulerStore";
 import type { Job } from "@/lib/types";
-import { addDays, addWeeks, format } from "date-fns";
+import { addDays, format, parseISO, startOfToday } from "date-fns";
 import JobCard from "../jobs/JobCard";
 import {
   DragDropContext,
@@ -16,24 +16,26 @@ import { createPortal } from "react-dom";
 import { formatClientName } from "@/lib/formatClientName";
 
 export default function MobileDayView() {
-  const { jobs, dayAreaLabels, setDayAreaLabel, moveJob } = useSchedulerStore();
-  const [weekOffset, setWeekOffset] = useState(0); // blocks of 5 weekdays
+  const { jobs, dayAreaLabels, setDayAreaLabel } = useSchedulerStore();
   const [orderByList, setOrderByList] = useState<Record<string, string[]>>({});
   const [dragging, setDragging] = useState(false);
-  const [showBacklog, setShowBacklog] = useState(false);
-  const boardScrollRef = useRef<HTMLDivElement | null>(null);
-  const today = new Date();
-  const startDate = addWeeks(today, weekOffset);
+  const [selectedDateIso, setSelectedDateIso] = useState(
+    startOfToday().toISOString().slice(0, 10)
+  );
+  const [showMenu, setShowMenu] = useState(false);
+  const [search, setSearch] = useState("");
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem("mobileJobOrder-v1");
       if (!raw) return;
       const parsed = JSON.parse(raw) as any;
-      if (!parsed || typeof parsed !== "object") return;
-      setOrderByList(parsed);
+      if (parsed && typeof parsed === "object") {
+        setOrderByList(parsed);
+      }
     } catch {
-      // ignore bad localStorage
+      // ignore
     }
   }, []);
 
@@ -41,59 +43,60 @@ export default function MobileDayView() {
     try {
       window.localStorage.setItem("mobileJobOrder-v1", JSON.stringify(orderByList));
     } catch {
-      // ignore quota / private mode failures
+      // ignore
     }
   }, [orderByList]);
 
-  const days = useMemo(() => {
-    const result: { iso: string; date: Date; label: string }[] = [];
-    let cursor = startDate;
-    while (result.length < 5) {
-      const day = cursor.getDay();
-      if (day !== 0 && day !== 6) {
-        const iso = format(cursor, "yyyy-MM-dd");
-        result.push({ iso, date: new Date(cursor), label: format(cursor, "EEE") });
-      }
-      cursor = addDays(cursor, 1);
-    }
-    return result;
-  }, [startDate]);
+  const selectedDate = useMemo(() => parseISO(selectedDateIso), [selectedDateIso]);
 
-  const jobsByDay = useMemo(
-    () =>
-      days.map((d) => ({
-        ...d,
-        area: dayAreaLabels[d.iso],
-        jobs: orderJobs(
-          d.iso,
-          orderByList,
-          jobs.filter(
-            (j) =>
-              j.assignedDate === d.iso &&
-              j.status !== "cancelled" &&
-              j.status !== "completed" &&
-              !j.deletedAt
-          )
+  const day = useMemo(
+    () => ({
+      iso: selectedDateIso,
+      date: selectedDate,
+      label: format(selectedDate, "EEE"),
+      area: dayAreaLabels[selectedDateIso],
+      jobs: orderJobs(
+        selectedDateIso,
+        orderByList,
+        jobs.filter(
+          (j) =>
+            j.assignedDate === selectedDateIso &&
+            j.status !== "cancelled" &&
+            j.status !== "completed" &&
+            !j.deletedAt
         )
-      })),
-    [days, dayAreaLabels, jobs, orderByList]
+      )
+    }),
+    [dayAreaLabels, jobs, orderByList, selectedDate, selectedDateIso]
   );
 
   const backlogJobs = useMemo(
     () =>
-      orderJobs(
-        "backlog",
-        orderByList,
-        jobs.filter(
-          (j) =>
-            (!j.assignedDate || j.status === "backlog") &&
-            j.status !== "completed" &&
-            j.status !== "cancelled" &&
-            !j.deletedAt
-        )
+      jobs.filter(
+        (j) =>
+          (!j.assignedDate || j.status === "backlog") &&
+          j.status !== "completed" &&
+          j.status !== "cancelled" &&
+          !j.deletedAt
       ),
-    [jobs, orderByList]
+    [jobs]
   );
+
+  const searchResults = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (q.length < 2) return [];
+    return jobs
+      .filter((j) => !j.deletedAt)
+      .filter((j) => {
+        return (
+          j.clientName.toLowerCase().includes(q) ||
+          j.jobAddress.toLowerCase().includes(q) ||
+          j.description.toLowerCase().includes(q) ||
+          (j.areaTag ?? "").toLowerCase().includes(q)
+        );
+      })
+      .slice(0, 8);
+  }, [jobs, search]);
 
   const areaOptions = useMemo(() => {
     const set = new Set<string>(["Bairnsdale", "Lakes", "Sale", "Melbourne", "Saphire Coast"]);
@@ -108,78 +111,36 @@ export default function MobileDayView() {
       setDragging(false);
       const { destination, source, draggableId } = result;
       if (!destination) return;
-      if (
-        destination.droppableId === source.droppableId &&
-        destination.index === source.index
-      ) {
-        return;
-      }
+      if (destination.droppableId !== source.droppableId) return; // no cross-day moves on mobile
+      if (destination.index === source.index) return;
 
-      // Update local ordering for mobile view (does not affect desktop sorting logic).
       setOrderByList((prev) => {
         const sourceId = source.droppableId;
-        const destId = destination.droppableId;
-
         const getCurrentIds = (listId: string) => {
-          const filtered =
-            listId === "backlog"
-              ? jobs.filter(
-                  (j) =>
-                    (!j.assignedDate || j.status === "backlog") &&
-                    j.status !== "completed" &&
-                    j.status !== "cancelled" &&
-                    !j.deletedAt
-                )
-              : jobs.filter(
-                  (j) =>
-                    j.assignedDate === listId &&
-                    j.status !== "cancelled" &&
-                    j.status !== "completed" &&
-                    !j.deletedAt
-                );
+          const filtered = jobs.filter(
+            (j) =>
+              j.assignedDate === listId &&
+              j.status !== "cancelled" &&
+              j.status !== "completed" &&
+              !j.deletedAt
+          );
           return orderJobs(listId, prev, filtered).map((j) => j.id);
         };
 
         const sourceIds = mergeOrder(prev[sourceId], getCurrentIds(sourceId));
-        const destIds =
-          sourceId === destId ? sourceIds.slice() : mergeOrder(prev[destId], getCurrentIds(destId));
-
         const removeAt = sourceIds.indexOf(draggableId);
         if (removeAt >= 0) sourceIds.splice(removeAt, 1);
-        const insertIndex = Math.min(Math.max(destination.index, 0), destIds.length);
-        if (sourceId === destId) {
-          sourceIds.splice(insertIndex, 0, draggableId);
-          return { ...prev, [sourceId]: sourceIds };
-        }
-
-        const destRemove = destIds.indexOf(draggableId);
-        if (destRemove >= 0) destIds.splice(destRemove, 1);
-        destIds.splice(insertIndex, 0, draggableId);
-        return { ...prev, [sourceId]: sourceIds, [destId]: destIds };
+        const insertIndex = Math.min(Math.max(destination.index, 0), sourceIds.length);
+        sourceIds.splice(insertIndex, 0, draggableId);
+        return { ...prev, [sourceId]: sourceIds };
       });
-
-      const target = destination.droppableId;
-      const assignedDate = target === "backlog" ? null : target;
-
-      if (assignedDate) {
-        const job = jobs.find((j) => j.id === draggableId);
-        const dayArea = dayAreaLabels[assignedDate];
-        const jobArea = job?.areaTag;
-        if (job && dayArea && jobArea && normalize(dayArea) && normalize(jobArea) !== normalize(dayArea)) {
-          const ok = window.confirm(
-            `This job is tagged "${jobArea}", but the day is set to "${dayArea}". Drop here anyway?`
-          );
-          if (!ok) return;
-        }
-      }
-
-      // Reordering within the same list should not call the backend.
-      if (destination.droppableId !== source.droppableId) {
-        void moveJob(draggableId, assignedDate);
-      }
     },
-    [dayAreaLabels, jobs, moveJob]
+    [jobs]
   );
+
+  const goToDate = useCallback((delta: number) => {
+    setSelectedDateIso((iso) => addDays(parseISO(iso), delta).toISOString().slice(0, 10));
+  }, []);
 
   return (
     <DragDropContext
@@ -187,86 +148,161 @@ export default function MobileDayView() {
       onDragEnd={onDragEnd}
     >
       <div className="flex flex-col h-[calc(100vh-56px)] overflow-hidden">
-        <div className="flex items-center gap-1.5 px-2 py-1 text-[10px] text-amber-900/80">
+        <div className="flex items-center gap-2 px-3 py-2 text-[11px] text-amber-900/90 border-b border-amber-200/60">
           <button
-            className="px-2 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
-            onClick={() => setWeekOffset((v) => v - 1)}
+            className="text-lg px-2 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
+            onClick={() => setShowMenu(true)}
           >
-            Prev week
+            ☰
           </button>
-          <button
-            className="px-2 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
-            onClick={() => setWeekOffset(0)}
-          >
-            Today
-          </button>
-          <button
-            className="px-2 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
-            onClick={() => setWeekOffset((v) => v + 1)}
-          >
-            Next week
-          </button>
-          <span className="ml-auto text-[11px]">Week of {format(days[0].date, "d MMM")}</span>
-          <button
-            className="px-2 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
-            onClick={() => setShowBacklog((v) => !v)}
-          >
-            {showBacklog ? "Hide backlog" : "Show backlog"}
-          </button>
+          <div className="flex flex-col">
+            <span className="text-xs font-semibold">{format(selectedDate, "EEEE")}</span>
+            <span className="text-[11px]">{format(selectedDate, "d MMM yyyy")}</span>
+          </div>
+          <span className="ml-auto text-[11px]">
+            <button
+              className="px-2 py-1 rounded-full border border-amber-300 bg-amber-50 hover:bg-amber-100"
+              onClick={() => {
+                const val = prompt("Area label for this day:", day.area ?? "");
+                if (val !== null) {
+                  const trimmed = val.trim();
+                  setDayAreaLabel(day.iso, trimmed || undefined);
+                }
+              }}
+            >
+              {day.area ?? "Set area"}
+            </button>
+          </span>
         </div>
 
         <div
-          className="flex flex-1 items-stretch overflow-x-auto overflow-y-hidden px-2 pb-2 gap-2"
-          style={{ WebkitOverflowScrolling: "touch" }}
-          data-scroll-container="board"
-          ref={boardScrollRef}
+          className="flex-1 overflow-y-auto"
+          onTouchStart={(e) => {
+            const t = e.touches[0];
+            touchStartRef.current = { x: t.clientX, y: t.clientY };
+          }}
+          onTouchEnd={(e) => {
+            const start = touchStartRef.current;
+            if (!start) return;
+            const t = e.changedTouches[0];
+            const dx = t.clientX - start.x;
+            const dy = t.clientY - start.y;
+            if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
+              if (dx < 0) goToDate(1);
+              else goToDate(-1);
+            }
+            touchStartRef.current = null;
+          }}
         >
-          <Droppable droppableId="backlog">
+          <Droppable droppableId={day.iso}>
             {(provided) => (
               <div
                 ref={provided.innerRef}
                 {...provided.droppableProps}
-                className={`h-full flex-shrink-0 ${showBacklog ? "min-w-[170px]" : "min-w-[80px]"}`}
+                className="p-2"
               >
-                {showBacklog ? (
-                  <MobileBacklogCard jobs={backlogJobs} placeholder={provided.placeholder} />
-                ) : (
-                  <div className="relative h-full w-full border border-amber-200/70 rounded-lg shadow-inner p-2 flex flex-col gap-1 bg-[#f6f0e7]/90 items-center justify-center text-center text-[11px] text-amber-900/80">
-                    <div className="font-semibold text-amber-900">Backlog</div>
-                    <div className="text-[10px]">Drop here to backlog</div>
-                    <button
-                      className="mt-1 px-2 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100 text-[10px]"
-                      onClick={() => setShowBacklog(true)}
-                    >
-                      Expand
-                    </button>
-                    {provided.placeholder}
-                  </div>
-                )}
+                <MobileDayCard
+                  day={day}
+                  areaOptions={areaOptions}
+                  onSetArea={(iso, next) => setDayAreaLabel(iso, next)}
+                  placeholder={provided.placeholder}
+                  dragging={dragging}
+                />
               </div>
             )}
           </Droppable>
-
-          {jobsByDay.map((d) => (
-            <Droppable droppableId={d.iso} key={d.iso}>
-              {(provided) => (
-                <div
-                  ref={provided.innerRef}
-                  {...provided.droppableProps}
-                  className={`h-full flex-shrink-0 ${showBacklog ? "min-w-[170px]" : "min-w-[170px]"}`}
-                >
-                  <MobileDayCard
-                    day={d}
-                    areaOptions={areaOptions}
-                    onSetArea={(iso, next) => setDayAreaLabel(iso, next)}
-                    placeholder={provided.placeholder}
-                    dragging={dragging}
-                  />
-                </div>
-              )}
-            </Droppable>
-          ))}
         </div>
+
+        {showMenu && (
+          <div className="fixed inset-0 z-50 bg-black/40">
+            <div className="absolute inset-y-0 left-0 w-80 max-w-full bg-white shadow-2xl p-3 flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold text-amber-900">Menu</span>
+                <button
+                  className="px-2 py-1 text-sm rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
+                  onClick={() => setShowMenu(false)}
+                >
+                  Close
+                </button>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] text-amber-900/80">Search jobs</label>
+                <input
+                  type="search"
+                  className="w-full rounded border border-amber-200 px-2 py-1 text-sm"
+                  placeholder="Name, address, description..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+                {searchResults.length > 0 && (
+                  <div className="border border-amber-200 rounded bg-white shadow-inner max-h-40 overflow-y-auto">
+                    {searchResults.map((j) => (
+                      <button
+                        key={j.id}
+                        className="w-full text-left px-2 py-1 text-[12px] hover:bg-amber-50 border-b border-amber-100 last:border-b-0"
+                        onClick={() => {
+                          setSearch("");
+                          setShowMenu(false);
+                          window.location.assign(`/jobs/${j.id}`);
+                        }}
+                      >
+                        <div className="font-semibold">{formatClientName(j.clientName)}</div>
+                        <div className="text-[11px] text-amber-900/80 truncate">
+                          {j.jobAddress}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="space-y-2">
+                <div className="text-[11px] font-semibold text-amber-900">Navigation</div>
+                <div className="flex items-center gap-2">
+                  <button
+                    className="px-2 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100 text-sm"
+                    onClick={() => goToDate(-1)}
+                  >
+                    Prev day
+                  </button>
+                  <button
+                    className="px-2 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100 text-sm"
+                    onClick={() => setSelectedDateIso(startOfToday().toISOString().slice(0, 10))}
+                  >
+                    Today
+                  </button>
+                  <button
+                    className="px-2 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100 text-sm"
+                    onClick={() => goToDate(1)}
+                  >
+                    Next day
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <div className="text-[11px] font-semibold text-amber-900">Backlog (view only)</div>
+                <div className="max-h-48 overflow-y-auto space-y-1">
+                  {backlogJobs.length === 0 ? (
+                    <div className="text-[11px] text-amber-900/70">No backlog jobs.</div>
+                  ) : (
+                    backlogJobs.map((j) => (
+                      <button
+                        key={j.id}
+                        className="w-full text-left px-2 py-1 rounded border border-amber-200 bg-white hover:bg-amber-50 text-[12px]"
+                        onClick={() => {
+                          setShowMenu(false);
+                          window.location.assign(`/jobs/${j.id}`);
+                        }}
+                      >
+                        <div className="font-semibold">{formatClientName(j.clientName)}</div>
+                        <div className="text-[11px] text-amber-900/80 truncate">{j.jobAddress}</div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </DragDropContext>
   );
@@ -354,11 +390,7 @@ function MobileDayCard({
   );
 
   useEffect(() => {
-    if (dragging) {
-      // Pause travel fetching during drag to keep UI responsive.
-      setTravelLoading(false);
-      return;
-    }
+    if (dragging) return;
 
     if (day.jobs.length === 0) {
       setTravel(null);
@@ -424,21 +456,6 @@ function MobileDayCard({
     return `${h}h ${m}m`;
   }
 
-  function renderLeg(labelText: string, legIndex: number) {
-    if (!travel || !travel.legs?.[legIndex]) return null;
-    const leg = travel.legs[legIndex];
-    return (
-      <div className="rounded-md border border-amber-200 bg-white/70 px-2 py-1.5">
-        <div className="flex items-center justify-between text-[10px] text-amber-900/80">
-          <span className="font-semibold">{labelText}</span>
-          <span>
-            {fmtDistance(leg.distanceMeters)} &rarr; {fmtDuration(leg.durationSeconds)}
-          </span>
-        </div>
-      </div>
-    );
-  }
-
   async function sendNextJobText(job: Job, nextJob: Job, legIndex: number | null) {
     if (!nextJob.clientPhone) {
       alert("Next job is missing a phone number.");
@@ -469,6 +486,22 @@ function MobileDayCard({
       setSendingNextId(null);
     }
   }
+
+  function renderLeg(labelText: string, legIndex: number) {
+    if (!travel || !travel.legs?.[legIndex]) return null;
+    const leg = travel.legs[legIndex];
+    return (
+      <div className="rounded-md border border-amber-200 bg-white/70 px-2 py-1">
+        <div className="flex items-center justify-between text-[10px] text-amber-900/80">
+          <span className="font-semibold">{labelText}</span>
+          <span>
+            {fmtDistance(leg.distanceMeters)} -> {fmtDuration(leg.durationSeconds)}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className={`relative h-full w-full border border-amber-200/70 rounded-lg shadow-inner p-1.5 flex flex-col gap-1 ${
@@ -534,7 +567,7 @@ function MobileDayCard({
             <div className="flex justify-between text-[11px] font-semibold text-amber-900">
               <span>Total</span>
               <span>
-                {fmtDistance(travel.totalDistanceMeters)} &rarr; {fmtDuration(travel.totalDurationSeconds)}
+                {fmtDistance(travel.totalDistanceMeters)} -> {fmtDuration(travel.totalDurationSeconds)}
               </span>
             </div>
           </div>
@@ -567,7 +600,6 @@ function MobileDayCard({
                   legAvailable && travel?.legs?.[legIdx] ? travel.legs[legIdx] : null;
 
                 if (!nextJob) {
-                  // still show final leg to base if available
                   return leg ? renderLeg(`Leg ${index + 2}: ${formatClientName(job.clientName)} -> Base`, legIdx) : null;
                 }
 
@@ -584,7 +616,7 @@ function MobileDayCard({
                     </button>
                     <div className="text-[10px] font-semibold text-amber-900 min-w-[95px] text-right">
                       {leg
-                        ? `${fmtDistance(leg.distanceMeters)} → ${fmtDuration(leg.durationSeconds)}`
+                        ? `${fmtDistance(leg.distanceMeters)} -> ${fmtDuration(leg.durationSeconds)}`
                         : legAvailable
                         ? "No travel"
                         : "Travel unavailable"}
@@ -592,33 +624,11 @@ function MobileDayCard({
                   </div>
                 );
               })()}
-                </div>
-              ))
-            )}
+            </div>
+          ))
+        )}
         {sendingError && (
           <div className="text-[11px] text-red-700">{sendingError}</div>
-        )}
-        {placeholder}
-      </div>
-    </div>
-  );
-}
-
-function MobileBacklogCard({ jobs, placeholder }: { jobs: Job[]; placeholder: React.ReactNode }) {
-  return (
-    <div className="relative h-full w-full border border-amber-200/70 rounded-lg shadow-inner p-2 flex flex-col gap-1.5 bg-[#f6f0e7]/90">
-      <div className="mb-0.5">
-        <div className="text-center">
-          <div className="text-sm font-semibold text-amber-900 leading-tight">Backlog</div>
-          <div className="text-[10px] text-amber-900/70 leading-tight">Hold 2s to drag</div>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto space-y-1.5">
-        {jobs.length === 0 ? (
-          <p className="text-[11px] text-amber-900/70">No backlog jobs.</p>
-        ) : (
-          jobs.map((job, index) => <MobileJobDraggable key={job.id} job={job} index={index} />)
         )}
         {placeholder}
       </div>
@@ -823,13 +833,3 @@ function getAreaStyle(label: string | undefined, order: string[]) {
 function normalize(val?: string | null) {
   return val?.trim().toLowerCase() ?? "";
 }
-
-
-
-
-
-
-
-
-
-
