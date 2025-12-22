@@ -5,6 +5,7 @@ import type { Job } from "@/lib/types";
 import { formatClientName } from "@/lib/formatClientName";
 
 export function PrintJobCard({ job }: { job: Job }) {
+  const areaHighlight = getAreaHighlight(job.areaTag);
   const hasPrintedRef = useRef(false);
 
   useEffect(() => {
@@ -50,7 +51,7 @@ export function PrintJobCard({ job }: { job: Job }) {
   return (
     <div className="print-wrapper">
       <style>{`
-        @page { size: 150mm 100mm; margin: 4mm; }
+        @page { size: 150mm 100mm; margin: 2mm; }
         body {
           margin: 0;
           background: white !important;
@@ -65,8 +66,8 @@ export function PrintJobCard({ job }: { job: Job }) {
         .card {
           width: 150mm;
           height: 100mm;
-          border: 1px solid #111;
-          padding: 6mm 8mm;
+          border: none;
+          padding: 6mm 6mm;
           box-sizing: border-box;
           display: flex;
           flex-direction: column;
@@ -86,8 +87,11 @@ export function PrintJobCard({ job }: { job: Job }) {
           flex: 1;
           border-bottom: 1px solid #000;
           min-height: 12px;
-          font-size: 12px;
+          font-size: 13px;
           line-height: 1.2;
+          font-weight: 700;
+          font-style: italic;
+          color: #0a61c5;
           padding-bottom: 1mm;
           white-space: nowrap;
           overflow: hidden;
@@ -101,7 +105,10 @@ export function PrintJobCard({ job }: { job: Job }) {
         .line {
           border-bottom: 1px solid #000;
           min-height: 10mm;
-          font-size: 12px;
+          font-size: 13px;
+          font-weight: 700;
+          font-style: italic;
+          color: #0a61c5;
           padding-bottom: 1mm;
           white-space: pre-wrap;
           overflow-wrap: anywhere;
@@ -136,7 +143,20 @@ export function PrintJobCard({ job }: { job: Job }) {
               }}
             >
               <span className="label">Address:</span>
-              <span className="value">{job.clientAddress}</span>
+              <span
+              className="value"
+              style={
+                areaHighlight
+                  ? {
+                      ...areaHighlight,
+                      borderRadius: "2mm",
+                      padding: "0.9mm 1.4mm"
+                    }
+                  : undefined
+              }
+            >
+              {job.clientAddress}
+            </span>
             </div>
             <div
               style={{
@@ -200,7 +220,20 @@ export function PrintJobCard({ job }: { job: Job }) {
         <div className="bottom-row">
           <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "2mm" }}>
             <span className="label">Job Address:</span>
-            <span className="value">{job.jobAddress}</span>
+            <span
+              className="value"
+              style={
+                areaHighlight
+                  ? {
+                      ...areaHighlight,
+                      borderRadius: "2mm",
+                      padding: "0.9mm 1.4mm"
+                    }
+                  : undefined
+              }
+            >
+              {job.jobAddress}
+            </span>
           </div>
           <div
             style={{
@@ -222,3 +255,26 @@ export function PrintJobCard({ job }: { job: Job }) {
 }
 
 export default PrintJobCard;
+
+function getAreaHighlight(area: Job["areaTag"]) {
+  const normalized = area?.toLowerCase().replace(/[^a-z]/g, "") ?? "";
+  const map: Record<string, [number, number, number]> = {
+    bairnsdale: [59, 130, 246],
+    bdale: [59, 130, 246],
+    lakes: [34, 197, 94],
+    lakesentrance: [34, 197, 94],
+    sale: [168, 85, 247],
+    melbourne: [239, 68, 68],
+    melb: [239, 68, 68],
+    orbost: [249, 115, 22],
+    saphirecoast: [234, 179, 8],
+    sapphirecoast: [234, 179, 8]
+  };
+  const rgb = map[normalized] ?? [148, 163, 184];
+  const bgAlpha = 0.65;
+  return {
+    backgroundColor: `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${bgAlpha})`,
+    border: `1px solid rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.85)`,
+    boxShadow: `0 0 1mm rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.7) inset`
+  };
+}
