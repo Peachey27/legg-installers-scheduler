@@ -184,7 +184,6 @@ export default function MobileDayView() {
     <DragDropContext
       onDragStart={() => setDragging(true)}
       onDragEnd={onDragEnd}
-      autoScrollerOptions={{ disabled: true }}
     >
       <div className="flex flex-col h-[calc(100vh-56px)] overflow-hidden">
         <div className="flex items-center gap-1.5 px-2 py-1 text-[10px] text-amber-900/80">
