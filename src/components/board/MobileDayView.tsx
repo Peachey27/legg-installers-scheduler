@@ -120,27 +120,15 @@ export default function MobileDayView() {
       if (destination.index === source.index) return;
 
       setOrderByList((prev) => {
-        const sourceId = source.droppableId;
-        const getCurrentIds = (listId: string) => {
-          const filtered = jobs.filter(
-            (j) =>
-              j.assignedDate === listId &&
-              j.status !== "cancelled" &&
-              j.status !== "completed" &&
-              !j.deletedAt
-          );
-          return orderJobs(listId, prev, filtered).map((j) => j.id);
-        };
-
-        const sourceIds = mergeOrder(prev[sourceId], getCurrentIds(sourceId));
-        const removeAt = sourceIds.indexOf(draggableId);
-        if (removeAt >= 0) sourceIds.splice(removeAt, 1);
-        const insertIndex = Math.min(Math.max(destination.index, 0), sourceIds.length);
-        sourceIds.splice(insertIndex, 0, draggableId);
-        return { ...prev, [sourceId]: sourceIds };
+        const listId = source.droppableId;
+        const currentIds = day.jobs.map((j) => j.id); // already ordered for this list
+        const updated = currentIds.filter((id) => id !== draggableId);
+        const insertAt = Math.min(Math.max(destination.index, 0), updated.length);
+        updated.splice(insertAt, 0, draggableId);
+        return { ...prev, [listId]: updated };
       });
     },
-    [jobs]
+    [day.jobs]
   );
 
   const goToDate = useCallback((delta: number) => {
