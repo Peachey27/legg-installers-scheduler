@@ -98,7 +98,6 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
   const [travelError, setTravelError] = useState<string | null>(null);
   const [travelLoading, setTravelLoading] = useState(false);
   const [travelDirty, setTravelDirty] = useState(true);
-  const [travelDirty, setTravelDirty] = useState(true);
   const [blockTravel, setBlockTravel] = useState<typeof travel>(null);
   const [blockTravelError, setBlockTravelError] = useState<string | null>(null);
   const [blockTravelLoading, setBlockTravelLoading] = useState(false);
