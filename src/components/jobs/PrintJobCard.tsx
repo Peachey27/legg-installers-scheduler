@@ -62,16 +62,21 @@ export function PrintJobCard({ job }: { job: Job }) {
           display: flex;
           justify-content: center;
           padding: 0;
+          width: 100%;
+          height: 100%;
         }
         .card {
           width: 150mm;
-          height: 100mm;
+          min-height: 100mm;
+          max-height: 100mm;
           border: none;
           padding: 6mm 6mm;
           box-sizing: border-box;
           display: flex;
           flex-direction: column;
-          gap: 6mm;
+          gap: 4mm;
+          overflow: hidden;
+          page-break-inside: avoid;
         }
         .row {
           display: flex;
@@ -100,11 +105,11 @@ export function PrintJobCard({ job }: { job: Job }) {
         .lines {
           display: grid;
           grid-template-rows: repeat(4, 1fr);
-          gap: 3mm;
+          gap: 2.5mm;
         }
         .line {
           border-bottom: 1px solid #000;
-          min-height: 10mm;
+          min-height: 8mm;
           font-size: 13px;
           font-weight: 700;
           font-style: italic;
