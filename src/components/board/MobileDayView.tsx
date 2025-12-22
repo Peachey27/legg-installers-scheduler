@@ -495,7 +495,7 @@ function MobileDayCard({
         <div className="flex items-center justify-between text-[10px] text-amber-900/80">
           <span className="font-semibold">{labelText}</span>
           <span>
-            {fmtDistance(leg.distanceMeters)} -> {fmtDuration(leg.durationSeconds)}
+            {fmtDistance(leg.distanceMeters)} &rarr; {fmtDuration(leg.durationSeconds)}
           </span>
         </div>
       </div>
