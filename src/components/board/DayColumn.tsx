@@ -177,6 +177,8 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
     return stops;
   }, [allJobs, blockDates, hasMultiDayBlock]);
 
+  const [blockDirty, setBlockDirty] = useState(hasMultiDayBlock);
+
   const blockSignature = useMemo(
     () =>
       blockStops
@@ -250,60 +252,75 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
     setTravelLoading(false);
   }, [isoDate, area, routeSignature, missingCoordsCount]);
 
-  const requestBlockTravel = useCallback(() => {
-    if (!hasMultiDayBlock || blockStops.length === 0 || blockTravelLoading) {
+  const requestBlockTravel = useCallback(
+    (opts?: { force?: boolean }) => {
+      if (!hasMultiDayBlock || blockStops.length === 0) {
+        return;
+      }
+      if (!opts?.force && (blockTravelLoading || !blockDirty)) {
+        return;
+      }
+
+      let cancelled = false;
+      setBlockTravelLoading(true);
+      setBlockTravelError(null);
+      void (async () => {
+        try {
+          const res = await fetch("/api/route-metrics", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              date: `${blockDates[0]}_${blockDates[blockDates.length - 1]}`,
+              area,
+              stops: blockStops
+            })
+          });
+          const text = await res.text();
+          if (cancelled) return;
+          if (!res.ok) {
+            throw new Error(text || "Failed to load travel metrics");
+          }
+          const data = JSON.parse(text) as any;
+          setBlockTravel({
+            legs: Array.isArray(data.legs) ? data.legs : [],
+            totalDistanceMeters: Number(data.totalDistanceMeters ?? 0),
+            totalDurationSeconds: Number(data.totalDurationSeconds ?? 0),
+            approximatedStopIds: Array.isArray(data.approximatedStopIds)
+              ? data.approximatedStopIds
+              : [],
+            unresolvedStopIds: Array.isArray(data.unresolvedStopIds)
+              ? data.unresolvedStopIds
+              : []
+          });
+          setBlockDirty(false);
+        } catch (e: any) {
+          if (!cancelled) setBlockTravelError(e?.message ?? "Failed to load travel metrics");
+          setBlockTravel(null);
+        } finally {
+          if (!cancelled) setBlockTravelLoading(false);
+        }
+      })();
+
+      return () => {
+        cancelled = true;
+      };
+    },
+    [area, blockDates, blockDirty, blockStops, blockTravelLoading, hasMultiDayBlock]
+  );
+
+  useEffect(() => {
+    if (!hasMultiDayBlock) {
+      setBlockDirty(false);
+      setBlockTravel(null);
+      setBlockTravelError(null);
+      setBlockTravelLoading(false);
       return;
     }
-
-    let cancelled = false;
-    setBlockTravelLoading(true);
+    setBlockDirty(true);
+    setBlockTravel(null);
     setBlockTravelError(null);
-    void (async () => {
-      try {
-        const res = await fetch("/api/route-metrics", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            date: `${blockDates[0]}_${blockDates[blockDates.length - 1]}`,
-            area,
-            stops: blockStops
-          })
-        });
-        const text = await res.text();
-        if (cancelled) return;
-        if (!res.ok) {
-          throw new Error(text || "Failed to load travel metrics");
-        }
-        const data = JSON.parse(text) as any;
-        setBlockTravel({
-          legs: Array.isArray(data.legs) ? data.legs : [],
-          totalDistanceMeters: Number(data.totalDistanceMeters ?? 0),
-          totalDurationSeconds: Number(data.totalDurationSeconds ?? 0),
-          approximatedStopIds: Array.isArray(data.approximatedStopIds)
-            ? data.approximatedStopIds
-            : [],
-          unresolvedStopIds: Array.isArray(data.unresolvedStopIds)
-            ? data.unresolvedStopIds
-            : []
-        });
-      } catch (e: any) {
-        if (!cancelled) setBlockTravelError(e?.message ?? "Failed to load travel metrics");
-        setBlockTravel(null);
-      } finally {
-        if (!cancelled) setBlockTravelLoading(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [area, blockDates, blockStops, blockTravelLoading, hasMultiDayBlock]);
-
-  // Block travel: only fetch on initial render for this config
-  useEffect(() => {
-    const cancel = requestBlockTravel();
-    return () => cancel?.();
-  }, [requestBlockTravel]);
+    setBlockTravelLoading(false);
+  }, [area, blockSignature, hasMultiDayBlock]);
 
   const baseLegDistanceMeters = blockTravel?.legs?.[0]?.distanceMeters ?? 0;
   const useBlockTrip =
@@ -496,7 +513,7 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
                 <span>Block total ({blockLabel})</span>
                 <button
                   className="text-[10px] px-2 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
-                  onClick={() => requestBlockTravel()}
+                  onClick={() => requestBlockTravel({ force: true })}
                   disabled={blockTravelLoading}
                 >
                   Refresh

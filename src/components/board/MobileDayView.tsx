@@ -24,7 +24,6 @@ export default function MobileDayView() {
   const [showMenu, setShowMenu] = useState(false);
   const [search, setSearch] = useState("");
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
-  const fetchedOnceRef = useRef<Record<string, boolean>>({});
 
   useEffect(() => {
     // Ensure initial date is weekday in Melbourne TZ
@@ -396,6 +395,7 @@ function MobileDayCard({
   >(null);
   const [travelError, setTravelError] = useState<string | null>(null);
   const [travelLoading, setTravelLoading] = useState(false);
+  const [travelDirty, setTravelDirty] = useState(true);
   const [sendingNextId, setSendingNextId] = useState<string | null>(null);
   const [sendingError, setSendingError] = useState<string | null>(null);
 
@@ -453,6 +453,7 @@ function MobileDayCard({
             approximatedStopIds: Array.isArray(data.approximatedStopIds) ? data.approximatedStopIds : [],
             unresolvedStopIds: Array.isArray(data.unresolvedStopIds) ? data.unresolvedStopIds : []
           });
+          setTravelDirty(false);
         } catch (e: any) {
           if (!cancelled) setTravelError(e?.message ?? "Failed to load travel metrics");
           setTravel(null);
@@ -468,14 +469,13 @@ function MobileDayCard({
     [day.area, day.iso, day.jobs, dragging, travelLoading]
   );
 
-  // Auto-fetch once per day (no repeated retries on reorder)
+  // Mark travel stale on changes
   useEffect(() => {
-    if (dragging) return;
-    if (fetchedOnceRef.current[day.iso]) return;
-    const cancel = requestTravel({ force: true });
-    fetchedOnceRef.current[day.iso] = true;
-    return () => cancel?.();
-  }, [day.iso, dragging, requestTravel]);
+    setTravelDirty(true);
+    setTravel(null);
+    setTravelError(null);
+    setTravelLoading(false);
+  }, [day.iso, day.area, routeSignature]);
 
   function fmtDistance(meters: number) {
     const km = meters / 1000;
@@ -586,9 +586,22 @@ function MobileDayCard({
         ) : day.jobs.length === 0 ? (
           <div className="text-[11px] text-amber-900/70">No jobs.</div>
         ) : travelLoading ? (
-          <div className="text-[11px] text-amber-900/70">Calculating…</div>
+          <div className="text-[11px] text-amber-900/70">Calculating...</div>
         ) : travelError ? (
           <div className="text-[11px] text-red-700">Travel error</div>
+        ) : travelDirty ? (
+          <div className="text-[11px] text-amber-900/70">
+            Travel not calculated.
+            <div>
+              <button
+                className="mt-1 text-[10px] px-2 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
+                onClick={() => requestTravel({ force: true })}
+                disabled={travelLoading}
+              >
+                Refresh travel
+              </button>
+            </div>
+          </div>
         ) : travel ? (
           <div className="space-y-1">
             {travel.unresolvedStopIds.length > 0 && (
@@ -618,11 +631,22 @@ function MobileDayCard({
             </div>
           </div>
         ) : (
-          <div className="text-[11px] text-amber-900/70">Travel not available.</div>
+          <div className="text-[11px] text-amber-900/70">
+            Travel not available.
+            <div>
+              <button
+                className="mt-1 text-[10px] px-2 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
+                onClick={() => requestTravel({ force: true })}
+                disabled={travelLoading}
+              >
+                Refresh travel
+              </button>
+            </div>
+          </div>
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto space-y-1.5">
+<div className="flex-1 overflow-y-auto space-y-1.5">
         {day.jobs.length > 0 &&
         travel &&
         !travelLoading &&
