@@ -97,6 +97,8 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
   >(null);
   const [travelError, setTravelError] = useState<string | null>(null);
   const [travelLoading, setTravelLoading] = useState(false);
+  const [travelDirty, setTravelDirty] = useState(true);
+  const [travelDirty, setTravelDirty] = useState(true);
   const [blockTravel, setBlockTravel] = useState<typeof travel>(null);
   const [blockTravelError, setBlockTravelError] = useState<string | null>(null);
   const [blockTravelLoading, setBlockTravelLoading] = useState(false);
@@ -224,11 +226,14 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
               ? data.unresolvedStopIds
               : []
           });
+          setTravelDirty(false);
         } catch (e: any) {
           if (!cancelled) setTravelError(e?.message ?? "Failed to load travel metrics");
           setTravel(null);
         } finally {
-          if (!cancelled) setTravelLoading(false);
+          if (!cancelled) {
+            setTravelLoading(false);
+          }
         }
       })();
 
@@ -238,6 +243,13 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
     },
     [area, dayStops, isoDate, jobs.length, travelLoading]
   );
+
+  useEffect(() => {
+    setTravelDirty(true);
+    setTravel(null);
+    setTravelError(null);
+    setTravelLoading(false);
+  }, [isoDate, area, routeSignature, missingCoordsCount]);
 
   const requestBlockTravel = useCallback(() => {
     if (!hasMultiDayBlock || blockStops.length === 0 || blockTravelLoading) {
@@ -455,6 +467,19 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
           <div className="text-[11px] text-amber-900/70">Calculating...</div>
         ) : travelDataError ? (
           <div className="text-[11px] text-red-700">Travel error</div>
+        ) : travelDirty ? (
+          <div className="text-[11px] text-amber-900/70">
+            Travel not calculated.
+            <div>
+              <button
+                className="mt-1 text-[10px] px-2 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
+                onClick={() => requestTravel({ force: true })}
+                disabled={travelDataLoading}
+              >
+                Refresh travel
+              </button>
+            </div>
+          </div>
         ) : travelData ? (
           <div className="mt-1 space-y-1">
             {travelUnresolved.length > 0 && (

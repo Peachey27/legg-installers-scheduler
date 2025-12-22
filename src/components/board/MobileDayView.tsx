@@ -24,6 +24,7 @@ export default function MobileDayView() {
   const [showMenu, setShowMenu] = useState(false);
   const [search, setSearch] = useState("");
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const fetchedOnceRef = useRef<Record<string, boolean>>({});
 
   useEffect(() => {
     // Ensure initial date is weekday in Melbourne TZ
@@ -467,11 +468,14 @@ function MobileDayCard({
     [day.area, day.iso, day.jobs, dragging, travelLoading]
   );
 
-  // Auto-fetch only on initial render for this day
+  // Auto-fetch once per day (no repeated retries on reorder)
   useEffect(() => {
+    if (dragging) return;
+    if (fetchedOnceRef.current[day.iso]) return;
     const cancel = requestTravel({ force: true });
+    fetchedOnceRef.current[day.iso] = true;
     return () => cancel?.();
-  }, [requestTravel]);
+  }, [day.iso, dragging, requestTravel]);
 
   function fmtDistance(meters: number) {
     const km = meters / 1000;
