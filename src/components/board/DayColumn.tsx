@@ -5,7 +5,7 @@ import { format, parseISO } from "date-fns";
 import JobCard from "../jobs/JobCard";
 import { Draggable } from "@hello-pangea/dnd";
 import { useSchedulerStore } from "@/store/useSchedulerStore";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { formatClientName } from "@/lib/formatClientName";
 
 interface Props {
@@ -102,7 +102,6 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
   const [blockTravelLoading, setBlockTravelLoading] = useState(false);
   const [sendingNextId, setSendingNextId] = useState<string | null>(null);
   const [sendingError, setSendingError] = useState<string | null>(null);
-  const fetchTimerRef = useRef<number | null>(null);
 
   const areaOptions = useMemo(() => {
     const set = new Set<string>(baseAreas);
@@ -239,24 +238,6 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
     },
     [area, dayStops, isoDate, jobs.length, travelLoading]
   );
-
-  // Auto-fetch only on mount/initial load
-  useEffect(() => {
-    if (fetchTimerRef.current != null) {
-      window.clearTimeout(fetchTimerRef.current);
-      fetchTimerRef.current = null;
-    }
-    fetchTimerRef.current = window.setTimeout(() => {
-      requestTravel({ force: true });
-      fetchTimerRef.current = null;
-    }, 1200);
-    return () => {
-      if (fetchTimerRef.current != null) {
-        window.clearTimeout(fetchTimerRef.current);
-        fetchTimerRef.current = null;
-      }
-    };
-  }, [requestTravel, isoDate, area, routeSignature, missingCoordsCount]);
 
   const requestBlockTravel = useCallback(() => {
     if (!hasMultiDayBlock || blockStops.length === 0 || blockTravelLoading) {
