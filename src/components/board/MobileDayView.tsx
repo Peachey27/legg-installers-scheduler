@@ -567,7 +567,7 @@ function MobileDayCard({
             <div className="flex justify-between text-[11px] font-semibold text-amber-900">
               <span>Total</span>
               <span>
-                {fmtDistance(travel.totalDistanceMeters)} -> {fmtDuration(travel.totalDurationSeconds)}
+                {fmtDistance(travel.totalDistanceMeters)} &rarr; {fmtDuration(travel.totalDurationSeconds)}
               </span>
             </div>
           </div>
