@@ -101,6 +101,8 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
   const [blockTravelLoading, setBlockTravelLoading] = useState(false);
   const [sendingNextId, setSendingNextId] = useState<string | null>(null);
   const [sendingError, setSendingError] = useState<string | null>(null);
+  const fetchTimerRef = useRef<number | null>(null);
+  const [manualRequestedAt, setManualRequestedAt] = useState<number>(0);
 
   const areaOptions = useMemo(() => {
     const set = new Set<string>(baseAreas);
@@ -186,59 +188,73 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
     [blockStops]
   );
 
-  useEffect(() => {
-    if (jobs.length === 0) {
-      setTravel(null);
-      setTravelError(null);
-      setTravelLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-    setTravelLoading(true);
-    setTravelError(null);
-    void (async () => {
-      try {
-        const res = await fetch("/api/route-metrics", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ date: isoDate, area, stops: dayStops })
-        });
-        const text = await res.text();
-        if (cancelled) return;
-        if (!res.ok) {
-          throw new Error(text || "Failed to load travel metrics");
-        }
-        const data = JSON.parse(text) as any;
-        setTravel({
-          legs: Array.isArray(data.legs) ? data.legs : [],
-          totalDistanceMeters: Number(data.totalDistanceMeters ?? 0),
-          totalDurationSeconds: Number(data.totalDurationSeconds ?? 0),
-          approximatedStopIds: Array.isArray(data.approximatedStopIds)
-            ? data.approximatedStopIds
-            : [],
-          unresolvedStopIds: Array.isArray(data.unresolvedStopIds)
-            ? data.unresolvedStopIds
-            : []
-        });
-      } catch (e: any) {
-        if (!cancelled) setTravelError(e?.message ?? "Failed to load travel metrics");
+  const requestTravel = useCallback(
+    (opts?: { force?: boolean }) => {
+      if (!opts?.force && travelLoading) return;
+      if (jobs.length === 0) {
         setTravel(null);
-      } finally {
-        if (!cancelled) setTravelLoading(false);
+        setTravelError(null);
+        setTravelLoading(false);
+        return;
       }
-    })();
 
-    return () => {
-      cancelled = true;
-    };
-  }, [isoDate, area, routeSignature, missingCoordsCount, dayStops]);
+      let cancelled = false;
+      setTravelLoading(true);
+      setTravelError(null);
+      void (async () => {
+        try {
+          const res = await fetch("/api/route-metrics", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ date: isoDate, area, stops: dayStops })
+          });
+          const text = await res.text();
+          if (cancelled) return;
+          if (!res.ok) {
+            throw new Error(text || "Failed to load travel metrics");
+          }
+          const data = JSON.parse(text) as any;
+          setTravel({
+            legs: Array.isArray(data.legs) ? data.legs : [],
+            totalDistanceMeters: Number(data.totalDistanceMeters ?? 0),
+            totalDurationSeconds: Number(data.totalDurationSeconds ?? 0),
+            approximatedStopIds: Array.isArray(data.approximatedStopIds)
+              ? data.approximatedStopIds
+              : [],
+            unresolvedStopIds: Array.isArray(data.unresolvedStopIds)
+              ? data.unresolvedStopIds
+              : []
+          });
+        } catch (e: any) {
+          if (!cancelled) setTravelError(e?.message ?? "Failed to load travel metrics");
+          setTravel(null);
+        } finally {
+          if (!cancelled) setTravelLoading(false);
+        }
+      })();
 
+      return () => {
+        cancelled = true;
+      };
+    },
+    [area, dayStops, isoDate, jobs.length, travelLoading]
+  );
+
+  // Auto-fetch only on mount/initial load
   useEffect(() => {
-    if (!hasMultiDayBlock || blockStops.length === 0) {
-      setBlockTravel(null);
-      setBlockTravelError(null);
-      setBlockTravelLoading(false);
+    const cancel = requestTravel({ force: true });
+    return () => {
+      cancel?.();
+      if (fetchTimerRef.current != null) {
+        window.clearTimeout(fetchTimerRef.current);
+        fetchTimerRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const requestBlockTravel = useCallback(() => {
+    if (!hasMultiDayBlock || blockStops.length === 0 || blockTravelLoading) {
       return;
     }
 
@@ -284,7 +300,13 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [area, blockDates, blockSignature, blockStops, hasMultiDayBlock]);
+  }, [area, blockDates, blockStops, blockTravelLoading, hasMultiDayBlock]);
+
+  // Block travel: only fetch on initial render for this config
+  useEffect(() => {
+    const cancel = requestBlockTravel();
+    return () => cancel?.();
+  }, [requestBlockTravel]);
 
   const baseLegDistanceMeters = blockTravel?.legs?.[0]?.distanceMeters ?? 0;
   const useBlockTrip =
@@ -336,6 +358,8 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
       alert("Next job is missing a phone number.");
       return;
     }
+    const ok = window.confirm(`Text next job?\n\nNext: ${formatClientName(nextJob.clientName)}\nNumber: ${nextJob.clientPhone}`);
+    if (!ok) return;
     const leg = legIndex != null && travelData?.legs?.[legIndex] ? travelData.legs[legIndex] : null;
     setSendingError(null);
     setSendingNextId(job.id);
@@ -458,8 +482,32 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
               </div>
             )}
             {useBlockTrip && (
-              <div className="text-[11px] text-amber-900/70">Block total ({blockLabel})</div>
+              <div className="flex items-center justify-between text-[11px] text-amber-900/70">
+                <span>Block total ({blockLabel})</span>
+                <button
+                  className="text-[10px] px-2 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
+                  onClick={() => requestBlockTravel()}
+                  disabled={blockTravelLoading}
+                >
+                  Refresh
+                </button>
+              </div>
             )}
+            <div className="flex justify-between items-center text-[11px] font-semibold text-amber-900">
+              <span>Total</span>
+              <div className="flex items-center gap-2">
+                <span>
+                  {fmtDistance(travelData.totalDistanceMeters)} - {fmtDuration(travelData.totalDurationSeconds)}
+                </span>
+                <button
+                  className="text-[10px] px-2 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
+                  onClick={() => requestTravel({ force: true })}
+                  disabled={travelDataLoading}
+                >
+                  Refresh
+                </button>
+              </div>
+            </div>
           </div>
         ) : (
           <div className="text-[11px] text-amber-900/70">Travel not available.</div>

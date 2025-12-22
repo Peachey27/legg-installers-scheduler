@@ -411,58 +411,67 @@ function MobileDayCard({
     [day.jobs]
   );
 
-  useEffect(() => {
-    if (dragging) return;
+  const requestTravel = useCallback(
+    (opts?: { force?: boolean }) => {
+      if (!opts?.force && (travelLoading || dragging)) return;
 
-    if (day.jobs.length === 0) {
-      setTravel(null);
-      setTravelError(null);
-      setTravelLoading(false);
-      return;
-    }
-
-    const stops = day.jobs.map((j) => ({
-      id: j.id,
-      address: j.jobAddress || j.clientAddress,
-      lat: j.clientAddressLat,
-      lng: j.clientAddressLng
-    }));
-
-    let cancelled = false;
-    setTravelLoading(true);
-    setTravelError(null);
-    void (async () => {
-      try {
-        const res = await fetch("/api/route-metrics", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ date: day.iso, area: day.area, stops })
-        });
-        const text = await res.text();
-        if (cancelled) return;
-        if (!res.ok) {
-          throw new Error(text || "Failed to load travel metrics");
-        }
-        const data = JSON.parse(text) as any;
-        setTravel({
-          legs: Array.isArray(data.legs) ? data.legs : [],
-          totalDistanceMeters: Number(data.totalDistanceMeters ?? 0),
-          totalDurationSeconds: Number(data.totalDurationSeconds ?? 0),
-          approximatedStopIds: Array.isArray(data.approximatedStopIds) ? data.approximatedStopIds : [],
-          unresolvedStopIds: Array.isArray(data.unresolvedStopIds) ? data.unresolvedStopIds : []
-        });
-      } catch (e: any) {
-        if (!cancelled) setTravelError(e?.message ?? "Failed to load travel metrics");
+      if (day.jobs.length === 0) {
         setTravel(null);
-      } finally {
-        if (!cancelled) setTravelLoading(false);
+        setTravelError(null);
+        setTravelLoading(false);
+        return;
       }
-    })();
 
-    return () => {
-      cancelled = true;
-    };
-  }, [day.iso, day.area, routeSignature, dragging]);
+      const stops = day.jobs.map((j) => ({
+        id: j.id,
+        address: j.jobAddress || j.clientAddress,
+        lat: j.clientAddressLat,
+        lng: j.clientAddressLng
+      }));
+
+      let cancelled = false;
+      setTravelLoading(true);
+      setTravelError(null);
+      void (async () => {
+        try {
+          const res = await fetch("/api/route-metrics", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ date: day.iso, area: day.area, stops })
+          });
+          const text = await res.text();
+          if (cancelled) return;
+          if (!res.ok) {
+            throw new Error(text || "Failed to load travel metrics");
+          }
+          const data = JSON.parse(text) as any;
+          setTravel({
+            legs: Array.isArray(data.legs) ? data.legs : [],
+            totalDistanceMeters: Number(data.totalDistanceMeters ?? 0),
+            totalDurationSeconds: Number(data.totalDurationSeconds ?? 0),
+            approximatedStopIds: Array.isArray(data.approximatedStopIds) ? data.approximatedStopIds : [],
+            unresolvedStopIds: Array.isArray(data.unresolvedStopIds) ? data.unresolvedStopIds : []
+          });
+        } catch (e: any) {
+          if (!cancelled) setTravelError(e?.message ?? "Failed to load travel metrics");
+          setTravel(null);
+        } finally {
+          if (!cancelled) setTravelLoading(false);
+        }
+      })();
+
+      return () => {
+        cancelled = true;
+      };
+    },
+    [day.area, day.iso, day.jobs, dragging, travelLoading]
+  );
+
+  // Auto-fetch only on initial render for this day
+  useEffect(() => {
+    const cancel = requestTravel({ force: true });
+    return () => cancel?.();
+  }, [requestTravel]);
 
   function fmtDistance(meters: number) {
     const km = meters / 1000;
@@ -483,6 +492,8 @@ function MobileDayCard({
       alert("Next job is missing a phone number.");
       return;
     }
+    const ok = window.confirm(`Text next job?\n\nNext: ${formatClientName(nextJob.clientName)}\nNumber: ${nextJob.clientPhone}`);
+    if (!ok) return;
     const leg = legIndex != null && travel?.legs?.[legIndex] ? travel.legs[legIndex] : null;
     setSendingError(null);
     setSendingNextId(job.id);
@@ -586,11 +597,20 @@ function MobileDayCard({
                 Using closest address for {travel.approximatedStopIds.length} jobs
               </div>
             )}
-            <div className="flex justify-between text-[11px] font-semibold text-amber-900">
+            <div className="flex justify-between items-center text-[11px] font-semibold text-amber-900">
               <span>Total</span>
-              <span>
-                {fmtDistance(travel.totalDistanceMeters)} &rarr; {fmtDuration(travel.totalDurationSeconds)}
-              </span>
+              <div className="flex items-center gap-2">
+                <span>
+                  {fmtDistance(travel.totalDistanceMeters)} &rarr; {fmtDuration(travel.totalDurationSeconds)}
+                </span>
+                <button
+                  className="text-[10px] px-2 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
+                  onClick={() => requestTravel({ force: true })}
+                  disabled={travelLoading}
+                >
+                  Refresh
+                </button>
+              </div>
             </div>
           </div>
         ) : (
