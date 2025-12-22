@@ -239,6 +239,7 @@ export default function MobileDayView() {
                     areaOptions={areaOptions}
                     onSetArea={(iso, next) => setDayAreaLabel(iso, next)}
                     placeholder={provided.placeholder}
+                    dragging={dragging}
                   />
                 </div>
               )}
@@ -290,12 +291,14 @@ function MobileDayCard({
   day,
   areaOptions,
   onSetArea,
-  placeholder
+  placeholder,
+  dragging
 }: {
   day: { iso: string; date: Date; label: string; area?: string; jobs: Job[] };
   areaOptions: string[];
   onSetArea: (iso: string, label: string | undefined) => void;
   placeholder: React.ReactNode;
+  dragging: boolean;
 }) {
   const todayIso = new Date().toISOString().slice(0, 10);
   const isToday = day.iso === todayIso;
@@ -330,6 +333,12 @@ function MobileDayCard({
   );
 
   useEffect(() => {
+    if (dragging) {
+      // Pause travel fetching during drag to keep UI responsive.
+      setTravelLoading(false);
+      return;
+    }
+
     if (day.jobs.length === 0) {
       setTravel(null);
       setTravelError(null);
@@ -378,7 +387,7 @@ function MobileDayCard({
     return () => {
       cancelled = true;
     };
-  }, [day.iso, day.area, routeSignature]);
+  }, [day.iso, day.area, routeSignature, dragging]);
 
   function fmtDistance(meters: number) {
     const km = meters / 1000;
@@ -526,7 +535,7 @@ function MobileDayCard({
           day.jobs.map((job, index) => (
             <div key={job.id} className="space-y-2">
               <MobileJobDraggable job={job} index={index} />
-              {(() => {
+              {!dragging && (() => {
                 const nextJob = day.jobs[index + 1];
                 const legAvailable =
                   travel && !travelLoading && !travelError && travel.unresolvedStopIds.length === 0;
