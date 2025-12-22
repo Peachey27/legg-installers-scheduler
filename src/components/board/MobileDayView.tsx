@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSchedulerStore } from "@/store/useSchedulerStore";
 import type { Job } from "@/lib/types";
-import { addDays, format, parseISO } from "date-fns";
+import { addDays, format } from "date-fns";
 import JobCard from "../jobs/JobCard";
 import {
   DragDropContext,
@@ -146,12 +146,12 @@ export default function MobileDayView() {
   const goToDate = useCallback((delta: number) => {
     setSlideOffset(delta > 0 ? 100 : -100);
     setSelectedDateIso((iso) => {
-      let next = addDays(parseISO(iso), delta);
+      let next = shiftIso(iso, delta);
       // Skip weekends: if landing on Saturday, go back to Friday if delta<0 else forward to Monday.
-      while (next.getDay() === 0 || next.getDay() === 6) {
-        next = addDays(next, delta > 0 ? 1 : -1);
+      while (isoDayOfWeek(next) === 0 || isoDayOfWeek(next) === 6) {
+        next = shiftIso(next, delta > 0 ? 1 : -1);
       }
-      return next.toISOString().slice(0, 10);
+      return next;
     });
   }, []);
 
@@ -856,6 +856,16 @@ function normalize(val?: string | null) {
   return val?.trim().toLowerCase() ?? "";
 }
 
+function isoDayOfWeek(iso: string) {
+  const d = isoToDateUtc(iso);
+  return d.getUTCDay();
+}
+
+function isoToDateUtc(iso: string) {
+  // Interpret ISO date (yyyy-mm-dd) as UTC to avoid local TZ shifts
+  return new Date(`${iso}T00:00:00Z`);
+}
+
 function getTodayIsoTz() {
   const fmt = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Australia/Melbourne",
@@ -863,9 +873,16 @@ function getTodayIsoTz() {
     month: "2-digit",
     day: "2-digit"
   }).format(new Date());
-  const date = parseISO(fmt);
+  const date = isoToDateUtc(fmt);
   let adjusted = date;
-  if (adjusted.getDay() === 0) adjusted = addDays(adjusted, 1); // Sunday -> Monday
-  if (adjusted.getDay() === 6) adjusted = addDays(adjusted, -1); // Saturday -> Friday
+  const dow = adjusted.getUTCDay();
+  if (dow === 0) adjusted = addDays(adjusted, 1); // Sunday -> Monday
+  if (dow === 6) adjusted = addDays(adjusted, -1); // Saturday -> Friday
   return adjusted.toISOString().slice(0, 10);
+}
+
+function shiftIso(iso: string, delta: number) {
+  const d = isoToDateUtc(iso);
+  const next = addDays(d, delta);
+  return next.toISOString().slice(0, 10);
 }

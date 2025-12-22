@@ -139,7 +139,7 @@ export default function HomePage() {
             })}
           </div>
         </div>
-        <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+        <div className="hidden md:flex items-center gap-2 w-full md:w-auto justify-end">
           <div className="relative w-full max-w-sm">
             <input
               type="search"
