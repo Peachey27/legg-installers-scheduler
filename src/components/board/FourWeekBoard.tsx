@@ -136,13 +136,10 @@ export default function FourWeekBoard({
   return (
     <DragDropContext onDragEnd={onDragEnd}>
       <div className="flex flex-col gap-2 h-[calc(100vh-56px)] overflow-y-auto">
-        <div className="px-4 pt-3 space-y-2">
-          <div className="flex items-center justify-between text-sm text-amber-900">
-            <div className="flex items-center gap-2">
-              <span className="font-semibold">Backlog</span>
-              <span className="text-xs text-amber-900/70">Unschedule jobs — drag onto a day.</span>
-            </div>
-            <span className="text-xs">Week range {weeks[0].displayRange}</span>
+        <div className="px-4 pt-2 space-y-2">
+          <div className="flex items-center justify-between text-xs text-amber-900">
+            <span className="font-semibold">Week range {weeks[0].displayRange}</span>
+            <span className="text-[11px] font-semibold">Backlog</span>
           </div>
           <Droppable droppableId="backlog" direction="horizontal">
             {(provided) => (

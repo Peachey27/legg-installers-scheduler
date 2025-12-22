@@ -8,7 +8,7 @@ import type {
   JobStatus,
   MaterialProductUpdate
 } from "@/lib/types";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { normalizeClientName } from "@/lib/normalizeClientName";
 
 type FormState = {
@@ -65,6 +65,8 @@ const materialUpdateOptions: string[] = [
 
 export function JobDetailEditor({ job }: { job: Job }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnTo = searchParams?.get("return") || "/";
 
   function toTelHref(phone: string) {
     const raw = (phone ?? "").trim();
@@ -505,7 +507,7 @@ export function JobDetailEditor({ job }: { job: Job }) {
             Print card
           </Link>
           <Link
-            href="/"
+            href={returnTo}
             className="px-3 py-2 rounded border border-slate-300 text-slate-800 bg-white hover:bg-slate-50 text-sm"
           >
             Back to board

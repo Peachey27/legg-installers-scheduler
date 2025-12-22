@@ -35,7 +35,18 @@ export default function JobCard({ job, openOnClick = true, onOpen, compact = fal
     : false;
   const hasAnyNotes = hasMaterialNotes || Boolean(job.internalNotes);
 
-  const openJob = onOpen ?? (() => router.push(`/jobs/${job.id}`));
+  const openJob =
+    onOpen ??
+    (() => {
+      const returnTo =
+        typeof window !== "undefined"
+          ? window.location.pathname + window.location.search + window.location.hash
+          : "";
+      const href = returnTo
+        ? `/jobs/${job.id}?return=${encodeURIComponent(returnTo)}`
+        : `/jobs/${job.id}`;
+      router.push(href);
+    });
 
   const cardPadding = compact ? "px-2 py-1.5" : "px-3 py-2";
 
