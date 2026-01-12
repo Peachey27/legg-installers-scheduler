@@ -167,6 +167,13 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
 
       const collisions = pointerWithin(args);
       const intersections = collisions.length ? collisions : rectIntersection(args);
+      const columnHit = getFirstCollision(
+        intersections.filter((entry) => listIds.includes(String(entry.id))),
+        "id"
+      );
+      if (columnHit && String(columnHit) !== activeListId) {
+        return [{ id: columnHit as UniqueIdentifier }];
+      }
 
       if (dragAxis !== "horizontal") {
         const filtered = args.droppableContainers.filter((container) => {
@@ -207,6 +214,11 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
       const activeListId = baseJobToList.get(activeId) ?? null;
       const overListId = getListIdForDroppable(overId);
       if (!activeListId || !overListId) return;
+
+      if (overListId !== activeListId) {
+        if (nextAxis !== "horizontal") setDragAxis("horizontal");
+        if (overListId !== previewListId) setPreviewListId(overListId);
+      }
 
       if (nextAxis === "horizontal" && overListId !== previewListId) {
         setPreviewListId(overListId);
