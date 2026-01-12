@@ -2,8 +2,7 @@
 
 import type { Job } from "@/lib/types";
 import { addDays, format, parseISO } from "date-fns";
-import JobCard from "../jobs/JobCard";
-import { Draggable } from "@hello-pangea/dnd";
+import SortableJobCard from "./SortableJobCard";
 import { useSchedulerStore } from "@/store/useSchedulerStore";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { formatClientName } from "@/lib/formatClientName";
@@ -589,17 +588,7 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
         })()}
         {jobs.map((job, index) => (
           <div key={job.id} className="space-y-2">
-            <Draggable draggableId={job.id} index={index} key={job.id}>
-              {(provided) => (
-                <div
-                  ref={provided.innerRef}
-                  {...provided.draggableProps}
-                  {...provided.dragHandleProps}
-                >
-                  <JobCard job={job} />
-                </div>
-              )}
-            </Draggable>
+            <SortableJobCard job={job} listId={isoDate} />
             {(() => {
               const nextJob = jobs[index + 1];
               if (!nextJob) return null;

@@ -1,16 +1,40 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { DragDropContext, Droppable, DropResult } from "@hello-pangea/dnd";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  closestCenter,
+  getFirstCollision,
+  pointerWithin,
+  rectIntersection,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type CollisionDetection,
+  type DragEndEvent,
+  type DragOverEvent,
+  type DragStartEvent,
+  type UniqueIdentifier
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  verticalListSortingStrategy
+} from "@dnd-kit/sortable";
+import { addDays, format, startOfWeek } from "date-fns";
 import { useSchedulerStore } from "@/store/useSchedulerStore";
 import DayColumn from "./DayColumn";
 import BacklogColumn from "./BacklogColumn";
-import { addDays, format, startOfWeek } from "date-fns";
+import JobCard from "../jobs/JobCard";
 
 type Props = {
   weekOffset?: number;
   onWeekOffsetChange?: (offset: number) => void;
 };
+
+const AXIS_THRESHOLD = 12;
 
 export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
   const { jobs, moveJob, dayAreaLabels } = useSchedulerStore();
@@ -20,15 +44,11 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
   const [scrollPos, setScrollPos] = useState(0);
   const [scrollMax, setScrollMax] = useState(0);
 
-  const activeWeekOffset = weekOffset ?? internalWeekOffset;
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [dragAxis, setDragAxis] = useState<"vertical" | "horizontal" | null>(null);
+  const [previewListId, setPreviewListId] = useState<string | null>(null);
 
-  function setOffset(next: number) {
-    if (onWeekOffsetChange) {
-      onWeekOffsetChange(next);
-    } else {
-      setInternalWeekOffset(next);
-    }
-  }
+  const activeWeekOffset = weekOffset ?? internalWeekOffset;
 
   const today = new Date();
   const startDate = startOfWeek(addDays(today, activeWeekOffset * 7), { weekStartsOn: 1 });
@@ -55,24 +75,65 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
     return result;
   }, [startDate]);
 
-  const listJobs = (listId: string) => {
-    if (listId === "backlog") {
-      return jobs.filter(
-        (j) =>
-          (!j.assignedDate || j.status === "backlog") &&
-          j.status !== "completed" &&
-          j.status !== "cancelled" &&
-          !j.deletedAt
-      );
+  const listIds = useMemo(
+    () => ["backlog", ...days.map((d) => d.iso)],
+    [days]
+  );
+
+  const listJobsBase = useCallback(
+    (listId: string) =>
+      listId === "backlog"
+        ? jobs.filter(
+            (j) =>
+              (!j.assignedDate || j.status === "backlog") &&
+              j.status !== "completed" &&
+              j.status !== "cancelled" &&
+              !j.deletedAt
+          )
+        : jobs.filter(
+            (j) =>
+              j.assignedDate === listId &&
+              j.status !== "cancelled" &&
+              j.status !== "completed" &&
+              !j.deletedAt
+          ),
+    [jobs]
+  );
+
+  const listJobs = useCallback(
+    (listId: string) => {
+      const base = listJobsBase(listId);
+      if (!activeId || !previewListId) return base;
+
+      if (listId !== previewListId) {
+        return base.filter((j) => j.id !== activeId);
+      }
+
+      const activeJob = jobs.find((j) => j.id === activeId);
+      if (!activeJob) return base;
+      if (base.some((j) => j.id === activeId)) return base;
+      return [...base, activeJob];
+    },
+    [activeId, jobs, listJobsBase, previewListId]
+  );
+
+  const baseJobToList = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const listId of listIds) {
+      for (const job of listJobs(listId)) {
+        map.set(job.id, listId);
+      }
     }
-    return jobs.filter(
-      (j) =>
-        j.assignedDate === listId &&
-        j.status !== "cancelled" &&
-        j.status !== "completed" &&
-        !j.deletedAt
-    );
-  };
+    return map;
+  }, [listIds, listJobsBase]);
+
+  const effectiveJobToList = useMemo(() => {
+    const map = new Map(baseJobToList);
+    if (activeId && previewListId) {
+      map.set(activeId, previewListId);
+    }
+    return map;
+  }, [activeId, baseJobToList, previewListId]);
 
   const orderedBacklogJobs = orderJobs("backlog", orderByList, listJobs("backlog"));
 
@@ -82,66 +143,186 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
     jobsByDate[d.iso] = orderJobs(d.iso, orderByList, raw);
   }
 
-  function onDragEnd(result: DropResult) {
-    const { destination, source, draggableId } = result;
-    if (!destination) return;
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { delay: 140, tolerance: 6 }
+    })
+  );
 
-    if (
-      destination.droppableId === source.droppableId &&
-      destination.index === source.index
-    ) {
-      return;
-    }
+  const getListIdForDroppable = useCallback(
+    (id: UniqueIdentifier | null) => {
+      if (!id) return null;
+      const asString = String(id);
+      if (listIds.includes(asString)) return asString;
+      return effectiveJobToList.get(asString) ?? null;
+    },
+    [effectiveJobToList, listIds]
+  );
 
-    const target = destination.droppableId;
-    const assignedDate = target === "backlog" ? null : target;
+  const collisionDetection: CollisionDetection = useCallback(
+    (args) => {
+      if (!activeId) return closestCenter(args);
+      const activeListId = getListIdForDroppable(activeId);
+      if (!activeListId) return closestCenter(args);
 
-    // track manual order for any list (day or backlog)
-    setOrderByList((prev) => {
-      const getIds = (listId: string) =>
-        orderJobs(listId, prev, listJobs(listId)).map((j) => j.id);
+      const collisions = pointerWithin(args);
+      const intersections = collisions.length ? collisions : rectIntersection(args);
 
-      const sourceIds = getIds(source.droppableId).filter((id) => id !== draggableId);
-
-      if (source.droppableId === destination.droppableId) {
-        const insertAt = Math.min(Math.max(destination.index, 0), sourceIds.length);
-        const nextIds = [...sourceIds];
-        nextIds.splice(insertAt, 0, draggableId);
-        return { ...prev, [source.droppableId]: nextIds };
+      if (dragAxis !== "horizontal") {
+        const filtered = args.droppableContainers.filter((container) => {
+          const listId = getListIdForDroppable(container.id);
+          return listId === activeListId;
+        });
+        return closestCenter({ ...args, droppableContainers: filtered });
       }
 
-      const destIds = getIds(destination.droppableId).filter((id) => id !== draggableId);
-      const insertAt = Math.min(Math.max(destination.index, 0), destIds.length);
-      destIds.splice(insertAt, 0, draggableId);
+      const first = getFirstCollision(intersections, "id");
+      if (first) return [{ id: first }];
+      return closestCenter(args);
+    },
+    [activeId, dragAxis, getListIdForDroppable]
+  );
 
-      return {
-        ...prev,
-        [source.droppableId]: sourceIds,
-        [destination.droppableId]: destIds
-      };
-    });
+  const handleDragStart = useCallback(
+    ({ active }: DragStartEvent) => {
+      setActiveId(String(active.id));
+      setDragAxis(null);
+      setPreviewListId(null);
+    },
+    []
+  );
 
-    // Warn if dropping onto a day with a different area label.
-    if (assignedDate) {
-      const job = jobs.find((j) => j.id === draggableId);
-      const dayArea = dayAreaLabels[assignedDate];
-      const jobArea = job?.areaTag;
-      if (
-        job &&
-        dayArea &&
-        jobArea &&
-        normalize(dayArea) &&
-        normalize(jobArea) !== normalize(dayArea)
-      ) {
-        const ok = window.confirm(
-          `This job is tagged "${jobArea}", but the day is set to "${dayArea}". Drop here anyway?`
+  const handleDragOver = useCallback(
+    ({ active, over, delta }: DragOverEvent) => {
+      if (!over) return;
+      const absX = Math.abs(delta.x);
+      const absY = Math.abs(delta.y);
+      let nextAxis = dragAxis;
+      if (absX > absY + AXIS_THRESHOLD) nextAxis = "horizontal";
+      else if (absY > absX + AXIS_THRESHOLD) nextAxis = "vertical";
+      if (nextAxis !== dragAxis) setDragAxis(nextAxis);
+
+      const activeId = String(active.id);
+      const overId = over?.id ?? null;
+      const activeListId = baseJobToList.get(activeId) ?? null;
+      const overListId = getListIdForDroppable(overId);
+      if (!activeListId || !overListId) return;
+
+      if (nextAxis === "horizontal" && overListId !== previewListId) {
+        setPreviewListId(overListId);
+      }
+
+      if (activeListId === overListId) {
+        setOrderByList((prev) => {
+          const ids = orderJobs(activeListId, prev, listJobs(activeListId)).map(
+            (j) => j.id
+          );
+          const oldIndex = ids.indexOf(activeId);
+          const overIndex = getOverIndex(ids, overId, activeListId);
+          if (oldIndex === -1 || overIndex === -1 || oldIndex === overIndex) {
+            return prev;
+          }
+          return { ...prev, [activeListId]: arrayMove(ids, oldIndex, overIndex) };
+        });
+        return;
+      }
+
+      if (nextAxis !== "horizontal") return;
+
+      setOrderByList((prev) => {
+        const sourceIds = orderJobs(activeListId, prev, listJobs(activeListId)).map(
+          (j) => j.id
         );
-        if (!ok) return;
-      }
-    }
+        const destIds = orderJobs(overListId, prev, listJobs(overListId)).map(
+          (j) => j.id
+        );
+        const nextSource = sourceIds.filter((id) => id !== activeId);
+        const nextDest = destIds.includes(activeId) ? destIds : [...destIds];
+        const overIndex = getOverIndex(nextDest, overId, overListId);
+        if (!nextDest.includes(activeId)) {
+          nextDest.splice(overIndex, 0, activeId);
+        }
+        return {
+          ...prev,
+          [activeListId]: nextSource,
+          [overListId]: nextDest
+        };
+      });
+    },
+    [baseJobToList, dragAxis, getListIdForDroppable, listJobs, previewListId]
+  );
 
-    void moveJob(draggableId, assignedDate);
-  }
+  const handleDragEnd = useCallback(
+    ({ active, over }: DragEndEvent) => {
+      const activeId = String(active.id);
+      const overId = over?.id ?? null;
+      const sourceListId = baseJobToList.get(activeId) ?? null;
+      const destListId = getListIdForDroppable(overId);
+
+      setActiveId(null);
+      setPreviewListId(null);
+      setDragAxis(null);
+
+      if (!sourceListId || !destListId) return;
+
+      if (sourceListId === destListId && overId && String(overId) === activeId) {
+        return;
+      }
+
+      const assignedDate = destListId === "backlog" ? null : destListId;
+
+      // track manual order for any list (day or backlog)
+      setOrderByList((prev) => {
+        const getIds = (listId: string) =>
+          orderJobs(listId, prev, listJobsBase(listId)).map((j) => j.id);
+
+        const sourceIds = getIds(sourceListId).filter((id) => id !== activeId);
+
+        if (sourceListId === destListId) {
+          const insertAt = Math.min(getOverIndex(sourceIds, overId, sourceListId), sourceIds.length);
+          const nextIds = [...sourceIds];
+          nextIds.splice(insertAt, 0, activeId);
+          return { ...prev, [sourceListId]: nextIds };
+        }
+
+        const destIds = getIds(destListId).filter((id) => id !== activeId);
+        const insertAt = Math.min(getOverIndex(destIds, overId, destListId), destIds.length);
+        destIds.splice(insertAt, 0, activeId);
+
+        return {
+          ...prev,
+          [sourceListId]: sourceIds,
+          [destListId]: destIds
+        };
+      });
+
+      if (sourceListId === destListId && destListId === "backlog") {
+        return;
+      }
+
+      // Warn if dropping onto a day with a different area label.
+      if (assignedDate) {
+        const job = jobs.find((j) => j.id === activeId);
+        const dayArea = dayAreaLabels[assignedDate];
+        const jobArea = job?.areaTag;
+        if (
+          job &&
+          dayArea &&
+          jobArea &&
+          normalize(dayArea) &&
+          normalize(jobArea) !== normalize(dayArea)
+        ) {
+          const ok = window.confirm(
+            `This job is tagged "${jobArea}", but the day is set to "${dayArea}". Drop here anyway?`
+          );
+          if (!ok) return;
+        }
+      }
+
+      void moveJob(activeId, assignedDate);
+    },
+    [baseJobToList, dayAreaLabels, getListIdForDroppable, jobs, listJobsBase, moveJob]
+  );
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -180,44 +361,61 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
     }
   }, [orderByList]);
 
+  const activeJob = activeId ? jobs.find((j) => j.id === activeId) : null;
+  const activeOverListId = previewListId ?? (activeId ? baseJobToList.get(activeId) ?? null : null);
+
   return (
-    <DragDropContext onDragEnd={onDragEnd}>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={collisionDetection}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragEnd={handleDragEnd}
+      onDragCancel={() => {
+        setActiveId(null);
+        setPreviewListId(null);
+        setDragAxis(null);
+      }}
+      autoScroll
+    >
       <div className="flex flex-col h-[calc(100vh-56px)]">
         <div
           className="flex-1 flex overflow-x-auto overflow-y-hidden px-4 pb-6 pt-1 gap-3 scrollbar-thin board-scroll"
           data-scroll-container="board"
           ref={scrollRef}
         >
-          <Droppable droppableId="backlog">
-            {(provided) => (
-              <div
-                ref={provided.innerRef}
-                {...provided.droppableProps}
-                className="w-64 flex-shrink-0"
-              >
-                <BacklogColumn jobs={orderedBacklogJobs} placeholder={provided.placeholder} />
-              </div>
-            )}
-          </Droppable>
+          <SortableContext
+            items={orderedBacklogJobs.map((j) => j.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <DroppableColumn
+              id="backlog"
+              highlight={activeOverListId === "backlog"}
+              className="w-64 flex-shrink-0"
+            >
+              <BacklogColumn jobs={orderedBacklogJobs} />
+            </DroppableColumn>
+          </SortableContext>
 
           {days.map((d) => (
-            <Droppable droppableId={d.iso} key={d.iso}>
-              {(provided) => (
-                <div
-                  ref={provided.innerRef}
-                  {...provided.droppableProps}
-                  className="flex-1 min-w-[260px] px-1"
-                >
-                  <DayColumn
-                    date={d.date}
-                    isoDate={d.iso}
-                    label={d.label}
-                    jobs={jobsByDate[d.iso] ?? []}
-                  />
-                  {provided.placeholder}
-                </div>
-              )}
-            </Droppable>
+            <SortableContext
+              key={d.iso}
+              items={(jobsByDate[d.iso] ?? []).map((j) => j.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <DroppableColumn
+                id={d.iso}
+                highlight={activeOverListId === d.iso}
+                className="flex-1 min-w-[260px] px-1"
+              >
+                <DayColumn
+                  date={d.date}
+                  isoDate={d.iso}
+                  label={d.label}
+                  jobs={jobsByDate[d.iso] ?? []}
+                />
+              </DroppableColumn>
+            </SortableContext>
           ))}
         </div>
         <div className="px-4 pb-2">
@@ -237,7 +435,15 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
           />
         </div>
       </div>
-    </DragDropContext>
+
+      <DragOverlay>
+        {activeJob ? (
+          <div className="rotate-[-1.5deg] scale-[1.03] shadow-2xl">
+            <JobCard job={activeJob} openOnClick={false} />
+          </div>
+        ) : null}
+      </DragOverlay>
+    </DndContext>
   );
 }
 
@@ -283,4 +489,36 @@ function orderJobs<T extends { id: string }>(
     if (bi != null) return 1;
     return (stablePos.get(a.id) ?? 0) - (stablePos.get(b.id) ?? 0);
   });
+}
+
+function getOverIndex(ids: string[], overId: UniqueIdentifier | null, listId: string) {
+  if (!overId) return ids.length;
+  const overStr = String(overId);
+  if (overStr === listId) return ids.length;
+  const idx = ids.indexOf(overStr);
+  return idx === -1 ? ids.length : idx;
+}
+
+function DroppableColumn({
+  id,
+  highlight,
+  className,
+  children
+}: {
+  id: string;
+  highlight?: boolean;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  const { setNodeRef } = useDroppable({ id, data: { type: "column", listId: id } });
+  return (
+    <div
+      ref={setNodeRef}
+      className={`${className ?? ""} ${
+        highlight ? "ring-2 ring-amber-300 rounded-2xl" : ""
+      }`}
+    >
+      {children}
+    </div>
+  );
 }

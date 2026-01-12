@@ -2,7 +2,8 @@
 
 import type { Job } from "@/lib/types";
 import { format } from "date-fns";
-import { Draggable } from "@hello-pangea/dnd";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
@@ -62,6 +63,52 @@ function surnameOnly(name: string) {
   return parts[parts.length - 1];
 }
 
+function SortableCompactJobRow({
+  job,
+  listId,
+  onOpen
+}: {
+  job: Job;
+  listId: string;
+  onOpen: () => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({
+    id: job.id,
+    data: { type: "job", job, listId }
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 999 : undefined,
+        boxShadow: isDragging ? "0 8px 18px rgba(15, 23, 42, 0.18)" : undefined
+      }}
+      className={`rounded-md border border-amber-200 bg-white px-2 py-1 text-[10px] leading-tight shadow-sm flex items-center gap-2 cursor-pointer hover:bg-amber-50 ${
+        isDragging ? "ring-2 ring-amber-300" : ""
+      }`}
+      onDoubleClick={onOpen}
+      title="Double-click to open job"
+    >
+      <span className={`inline-block w-2 h-2 rounded-full ${miniAreaColor(job.areaTag)}`} />
+      <span className="font-semibold text-amber-900 truncate flex-1">
+        {surnameOnly(job.clientName)}
+      </span>
+    </div>
+  );
+}
+
 export default function CompactDayColumn({
   label,
   date,
@@ -94,33 +141,22 @@ export default function CompactDayColumn({
         {jobs.length === 0 ? (
           <p className="text-[10px] text-amber-800/70">No jobs</p>
         ) : (
-          jobs.map((job, index) => (
-            <Draggable draggableId={job.id} index={index} key={job.id}>
-              {(provided) => (
-                <div
-                  ref={provided.innerRef}
-                  {...provided.draggableProps}
-                  {...provided.dragHandleProps}
-                  className="rounded-md border border-amber-200 bg-white px-2 py-1 text-[10px] leading-tight shadow-sm flex items-center gap-2 cursor-pointer hover:bg-amber-50"
-                  onDoubleClick={() => {
-                    const returnTo =
-                      typeof window !== "undefined"
-                        ? window.location.pathname + window.location.search + window.location.hash
-                        : "";
-                    const href = returnTo
-                      ? `/jobs/${job.id}?return=${encodeURIComponent(returnTo)}`
-                      : `/jobs/${job.id}`;
-                    router.push(href);
-                  }}
-                  title="Double-click to open job"
-                >
-                  <span className={`inline-block w-2 h-2 rounded-full ${miniAreaColor(job.areaTag)}`} />
-                  <span className="font-semibold text-amber-900 truncate flex-1">
-                    {surnameOnly(job.clientName)}
-                  </span>
-                </div>
-              )}
-            </Draggable>
+          jobs.map((job) => (
+            <SortableCompactJobRow
+              key={job.id}
+              job={job}
+              listId={isoDate}
+              onOpen={() => {
+                const returnTo =
+                  typeof window !== "undefined"
+                    ? window.location.pathname + window.location.search + window.location.hash
+                    : "";
+                const href = returnTo
+                  ? `/jobs/${job.id}?return=${encodeURIComponent(returnTo)}`
+                  : `/jobs/${job.id}`;
+                router.push(href);
+              }}
+            />
           ))
         )}
         {placeholder}

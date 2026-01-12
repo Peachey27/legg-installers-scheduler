@@ -508,7 +508,7 @@ export function JobDetailEditor({ job }: { job: Job }) {
           </Link>
           <Link
             href={returnTo}
-            className="px-3 py-2 rounded border border-slate-300 text-slate-800 bg-white hover:bg-slate-50 text-sm"
+            className="px-3 py-2 rounded border border-black text-white bg-black hover:bg-slate-900 text-sm"
           >
             Back to board
           </Link>

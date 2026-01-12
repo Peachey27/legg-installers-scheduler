@@ -9,7 +9,7 @@ Tech stack:
 - TailwindCSS
 - Drizzle ORM + SQLite (better-sqlite3)
 - Zustand
-- @hello-pangea/dnd
+- @dnd-kit (core/sortable)
 - date-fns
 - Vercel Blob for uploads (production)
 
@@ -51,7 +51,7 @@ Quick start:
 Notes:
 
 - Desktop: drag and drop between Backlog and Mon–Fri columns.
-- Mobile: view-only, day tabs with index-card style jobs.
+- Mobile: drag to reorder; horizontal drag moves jobs to adjacent days.
 - File uploads via /api/upload save into public/uploads (dev only).
 - Jobs are soft-deleted with `deletedAt`.
 - Print view: open any job, click "Print card" to open /jobs/[id]/print.

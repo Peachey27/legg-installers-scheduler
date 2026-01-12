@@ -4,8 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type React from "react";
 import { createPortal } from "react-dom";
 import type { Job } from "@/lib/types";
-import JobCard from "../jobs/JobCard";
-import { Draggable } from "@hello-pangea/dnd";
+import SortableJobCard from "./SortableJobCard";
 import { useSchedulerStore } from "@/store/useSchedulerStore";
 import { normalizeClientName } from "@/lib/normalizeClientName";
 
@@ -31,18 +30,8 @@ export default function BacklogColumn({ jobs, placeholder }: Props) {
         </p>
       </div>
       <div className="flex-1 space-y-2 overflow-y-auto">
-        {jobs.map((j, index) => (
-          <Draggable key={j.id} draggableId={j.id} index={index}>
-            {(provided) => (
-              <div
-                ref={provided.innerRef}
-                {...provided.draggableProps}
-                {...provided.dragHandleProps}
-              >
-                <JobCard job={j} />
-              </div>
-            )}
-          </Draggable>
+        {jobs.map((j) => (
+          <SortableJobCard key={j.id} job={j} listId="backlog" />
         ))}
         {placeholder}
       </div>

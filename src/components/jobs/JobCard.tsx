@@ -1,6 +1,7 @@
 "use client";
 
 import type { Job } from "@/lib/types";
+import { useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { formatClientName } from "@/lib/formatClientName";
 
@@ -34,6 +35,8 @@ export default function JobCard({ job, openOnClick = true, onOpen, compact = fal
     ? ((job as any).materialProductUpdates as any[]).length > 0
     : false;
   const hasAnyNotes = hasMaterialNotes || Boolean(job.internalNotes);
+  const clickCountRef = useRef(0);
+  const clickTimerRef = useRef<number | null>(null);
 
   const openJob =
     onOpen ??
@@ -48,6 +51,33 @@ export default function JobCard({ job, openOnClick = true, onOpen, compact = fal
       router.push(href);
     });
 
+  const handleClick = useCallback(() => {
+    if (!openOnClick) return;
+    clickCountRef.current += 1;
+    if (clickTimerRef.current == null) {
+      clickTimerRef.current = window.setTimeout(() => {
+        clickCountRef.current = 0;
+        clickTimerRef.current = null;
+      }, 450);
+    }
+    if (clickCountRef.current >= 3) {
+      if (clickTimerRef.current != null) {
+        window.clearTimeout(clickTimerRef.current);
+        clickTimerRef.current = null;
+      }
+      clickCountRef.current = 0;
+      openJob();
+    }
+  }, [openOnClick, openJob]);
+
+  useEffect(() => {
+    return () => {
+      if (clickTimerRef.current != null) {
+        window.clearTimeout(clickTimerRef.current);
+      }
+    };
+  }, []);
+
   const cardPadding = compact ? "px-2 py-1.5" : "px-3 py-2";
 
   return (
@@ -56,7 +86,7 @@ export default function JobCard({ job, openOnClick = true, onOpen, compact = fal
       data-job-id={job.id}
       role={openOnClick ? "button" : undefined}
       tabIndex={openOnClick ? 0 : undefined}
-      onClick={openOnClick ? openJob : undefined}
+      onClick={handleClick}
       onKeyDown={
         openOnClick
           ? (e) => {

@@ -6,24 +6,36 @@ import type { Job } from "@/lib/types";
 import { addDays, format, parseISO } from "date-fns";
 import JobCard from "../jobs/JobCard";
 import {
-  DragDropContext,
-  Draggable,
-  Droppable,
-  type DropResult
-} from "@hello-pangea/dnd";
-import { useRouter } from "next/navigation";
-import { createPortal } from "react-dom";
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragOverEvent,
+  type DragStartEvent
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  verticalListSortingStrategy
+} from "@dnd-kit/sortable";
 import { formatClientName } from "@/lib/formatClientName";
+import SortableJobCard from "./SortableJobCard";
 
 export default function MobileDayView() {
-  const { jobs, dayAreaLabels, setDayAreaLabel } = useSchedulerStore();
+  const { jobs, dayAreaLabels, setDayAreaLabel, moveJob } = useSchedulerStore();
   const [orderByList, setOrderByList] = useState<Record<string, string[]>>({});
-  const [dragging, setDragging] = useState(false);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [dragAxis, setDragAxis] = useState<"vertical" | "horizontal" | null>(null);
+  const [previewDateIso, setPreviewDateIso] = useState<string | null>(null);
   const [selectedDateIso, setSelectedDateIso] = useState(getTodayIsoTz());
   const [slideOffset, setSlideOffset] = useState(0);
   const [showMenu, setShowMenu] = useState(false);
   const [search, setSearch] = useState("");
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const dragging = Boolean(activeId);
 
   useEffect(() => {
     // Ensure initial date is weekday in Melbourne TZ
@@ -54,25 +66,27 @@ export default function MobileDayView() {
 
   const selectedDate = useMemo(() => parseISO(selectedDateIso), [selectedDateIso]);
 
+  const jobsForDay = useCallback(
+    (iso: string) =>
+      jobs.filter(
+        (j) =>
+          j.assignedDate === iso &&
+          j.status !== "cancelled" &&
+          j.status !== "completed" &&
+          !j.deletedAt
+      ),
+    [jobs]
+  );
+
   const day = useMemo(
     () => ({
       iso: selectedDateIso,
       date: selectedDate,
       label: format(selectedDate, "EEE"),
       area: dayAreaLabels[selectedDateIso],
-      jobs: orderJobs(
-        selectedDateIso,
-        orderByList,
-        jobs.filter(
-          (j) =>
-            j.assignedDate === selectedDateIso &&
-            j.status !== "cancelled" &&
-            j.status !== "completed" &&
-            !j.deletedAt
-        )
-      )
+      jobs: orderJobs(selectedDateIso, orderByList, jobsForDay(selectedDateIso))
     }),
-    [dayAreaLabels, jobs, orderByList, selectedDate, selectedDateIso]
+    [dayAreaLabels, jobsForDay, orderByList, selectedDate, selectedDateIso]
   );
 
   const backlogJobs = useMemo(
@@ -111,50 +125,126 @@ export default function MobileDayView() {
     return Array.from(set);
   }, [dayAreaLabels]);
 
-  const onDragEnd = useCallback(
-    (result: DropResult) => {
-      setDragging(false);
-      const { destination, source, draggableId } = result;
-      if (!destination) return;
-      if (destination.droppableId !== source.droppableId) return; // no cross-day moves on mobile
-      if (destination.index === source.index) return;
-
-      setOrderByList((prev) => {
-        const listId = source.droppableId;
-        const currentIds = day.jobs.map((j) => j.id); // already ordered for this list
-        const updated = currentIds.filter((id) => id !== draggableId);
-        const insertAt = Math.min(Math.max(destination.index, 0), updated.length);
-        updated.splice(insertAt, 0, draggableId);
-        return { ...prev, [listId]: updated };
-      });
-    },
-    [day.jobs]
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { delay: 140, tolerance: 6 }
+    })
   );
 
-  const goToDate = useCallback((delta: number) => {
-    setSlideOffset(delta > 0 ? 100 : -100);
-    setSelectedDateIso((iso) => {
-      let next = shiftIso(iso, delta);
-      // Skip weekends: if landing on Saturday, go back to Friday if delta<0 else forward to Monday.
-      while (isoDayOfWeek(next) === 0 || isoDayOfWeek(next) === 6) {
-        next = shiftIso(next, delta > 0 ? 1 : -1);
-      }
-      return next;
-    });
+  const getAdjacentIso = useCallback((fromIso: string, delta: number) => {
+    let next = shiftIso(fromIso, delta);
+    while (isoDayOfWeek(next) === 0 || isoDayOfWeek(next) === 6) {
+      next = shiftIso(next, delta > 0 ? 1 : -1);
+    }
+    return next;
   }, []);
+
+  const handleDragStart = useCallback(({ active }: DragStartEvent) => {
+    setActiveId(String(active.id));
+    setDragAxis(null);
+    setPreviewDateIso(null);
+  }, []);
+
+  const handleDragOver = useCallback(
+    ({ active, over, delta }: DragOverEvent) => {
+      if (!over) return;
+      const absX = Math.abs(delta.x);
+      const absY = Math.abs(delta.y);
+      let nextAxis = dragAxis;
+      if (absX > absY + 12) nextAxis = "horizontal";
+      else if (absY > absX + 12) nextAxis = "vertical";
+      if (nextAxis !== dragAxis) setDragAxis(nextAxis);
+
+      if (nextAxis === "horizontal") {
+        if (delta.x > 45) {
+          setPreviewDateIso(getAdjacentIso(selectedDateIso, -1));
+          setSlideOffset(28);
+        } else if (delta.x < -45) {
+          setPreviewDateIso(getAdjacentIso(selectedDateIso, 1));
+          setSlideOffset(-28);
+        } else {
+          setPreviewDateIso(null);
+          setSlideOffset(0);
+        }
+        return;
+      }
+
+      const activeId = String(active.id);
+      const overId = String(over.id);
+      if (activeId === overId) return;
+
+      setOrderByList((prev) => {
+        const currentIds = day.jobs.map((j) => j.id);
+        const oldIndex = currentIds.indexOf(activeId);
+        const newIndex = currentIds.indexOf(overId);
+        if (oldIndex === -1 || newIndex === -1) return prev;
+        return { ...prev, [selectedDateIso]: arrayMove(currentIds, oldIndex, newIndex) };
+      });
+    },
+    [day.jobs, dragAxis, getAdjacentIso, selectedDateIso]
+  );
+
+  const handleDragEnd = useCallback(
+    ({ active }: DragEndEvent) => {
+      const activeId = String(active.id);
+      const targetIso = previewDateIso ?? selectedDateIso;
+      setActiveId(null);
+      setPreviewDateIso(null);
+      setDragAxis(null);
+      setSlideOffset(0);
+
+      if (targetIso === selectedDateIso) return;
+
+      setOrderByList((prev) => {
+        const sourceIds = orderJobs(selectedDateIso, prev, day.jobs).map((j) => j.id);
+        const destIds = orderJobs(targetIso, prev, jobsForDay(targetIso)).map((j) => j.id);
+        const nextSource = sourceIds.filter((id) => id !== activeId);
+        const nextDest = destIds.includes(activeId) ? destIds : [...destIds, activeId];
+        return {
+          ...prev,
+          [selectedDateIso]: nextSource,
+          [targetIso]: nextDest
+        };
+      });
+
+      void moveJob(activeId, targetIso);
+      setSelectedDateIso(targetIso);
+    },
+    [day.jobs, jobsForDay, moveJob, previewDateIso, selectedDateIso]
+  );
+
+  const goToDate = useCallback(
+    (delta: number) => {
+      setSlideOffset(delta > 0 ? 100 : -100);
+      setSelectedDateIso((iso) => getAdjacentIso(iso, delta));
+    },
+    [getAdjacentIso]
+  );
 
   useEffect(() => {
     if (slideOffset !== 0) {
+      if (dragging) return;
       // allow the offset to apply, then animate back to center
       const id = requestAnimationFrame(() => setSlideOffset(0));
       return () => cancelAnimationFrame(id);
     }
-  }, [slideOffset, selectedDateIso]);
+  }, [dragging, slideOffset, selectedDateIso]);
+
+  const activeJob = activeId ? jobs.find((j) => j.id === activeId) : null;
 
   return (
-    <DragDropContext
-      onDragStart={() => setDragging(true)}
-      onDragEnd={onDragEnd}
+    <DndContext
+      sensors={sensors}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragEnd={handleDragEnd}
+      onDragCancel={() => {
+        setActiveId(null);
+        setPreviewDateIso(null);
+        setDragAxis(null);
+        setSlideOffset(0);
+      }}
+      autoScroll
     >
       <div className="flex flex-col h-[calc(100vh-56px)] overflow-hidden">
         <div className="flex items-center gap-2 px-3 py-2 text-[11px] text-amber-900/90 border-b border-amber-200/60">
@@ -187,10 +277,12 @@ export default function MobileDayView() {
         <div
           className="flex-1 overflow-y-auto"
           onTouchStart={(e) => {
+            if (dragging) return;
             const t = e.touches[0];
             touchStartRef.current = { x: t.clientX, y: t.clientY };
           }}
           onTouchEnd={(e) => {
+            if (dragging) return;
             const start = touchStartRef.current;
             if (!start) return;
             const t = e.changedTouches[0];
@@ -203,11 +295,12 @@ export default function MobileDayView() {
             touchStartRef.current = null;
           }}
         >
-          <Droppable droppableId={day.iso}>
-            {(provided) => (
+          <DroppableDayContainer id={day.iso}>
+            <SortableContext
+              items={day.jobs.map((j) => j.id)}
+              strategy={verticalListSortingStrategy}
+            >
               <div
-                ref={provided.innerRef}
-                {...provided.droppableProps}
                 className="p-2 transition-transform duration-300"
                 style={{ transform: `translateX(${slideOffset}%)` }}
               >
@@ -215,12 +308,12 @@ export default function MobileDayView() {
                   day={day}
                   areaOptions={areaOptions}
                   onSetArea={(iso, next) => setDayAreaLabel(iso, next)}
-                  placeholder={provided.placeholder}
                   dragging={dragging}
+                  targetIso={previewDateIso}
                 />
               </div>
-            )}
-          </Droppable>
+            </SortableContext>
+          </DroppableDayContainer>
         </div>
 
         {showMenu && (
@@ -314,7 +407,14 @@ export default function MobileDayView() {
           </div>
         )}
       </div>
-    </DragDropContext>
+      <DragOverlay>
+        {activeJob ? (
+          <div className="rotate-[-1.5deg] scale-[1.03] shadow-2xl">
+            <JobCard job={activeJob} openOnClick={false} compact />
+          </div>
+        ) : null}
+      </DragOverlay>
+    </DndContext>
   );
 }
 
@@ -358,18 +458,20 @@ function MobileDayCard({
   day,
   areaOptions,
   onSetArea,
-  placeholder,
-  dragging
+  dragging,
+  targetIso
 }: {
   day: { iso: string; date: Date; label: string; area?: string; jobs: Job[] };
   areaOptions: string[];
   onSetArea: (iso: string, label: string | undefined) => void;
-  placeholder: React.ReactNode;
   dragging: boolean;
+  targetIso: string | null;
 }) {
   const todayIso = new Date().toISOString().slice(0, 10);
   const isToday = day.iso === todayIso;
   const areaStyle = getAreaStyle(day.area, areaOptions);
+  const highlight = Boolean(targetIso);
+  const targetLabel = targetIso ? format(parseISO(targetIso), "EEE d/MM") : null;
 
   const [travel, setTravel] = useState<
     | {
@@ -531,7 +633,7 @@ function MobileDayCard({
     <div
       className={`relative h-full w-full border border-amber-200/70 rounded-lg shadow-inner p-1.5 flex flex-col gap-1 ${
         isToday ? "bg-rose-50" : "bg-[#f6f0e7]/90"
-      } ${areaStyle?.ring ?? ""}`}
+      } ${areaStyle?.ring ?? ""} ${highlight ? "ring-2 ring-amber-300" : ""}`}
     >
       {isToday && (
         <span className="absolute inset-y-0 left-0 w-1 bg-rose-500 rounded-l-xl" aria-hidden="true" />
@@ -541,6 +643,12 @@ function MobileDayCard({
           <div className="text-sm font-semibold text-amber-900 leading-tight">{day.label}</div>
           <div className="text-xs font-semibold text-amber-900/90 leading-tight">{format(day.date, "d/MM")}</div>
         </div>
+
+        {targetLabel && (
+          <div className="mt-1 text-center text-[10px] font-semibold text-amber-800">
+            Drop into {targetLabel}
+          </div>
+        )}
 
         <div className="mt-2 flex items-center justify-between gap-2">
           {isToday ? (
@@ -648,7 +756,7 @@ function MobileDayCard({
         ) : (
           day.jobs.map((job, index) => (
             <div key={job.id} className="space-y-2">
-              <MobileJobDraggable job={job} index={index} />
+              <SortableJobCard job={job} listId={day.iso} compact />
               {!dragging && (() => {
                 const nextJob = day.jobs[index + 1];
                 const legAvailable =
@@ -658,7 +766,9 @@ function MobileDayCard({
                   legAvailable && travel?.legs?.[legIdx] ? travel.legs[legIdx] : null;
 
                 if (!nextJob) {
-                  return leg ? renderLeg(`Leg ${index + 2}: ${formatClientName(job.clientName)} -> Base`, legIdx) : null;
+                  return leg
+                    ? renderLeg(`Leg ${index + 2}: ${formatClientName(job.clientName)} -> Base`, legIdx)
+                    : null;
                 }
 
                 const disabled = sendingNextId === job.id || !nextJob.clientPhone?.trim();
@@ -688,177 +798,29 @@ function MobileDayCard({
         {sendingError && (
           <div className="text-[11px] text-red-700">{sendingError}</div>
         )}
-        {placeholder}
       </div>
     </div>
   );
 }
 
-function MobileJobDraggable({ job, index }: { job: Job; index: number }) {
-  return (
-    <Draggable draggableId={job.id} index={index}>
-      {(provided, snapshot) => (
-        <MobileJobDraggableInner
-          job={job}
-          provided={provided}
-          isDragging={snapshot.isDragging}
-        />
-      )}
-    </Draggable>
-  );
-}
-
-function MobileJobDraggableInner({
-  job,
-  provided,
-  isDragging
-}: {
-  job: Job;
-  provided: any;
-  isDragging: boolean;
-}) {
-  const child = (
-    <div
-      ref={provided.innerRef}
-      {...provided.draggableProps}
-      style={{
-        ...(provided.draggableProps?.style ?? {}),
-        zIndex: isDragging ? 9999 : (provided.draggableProps?.style?.zIndex ?? undefined)
-      }}
-    >
-      <MobileJobCard job={job} dragHandleProps={provided.dragHandleProps} isDragging={isDragging} />
-    </div>
-  );
-
-  if (!isDragging) return child;
-  if (typeof document === "undefined") return child;
-  return createPortal(child, document.body);
-}
-
-function MobileJobCard({
-  job,
-  dragHandleProps,
-  isDragging
-}: {
-  job: Job;
-  dragHandleProps: any;
-  isDragging: boolean;
-}) {
-  const router = useRouter();
-
-  const timerRef = useRef<number | null>(null);
-  const touchStartRef = useRef<{ x: number; y: number; moved: boolean } | null>(null);
-  const lastTapAtRef = useRef<number>(0);
-  const draggingArmedRef = useRef(false);
-  const [armed, setArmed] = useState(false);
-
-  const {
-    onTouchStart: libTouchStart,
-    onTouchMove: libTouchMove,
-    onTouchEnd: libTouchEnd,
-    onTouchCancel: libTouchCancel,
-    onMouseDown: libMouseDown,
-    onKeyDown: libKeyDown,
-    ...handleAttrs
-  } = dragHandleProps ?? {};
-
-  const clearHoldTimeout = useCallback(() => {
-    if (timerRef.current != null) {
-      window.clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-  }, []);
-
-  const resetArmed = useCallback(() => {
-    clearHoldTimeout();
-    draggingArmedRef.current = false;
-    setArmed(false);
-  }, [clearHoldTimeout]);
-
-  const openJob = useCallback(() => {
-    router.push(`/jobs/${job.id}`);
-  }, [job.id, router]);
-
-  useEffect(() => resetArmed, [resetArmed]);
-
-  return (
-    <div
-      {...handleAttrs}
-      onMouseDown={libMouseDown}
-      onKeyDown={libKeyDown}
-      onDoubleClick={(e) => {
-        e.preventDefault();
-        openJob();
-      }}
-      onTouchStart={(e) => {
-        (e as any).persist?.();
-        touchStartRef.current = {
-          x: e.touches[0]?.clientX ?? 0,
-          y: e.touches[0]?.clientY ?? 0,
-          moved: false
-        };
-        draggingArmedRef.current = false;
-        setArmed(false);
-
-        clearHoldTimeout();
-        timerRef.current = window.setTimeout(() => {
-          draggingArmedRef.current = true;
-          setArmed(true);
-          libTouchStart?.(e);
-        }, 1000);
-      }}
-      onTouchMove={(e) => {
-        if (draggingArmedRef.current) {
-          libTouchMove?.(e);
-          return;
-        }
-        const current = touchStartRef.current;
-        if (!current) return;
-        const x = e.touches[0]?.clientX ?? 0;
-        const y = e.touches[0]?.clientY ?? 0;
-        const dx = Math.abs(x - current.x);
-        const dy = Math.abs(y - current.y);
-        if (dx > 6 || dy > 6) {
-          current.moved = true;
-          resetArmed();
-        }
-      }}
-      onTouchCancel={(e) => {
-        if (draggingArmedRef.current) {
-          libTouchCancel?.(e);
-        }
-        resetArmed();
-      }}
-      onTouchEnd={(e) => {
-        const touch = touchStartRef.current;
-        const wasTap = touch && !touch.moved;
-        const wasArmed = draggingArmedRef.current;
-        clearHoldTimeout();
-
-        if (wasArmed) {
-          libTouchEnd?.(e);
-          resetArmed();
-          return;
-        }
-
-        resetArmed();
-        if (!wasTap || isDragging) return;
-        const now = Date.now();
-        const last = lastTapAtRef.current;
-        lastTapAtRef.current = now;
-        if (now - last <= 320) {
-          openJob();
-        }
-      }}
-      className={`${isDragging ? "opacity-70" : ""} ${armed ? "ring-2 ring-amber-400 rounded-xl" : ""}`}
-    >
-      <JobCard job={job} openOnClick={false} compact />
-    </div>
-  );
-}
 
 function normalizeArea(area?: string | null) {
   return (area ?? "").trim().toLowerCase();
+}
+
+function DroppableDayContainer({
+  id,
+  children
+}: {
+  id: string;
+  children: React.ReactNode;
+}) {
+  const { setNodeRef } = useDroppable({ id, data: { type: "column", listId: id } });
+  return (
+    <div ref={setNodeRef} className="h-full">
+      {children}
+    </div>
+  );
 }
 
 function getAreaStyle(label: string | undefined, order: string[]) {
