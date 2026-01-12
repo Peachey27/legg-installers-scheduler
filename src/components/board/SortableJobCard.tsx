@@ -45,6 +45,9 @@ export default function SortableJobCard({
   }, []);
 
   useEffect(() => clearTimer, [clearTimer]);
+  useEffect(() => {
+    if (!isDragging) setPressed(false);
+  }, [isDragging]);
 
   const setPressedSoon = useCallback(() => {
     clearTimer();

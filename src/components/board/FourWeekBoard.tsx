@@ -278,7 +278,10 @@ export default function FourWeekBoard({
       const activeId = String(active.id);
       const overId = over?.id ?? null;
       const sourceListId = baseJobToList.get(activeId) ?? null;
-      const destListId = getListIdForDroppable(overId);
+      let destListId = getListIdForDroppable(overId);
+      if (previewListId && previewListId !== sourceListId) {
+        destListId = previewListId;
+      }
 
       setActiveId(null);
       setPreviewListId(null);
@@ -342,7 +345,7 @@ export default function FourWeekBoard({
 
       void moveJob(activeId, assignedDate);
     },
-    [baseJobToList, dayAreaLabels, getListIdForDroppable, jobs, listJobsBase, moveJob]
+    [baseJobToList, dayAreaLabels, getListIdForDroppable, jobs, listJobsBase, moveJob, previewListId]
   );
 
   const activeJob = activeId ? jobs.find((j) => j.id === activeId) : null;

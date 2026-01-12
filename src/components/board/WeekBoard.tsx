@@ -269,7 +269,10 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
       const activeId = String(active.id);
       const overId = over?.id ?? null;
       const sourceListId = baseJobToList.get(activeId) ?? null;
-      const destListId = getListIdForDroppable(overId);
+      let destListId = getListIdForDroppable(overId);
+      if (previewListId && previewListId !== sourceListId) {
+        destListId = previewListId;
+      }
 
       setActiveId(null);
       setPreviewListId(null);
@@ -333,7 +336,7 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
 
       void moveJob(activeId, assignedDate);
     },
-    [baseJobToList, dayAreaLabels, getListIdForDroppable, jobs, listJobsBase, moveJob]
+    [baseJobToList, dayAreaLabels, getListIdForDroppable, jobs, listJobsBase, moveJob, previewListId]
   );
 
   useEffect(() => {
