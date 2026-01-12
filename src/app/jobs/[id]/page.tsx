@@ -1,6 +1,7 @@
-import Link from "next/link";
 import JobDetailEditor from "@/components/jobs/JobDetailEditor";
-import { headers } from "next/headers";
+import { db } from "@/db/client";
+import { jobs } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -12,21 +13,10 @@ interface Params {
 export default async function JobDetailPage({ params }: Params) {
   let job: any = null;
   try {
-    const hdrs = headers();
-    const proto = hdrs.get("x-forwarded-proto") ?? "https";
-    const host = hdrs.get("x-forwarded-host") ?? hdrs.get("host") ?? "localhost:3000";
-    const baseUrl = `${proto}://${host}`;
-    const res = await fetch(`${baseUrl}/api/jobs/${params.id}`, {
-      cache: "no-store"
-    });
-    if (!res.ok) {
-      const body = await res.text();
-      console.error("[job-detail] fetch failed", res.status, body);
-      return <div className="p-4">Job not found.</div>;
-    }
-    job = await res.json();
+    const rows = await db.select().from(jobs).where(eq(jobs.id, params.id));
+    job = rows[0] ?? null;
   } catch (err) {
-    console.error("[job-detail] fetch error", err);
+    console.error("[job-detail] db fetch error", err);
     return <div className="p-4">Job not found.</div>;
   }
 
