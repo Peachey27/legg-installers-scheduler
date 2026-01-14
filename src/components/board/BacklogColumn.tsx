@@ -7,7 +7,6 @@ import type { Job } from "@/lib/types";
 import SortableJobCard from "./SortableJobCard";
 import { useSchedulerStore } from "@/store/useSchedulerStore";
 import { normalizeClientName } from "@/lib/normalizeClientName";
-import { useDroppable } from "@dnd-kit/core";
 
 interface Props {
   jobs: Job[];
@@ -30,17 +29,11 @@ export default function BacklogColumn({ jobs, placeholder }: Props) {
           Unschedule jobs - drag onto a day.
         </p>
       </div>
-      <div className="flex-1 overflow-y-auto">
-        <div className="space-y-2">
-          <DropSlot listId="backlog" index={0} />
-          {jobs.map((j, index) => (
-            <div key={j.id} className="space-y-2">
-              <SortableJobCard job={j} listId="backlog" />
-              <DropSlot listId="backlog" index={index + 1} />
-            </div>
-          ))}
-          {placeholder}
-        </div>
+      <div className="flex-1 space-y-2 overflow-y-auto">
+        {jobs.map((j) => (
+          <SortableJobCard key={j.id} job={j} listId="backlog" />
+        ))}
+        {placeholder}
       </div>
       {showAddJobForm ? (
         <AddJobModal
@@ -68,19 +61,6 @@ export default function BacklogColumn({ jobs, placeholder }: Props) {
         </button>
       )}
     </div>
-  );
-}
-
-function DropSlot({ listId, index }: { listId: string; index: number }) {
-  const { setNodeRef, isOver } = useDroppable({
-    id: `slot:${listId}:${index}`
-  });
-  return (
-    <div
-      ref={setNodeRef}
-      className={`h-3 my-1 rounded ${isOver ? "bg-blue-200/70" : "bg-transparent"}`}
-      aria-hidden="true"
-    />
   );
 }
 

@@ -6,7 +6,6 @@ import SortableJobCard from "./SortableJobCard";
 import { useSchedulerStore } from "@/store/useSchedulerStore";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { formatClientName } from "@/lib/formatClientName";
-import { useDroppable } from "@dnd-kit/core";
 
 interface Props {
   label: string;
@@ -567,91 +566,74 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto">
-        <div className="space-y-2">
-          <DropSlot listId={isoDate} index={0} />
-          {(() => {
-            if (
-              jobs.length === 0 ||
-              !travelData ||
-              travelDataLoading ||
-              travelDataError ||
-              travelUnresolved.length > 0
-            ) {
-              return null;
-            }
+      <div className="flex-1 overflow-y-auto space-y-2">
+        {(() => {
+          if (
+            jobs.length === 0 ||
+            !travelData ||
+            travelDataLoading ||
+            travelDataError ||
+            travelUnresolved.length > 0
+          ) {
+            return null;
+          }
 
-            const stops = useBlockTrip ? blockStops : dayStops;
-            const stopIndex = new Map<string, number>();
-            stops.forEach((s, idx) => stopIndex.set(s.id, idx));
+          const stops = useBlockTrip ? blockStops : dayStops;
+          const stopIndex = new Map<string, number>();
+          stops.forEach((s, idx) => stopIndex.set(s.id, idx));
 
-            const firstJob = jobs[0];
-            const firstIdx = firstJob ? stopIndex.get(firstJob.id) : null;
-            return firstIdx != null ? renderLeg(firstIdx) : null;
-          })()}
-          {jobs.map((job, index) => (
-            <div key={job.id} className="space-y-2">
-              <SortableJobCard job={job} listId={isoDate} />
-              {(() => {
-                const nextJob = jobs[index + 1];
-                if (!nextJob) return null;
+          const firstJob = jobs[0];
+          const firstIdx = firstJob ? stopIndex.get(firstJob.id) : null;
+          return firstIdx != null ? renderLeg(firstIdx) : null;
+        })()}
+        {jobs.map((job, index) => (
+          <div key={job.id} className="space-y-2">
+            <SortableJobCard job={job} listId={isoDate} />
+            {(() => {
+              const nextJob = jobs[index + 1];
+              if (!nextJob) return null;
 
-                const stops = useBlockTrip ? blockStops : dayStops;
-                const stopIndex = new Map<string, number>();
-                stops.forEach((s, idx) => stopIndex.set(s.id, idx));
-                const idxInTrip = stopIndex.get(job.id);
-                const legIdx = idxInTrip != null ? idxInTrip + 1 : null;
-                const leg =
-                  legIdx != null &&
-                  !travelDataLoading &&
-                  !travelDataError &&
-                  travelData?.legs?.[legIdx]
-                    ? travelData.legs[legIdx]
-                    : null;
-                const disabled = sendingNextId === job.id || !nextJob.clientPhone?.trim();
+              const stops = useBlockTrip ? blockStops : dayStops;
+              const stopIndex = new Map<string, number>();
+              stops.forEach((s, idx) => stopIndex.set(s.id, idx));
+              const idxInTrip = stopIndex.get(job.id);
+              const legIdx = idxInTrip != null ? idxInTrip + 1 : null;
+              const leg =
+                legIdx != null &&
+                !travelDataLoading &&
+                !travelDataError &&
+                travelData?.legs?.[legIdx]
+                  ? travelData.legs[legIdx]
+                  : null;
+              const disabled = sendingNextId === job.id || !nextJob.clientPhone?.trim();
 
-                return (
-                  <div className="flex items-center justify-between gap-2">
-                    <button
-                      className="text-[11px] px-2 py-1 rounded-lg border border-[var(--app-border-strong)] bg-white hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed"
-                      onClick={() => sendNextJobText(job, nextJob, legIdx)}
-                      disabled={disabled}
-                      title={nextJob.clientPhone?.trim() ? undefined : "Next job has no phone number"}
-                    >
-                      {disabled ? "Sending..." : "Text next job"}
-                    </button>
-                    <div className="text-[11px] font-semibold text-slate-900 min-w-[110px] text-right">
-                      {leg
-                        ? `${fmtDistance(leg.distanceMeters)} - ${fmtDuration(leg.durationSeconds)}`
-                        : travelDataLoading || travelDataError || travelUnresolved.length > 0
-                        ? "Travel unavailable"
-                        : ""}
-                    </div>
+              return (
+                <div className="flex items-center justify-between gap-2">
+                  <button
+                    className="text-[11px] px-2 py-1 rounded-lg border border-[var(--app-border-strong)] bg-white hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                    onClick={() => sendNextJobText(job, nextJob, legIdx)}
+                    disabled={disabled}
+                    title={nextJob.clientPhone?.trim() ? undefined : "Next job has no phone number"}
+                  >
+                    {disabled ? "Sending..." : "Text next job"}
+                  </button>
+                  <div className="text-[11px] font-semibold text-slate-900 min-w-[110px] text-right">
+                    {leg
+                      ? `${fmtDistance(leg.distanceMeters)} - ${fmtDuration(leg.durationSeconds)}`
+                      : travelDataLoading || travelDataError || travelUnresolved.length > 0
+                      ? "Travel unavailable"
+                      : ""}
                   </div>
-                );
-              })()}
-              <DropSlot listId={isoDate} index={index + 1} />
-            </div>
-          ))}
-          {sendingError && (
-            <div className="text-[11px] text-red-700">{sendingError}</div>
-          )}
-        </div>
+                </div>
+              );
+            })()}
+          </div>
+        ))}
+        {sendingError && (
+          <div className="text-[11px] text-red-700">{sendingError}</div>
+        )}
       </div>
     </div>
-  );
-}
-
-function DropSlot({ listId, index }: { listId: string; index: number }) {
-  const { setNodeRef, isOver } = useDroppable({
-    id: `slot:${listId}:${index}`
-  });
-  return (
-    <div
-      ref={setNodeRef}
-      className={`h-3 my-1 rounded ${isOver ? "bg-blue-200/70" : "bg-transparent"}`}
-      aria-hidden="true"
-    />
   );
 }
 
