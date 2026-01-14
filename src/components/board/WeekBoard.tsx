@@ -412,13 +412,13 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
             items={orderedBacklogJobs.map((j) => j.id)}
             strategy={verticalListSortingStrategy}
           >
-            <DroppableColumn
-              id="backlog"
-              highlight={activeOverListId === "backlog"}
-              className="w-64 flex-shrink-0"
-            >
-              <BacklogColumn jobs={orderedBacklogJobs} />
-            </DroppableColumn>
+            <div className="w-64 flex-shrink-0">
+              <BacklogColumn
+                jobs={orderedBacklogJobs}
+                droppableId="backlog"
+                highlight={activeOverListId === "backlog"}
+              />
+            </div>
           </SortableContext>
 
           {days.map((d) => (
