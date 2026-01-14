@@ -169,27 +169,12 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
 
       const collisions = pointerWithin(args);
       const intersections = collisions.length ? collisions : rectIntersection(args);
-      const firstHit = getFirstCollision(intersections, "id");
-      if (firstHit) {
-        const hitListId = getListIdForDroppable(firstHit);
-        if (hitListId && hitListId !== activeListId) {
-          return [{ id: firstHit as UniqueIdentifier }];
-        }
-      }
       const columnHit = getFirstCollision(
         intersections.filter((entry) => listIds.includes(String(entry.id))),
         "id"
       );
       if (columnHit && String(columnHit) !== activeListId) {
         return [{ id: columnHit as UniqueIdentifier }];
-      }
-
-      if (dragAxis !== "horizontal") {
-        const filtered = args.droppableContainers.filter((container) => {
-          const listId = getListIdForDroppable(container.id);
-          return listId === activeListId;
-        });
-        return closestCenter({ ...args, droppableContainers: filtered });
       }
 
       const first = getFirstCollision(intersections, "id");
