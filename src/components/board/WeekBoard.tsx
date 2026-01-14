@@ -169,6 +169,13 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
 
       const collisions = pointerWithin(args);
       const intersections = collisions.length ? collisions : rectIntersection(args);
+      const firstHit = getFirstCollision(intersections, "id");
+      if (firstHit) {
+        const hitListId = getListIdForDroppable(firstHit);
+        if (hitListId && hitListId !== activeListId) {
+          return [{ id: firstHit as UniqueIdentifier }];
+        }
+      }
       const columnHit = getFirstCollision(
         intersections.filter((entry) => listIds.includes(String(entry.id))),
         "id"
