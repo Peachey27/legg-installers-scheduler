@@ -47,6 +47,8 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [dragAxis, setDragAxis] = useState<"vertical" | "horizontal" | null>(null);
   const [previewListId, setPreviewListId] = useState<string | null>(null);
+  const lastOverId = useRef<UniqueIdentifier | null>(null);
+  const recentlyMovedToNewContainer = useRef(false);
 
   const activeWeekOffset = weekOffset ?? internalWeekOffset;
 
@@ -165,21 +167,25 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
       const activeListId = getListIdForDroppable(activeId);
       if (!activeListId) return closestCenter(args);
 
-      const collisions = pointerWithin(args);
-      const intersections = collisions.length ? collisions : rectIntersection(args);
-      const columnHit = getFirstCollision(
-        intersections.filter((entry) => listIds.includes(String(entry.id))),
-        "id"
-      );
-      if (columnHit && String(columnHit) !== activeListId) {
-        return [{ id: columnHit as UniqueIdentifier }];
+      const pointerCollisions = pointerWithin(args);
+      const intersections = pointerCollisions.length ? pointerCollisions : rectIntersection(args);
+      const first = getFirstCollision(intersections, "id");
+
+      if (first != null) {
+        const overListId = getListIdForDroppable(first);
+        if (overListId) {
+          lastOverId.current = first as UniqueIdentifier;
+          return [{ id: first as UniqueIdentifier }];
+        }
       }
 
-      const first = getFirstCollision(intersections, "id");
-      if (first) return [{ id: first }];
-      return closestCenter(args);
+      if (recentlyMovedToNewContainer.current && lastOverId.current) {
+        return [{ id: lastOverId.current }];
+      }
+
+      return lastOverId.current ? [{ id: lastOverId.current }] : closestCenter(args);
     },
-    [activeId, dragAxis, getListIdForDroppable]
+    [activeId, getListIdForDroppable]
   );
 
   const handleDragStart = useCallback(
@@ -187,6 +193,7 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
       setActiveId(String(active.id));
       setDragAxis(null);
       setPreviewListId(null);
+      lastOverId.current = active.id;
     },
     []
   );
@@ -210,6 +217,12 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
       if (overListId !== activeListId) {
         if (nextAxis !== "horizontal") setDragAxis("horizontal");
         if (overListId !== previewListId) setPreviewListId(overListId);
+        if (!recentlyMovedToNewContainer.current) {
+          recentlyMovedToNewContainer.current = true;
+          window.setTimeout(() => {
+            recentlyMovedToNewContainer.current = false;
+          }, 0);
+        }
       }
 
       if (nextAxis === "horizontal" && overListId !== previewListId) {
@@ -269,6 +282,8 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
       setActiveId(null);
       setPreviewListId(null);
       setDragAxis(null);
+      lastOverId.current = null;
+      recentlyMovedToNewContainer.current = false;
 
       if (!sourceListId || !destListId) return;
 
@@ -382,6 +397,8 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
         setActiveId(null);
         setPreviewListId(null);
         setDragAxis(null);
+        lastOverId.current = null;
+        recentlyMovedToNewContainer.current = false;
       }}
       autoScroll
     >
