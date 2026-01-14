@@ -502,19 +502,19 @@ export function JobDetailEditor({ job }: { job: Job }) {
         <div className="flex flex-wrap gap-2">
           <Link
             href={`/jobs/${job.id}/print`}
-            className="px-3 py-2 rounded border border-slate-300 text-slate-800 bg-white hover:bg-slate-50 text-sm"
+            className="btn-secondary"
           >
             Print card
           </Link>
           <Link
             href={returnTo}
-            className="px-3 py-2 rounded border border-black text-white bg-black hover:bg-slate-900 text-sm"
+            className="btn-primary"
           >
             Back to board
           </Link>
           <button
             type="button"
-            className="px-3 py-2 rounded border border-emerald-300 text-emerald-900 bg-emerald-50 hover:bg-emerald-100 text-sm"
+            className="btn-secondary"
             onClick={() => setShowNotesModal(true)}
             disabled={saving || copying || deleting}
           >
@@ -524,37 +524,37 @@ export function JobDetailEditor({ job }: { job: Job }) {
       </div>
 
       <div className="grid md:grid-cols-2 gap-3">
-        <section className="space-y-3 rounded-xl border border-amber-200 bg-amber-50/70 p-4">
-          <div className="text-sm font-semibold text-amber-900">Client</div>
-          <label className="block space-y-1 text-sm text-amber-900/80">
+        <section className="space-y-3 rounded-xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
+          <div className="text-sm font-semibold text-slate-900">Client</div>
+          <label className="block space-y-1 text-sm text-slate-700">
             <span>Client name*</span>
             <input
-              className="w-full rounded border border-amber-200 px-3 py-2 bg-white"
+              className="app-input"
               value={form.clientName}
               onChange={(e) => updateField("clientName", e.target.value)}
             />
           </label>
-          <label className="block space-y-1 text-sm text-amber-900/80">
+          <label className="block space-y-1 text-sm text-slate-700">
             <span>Phone</span>
             <input
-              className="w-full rounded border border-amber-200 px-3 py-2 bg-white"
+              className="app-input"
               value={form.clientPhone}
               onChange={(e) => updateField("clientPhone", e.target.value)}
             />
             {telHref && (
               <a
                 href={telHref}
-                className="block text-[11px] text-amber-800 underline"
+                className="block text-[11px] text-slate-600 underline"
               >
                 Tap to call {form.clientPhone}
               </a>
             )}
           </label>
-          <label className="block space-y-1 text-sm text-amber-900/80">
+          <label className="block space-y-1 text-sm text-slate-700">
             <span>Job address* (used for location)</span>
             <div className="relative">
               <input
-                className="w-full rounded border border-amber-200 px-3 py-2 bg-white"
+                className="app-input"
                 value={addressQuery}
                 onChange={(e) => {
                   const next = e.target.value;
@@ -571,9 +571,9 @@ export function JobDetailEditor({ job }: { job: Job }) {
                 autoComplete="off"
               />
               {showAddressSuggestions && (addressLoading || addressSuggestions.length > 0) && (
-                <div className="absolute z-20 mt-1 w-full rounded-lg border border-amber-200 bg-white shadow-lg overflow-hidden">
+                <div className="absolute z-20 mt-1 w-full rounded-xl border border-[var(--app-border)] bg-white shadow-lg overflow-hidden">
                   {addressLoading && (
-                    <div className="px-3 py-2 text-xs text-amber-900/70">
+                    <div className="px-3 py-2 text-xs text-slate-600">
                       Searching...
                     </div>
                   )}
@@ -581,7 +581,7 @@ export function JobDetailEditor({ job }: { job: Job }) {
                   <button
                       key={s.id}
                       type="button"
-                      className="w-full text-left px-3 py-2 text-xs hover:bg-amber-50 border-t border-amber-100 first:border-t-0"
+                      className="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 border-t border-slate-100 first:border-t-0"
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => selectJobAddress(s.label, s.lat, s.lng)}
                     >
@@ -589,7 +589,7 @@ export function JobDetailEditor({ job }: { job: Job }) {
                     </button>
                   ))}
                   {!addressLoading && addressSuggestions.length === 0 && addressQuery.trim().length >= 3 && (
-                    <div className="px-3 py-2 text-xs text-amber-900/70">
+                    <div className="px-3 py-2 text-xs text-slate-600">
                       No matches found.
                     </div>
                   )}
@@ -597,9 +597,9 @@ export function JobDetailEditor({ job }: { job: Job }) {
               )}
             </div>
           </label>
-          <label className="block space-y-1 text-sm text-amber-900/80">
+          <label className="block space-y-1 text-sm text-slate-700">
             <span>Billing address</span>
-            <div className="flex items-center gap-2 text-xs text-amber-900/70">
+            <div className="flex items-center gap-2 text-xs text-slate-600">
               <input
                 type="checkbox"
                 checked={billingSameAsJob}
@@ -614,7 +614,7 @@ export function JobDetailEditor({ job }: { job: Job }) {
               <span>Same as job address</span>
             </div>
             <input
-              className="w-full rounded border border-amber-200 px-3 py-2 bg-white"
+              className="app-input"
               value={form.billingAddress}
               onChange={(e) => updateField("billingAddress", e.target.value)}
               disabled={billingSameAsJob}
@@ -622,46 +622,46 @@ export function JobDetailEditor({ job }: { job: Job }) {
           </label>
         </section>
 
-        <section className="space-y-3 rounded-xl border border-amber-200 bg-amber-50/70 p-4">
-          <div className="text-sm font-semibold text-amber-900">Job info</div>
-          <label className="space-y-1 text-sm text-amber-900/80">
+        <section className="space-y-3 rounded-xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
+          <div className="text-sm font-semibold text-slate-900">Job info</div>
+          <label className="space-y-1 text-sm text-slate-700">
             <span>Description</span>
             <textarea
-              className="w-full rounded border border-amber-200 px-3 py-2 bg-white min-h-[68px]"
+              className="app-input min-h-[68px]"
               value={form.description}
               onChange={(e) => updateField("description", e.target.value)}
             />
           </label>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            <label className="space-y-1 text-sm text-amber-900/80">
+            <label className="space-y-1 text-sm text-slate-700">
               <span>Estimate #</span>
               <input
-                className="w-full rounded border border-amber-200 px-3 py-2 bg-white"
+                className="app-input"
                 value={form.estimateNumber}
                 onChange={(e) => updateField("estimateNumber", e.target.value)}
               />
             </label>
-            <label className="space-y-1 text-sm text-amber-900/80">
+            <label className="space-y-1 text-sm text-slate-700">
               <span>Invoice #</span>
               <input
-                className="w-full rounded border border-amber-200 px-3 py-2 bg-white"
+                className="app-input"
                 value={form.invoiceNumber}
                 onChange={(e) => updateField("invoiceNumber", e.target.value)}
               />
             </label>
-            <label className="space-y-1 text-sm text-amber-900/80">
+            <label className="space-y-1 text-sm text-slate-700">
               <span>Cash sale #</span>
               <input
-                className="w-full rounded border border-amber-200 px-3 py-2 bg-white"
+                className="app-input"
                 value={form.cashSaleNumber}
                 onChange={(e) => updateField("cashSaleNumber", e.target.value)}
               />
             </label>
-            <label className="space-y-1 text-sm text-amber-900/80">
+            <label className="space-y-1 text-sm text-slate-700">
               <span>Total price</span>
               <input
                 type="number"
-                className="w-full rounded border border-amber-200 px-3 py-2 bg-white"
+                className="app-input"
                 value={form.totalPrice}
                 onChange={(e) => updateField("totalPrice", e.target.value)}
               />
@@ -671,10 +671,10 @@ export function JobDetailEditor({ job }: { job: Job }) {
       </div>
 
       <div className="grid md:grid-cols-2 gap-3">
-        <section className="space-y-3 rounded-xl border border-amber-200 bg-amber-50/70 p-4">
-          <div className="text-sm font-semibold text-amber-900">Back of card</div>
+        <section className="space-y-3 rounded-xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
+          <div className="text-sm font-semibold text-slate-900">Back of card</div>
           {![form.photo1Url, form.photo2Url, form.photo3Url].some(Boolean) && (
-            <p className="text-xs text-amber-900/70">
+            <p className="text-xs text-slate-600">
               Upload a photo of the back of the card or any relevant sketches/photos.
             </p>
           )}
@@ -686,12 +686,12 @@ export function JobDetailEditor({ job }: { job: Job }) {
                   <img
                     src={url}
                     alt={`Attachment ${idx + 1}`}
-                    className="w-full h-32 object-cover rounded border border-amber-200 bg-white cursor-pointer"
+                    className="w-full h-32 object-cover rounded border border-[var(--app-border)] bg-white cursor-pointer"
                     onClick={() => window.open(url, "_blank")}
                   />
                   <button
                     type="button"
-                    className="text-[11px] text-red-700 underline"
+                    className="text-[11px] text-red-600 underline"
                     onClick={() => updateField((`photo${idx + 1}Url` as any), "")}
                     disabled={saving}
                   >
@@ -703,8 +703,8 @@ export function JobDetailEditor({ job }: { job: Job }) {
           </div>
 
           {/* Upload control */}
-          <label className="inline-flex items-center gap-2 text-xs text-amber-900/80 cursor-pointer">
-            <span className="px-3 py-1 rounded border border-amber-200 bg-white hover:bg-amber-50">
+          <label className="inline-flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+            <span className="px-3 py-1 rounded border border-[var(--app-border-strong)] bg-white hover:bg-slate-50">
               Upload image
             </span>
             <input
@@ -752,43 +752,43 @@ export function JobDetailEditor({ job }: { job: Job }) {
           </label>
         </section>
 
-        <section className="space-y-3 rounded-xl border border-amber-200 bg-amber-50/70 p-4">
-          <div className="text-sm font-semibold text-amber-900">Scheduling</div>
+        <section className="space-y-3 rounded-xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-4">
+          <div className="text-sm font-semibold text-slate-900">Scheduling</div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            <label className="space-y-1 text-sm text-amber-900/80">
+            <label className="space-y-1 text-sm text-slate-700">
               <span>Assigned date</span>
               <input
                 type="date"
-                className="w-full rounded border border-amber-200 px-3 py-2 bg-white"
+                className="app-input"
                 value={form.assignedDate}
                 onChange={(e) => updateField("assignedDate", e.target.value)}
               />
             </label>
-            <label className="space-y-1 text-sm text-amber-900/80">
+            <label className="space-y-1 text-sm text-slate-700">
               <span>Estimated hours</span>
               <input
                 type="number"
                 step="0.25"
                 min="0"
-                className="w-full rounded border border-amber-200 px-3 py-2 bg-white"
+                className="app-input"
                 value={form.estimatedDurationHours}
                 onChange={(e) =>
                   updateField("estimatedDurationHours", e.target.value)
                 }
               />
             </label>
-            <label className="space-y-1 text-sm text-amber-900/80">
+            <label className="space-y-1 text-sm text-slate-700">
               <span>Crew</span>
               <input
-                className="w-full rounded border border-amber-200 px-3 py-2 bg-white"
+                className="app-input"
                 value={form.crew}
                 onChange={(e) => updateField("crew", e.target.value)}
               />
             </label>
-            <label className="space-y-1 text-sm text-amber-900/80">
+            <label className="space-y-1 text-sm text-slate-700">
               <span>Area</span>
               <select
-                className="w-full rounded border border-amber-200 px-3 py-2 bg-white"
+                className="app-select"
                 value={useCustomArea ? "__add_new_area" : form.areaTag}
                 onChange={(e) => {
                   if (e.target.value === "__add_new_area") {
@@ -809,17 +809,17 @@ export function JobDetailEditor({ job }: { job: Job }) {
               </select>
               {useCustomArea && (
                 <input
-                  className="mt-2 w-full rounded border border-amber-200 px-3 py-2 bg-white"
+                  className="mt-2 app-input"
                   placeholder="Enter new area"
                   value={customAreaTag}
                   onChange={(e) => setCustomAreaTag(e.target.value)}
                 />
               )}
             </label>
-            <label className="space-y-1 text-sm text-amber-900/80">
+            <label className="space-y-1 text-sm text-slate-700">
               <span>Status</span>
               <select
-                className="w-full rounded border border-amber-200 px-3 py-2 bg-white"
+                className="app-select"
                 value={form.status}
                 onChange={(e) => updateField("status", e.target.value)}
               >
@@ -830,10 +830,10 @@ export function JobDetailEditor({ job }: { job: Job }) {
                 ))}
               </select>
             </label>
-            <label className="space-y-1 text-sm text-amber-900/80">
+            <label className="space-y-1 text-sm text-slate-700">
               <span>Factory job ID</span>
               <input
-                className="w-full rounded border border-amber-200 px-3 py-2 bg-white"
+                className="app-input"
                 value={form.factoryJobId}
                 onChange={(e) => updateField("factoryJobId", e.target.value)}
               />
@@ -846,14 +846,14 @@ export function JobDetailEditor({ job }: { job: Job }) {
         <div className="flex gap-2">
           <button
             type="submit"
-            className="flex-1 px-4 py-2 rounded bg-amber-700 text-white hover:bg-amber-600 disabled:opacity-60"
+            className="btn-primary flex-1 disabled:opacity-60"
             disabled={saving || copying || deleting}
           >
             {saving ? "Saving..." : "Save changes"}
           </button>
           <button
             type="button"
-            className="px-4 py-2 rounded border border-amber-300 text-amber-900 hover:bg-amber-50"
+            className="btn-secondary"
             onClick={resetForm}
             disabled={saving || copying || deleting}
           >
@@ -863,7 +863,7 @@ export function JobDetailEditor({ job }: { job: Job }) {
         <div className="flex gap-2">
           <button
             type="button"
-            className="flex-1 px-4 py-2 rounded border border-slate-300 text-slate-800 bg-white hover:bg-slate-50"
+            className="btn-secondary flex-1"
             onClick={handleCopyJob}
             disabled={saving || copying || deleting}
           >
@@ -871,7 +871,7 @@ export function JobDetailEditor({ job }: { job: Job }) {
           </button>
           <button
             type="button"
-            className="flex-1 px-4 py-2 rounded border border-red-300 text-red-800 bg-red-50 hover:bg-red-100"
+            className="btn-danger flex-1"
             onClick={handleDeleteJob}
             disabled={saving || copying || deleting}
           >
@@ -890,22 +890,22 @@ export function JobDetailEditor({ job }: { job: Job }) {
             className="absolute inset-0 bg-black/30 backdrop-blur-sm"
             onClick={() => setShowNotesModal(false)}
           />
-          <div className="relative z-10 w-full max-w-2xl rounded-2xl border border-emerald-200 bg-white p-5 shadow-2xl space-y-4">
+          <div className="relative z-10 w-full max-w-2xl app-surface p-5 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs uppercase tracking-wide text-emerald-600">
+                <p className="text-xs uppercase tracking-wide text-slate-500">
                   Job #{job.id}
                 </p>
-                <h3 className="text-lg font-semibold text-emerald-900">
+                <h3 className="text-lg font-semibold text-slate-900">
                   Material & product notes
                 </h3>
-                <p className="text-xs text-emerald-800/80">
+                <p className="text-xs text-slate-600">
                   Choose an item or add your own, then set the date.
                 </p>
               </div>
               <button
                 type="button"
-                className="text-sm text-emerald-800 hover:text-emerald-950"
+                className="text-sm text-slate-600 hover:text-slate-900"
                 onClick={() => setShowNotesModal(false)}
               >
                 Close
@@ -913,10 +913,10 @@ export function JobDetailEditor({ job }: { job: Job }) {
             </div>
 
             <div className="flex flex-col gap-2 md:flex-row md:items-end">
-              <label className="flex-1 space-y-1 text-xs text-emerald-900/80">
+              <label className="flex-1 space-y-1 text-xs text-slate-600">
                 <span>Choose an update</span>
                 <select
-                  className="w-full rounded border border-emerald-200 px-3 py-2 bg-white"
+                  className="app-select"
                   value={selectedMaterialOption}
                   onChange={(e) => setSelectedMaterialOption(e.target.value)}
                 >
@@ -929,10 +929,10 @@ export function JobDetailEditor({ job }: { job: Job }) {
               </label>
 
               {selectedMaterialOption === "Add item" && (
-                <label className="flex-1 space-y-1 text-xs text-emerald-900/80">
+                <label className="flex-1 space-y-1 text-xs text-slate-600">
                   <span>Custom label</span>
                   <input
-                    className="w-full rounded border border-emerald-200 px-3 py-2 bg-white"
+                    className="app-input"
                     placeholder="e.g. Hardware arrival"
                     value={customMaterialLabel}
                     onChange={(e) => setCustomMaterialLabel(e.target.value)}
@@ -940,11 +940,11 @@ export function JobDetailEditor({ job }: { job: Job }) {
                 </label>
               )}
 
-              <label className="w-full md:w-44 space-y-1 text-xs text-emerald-900/80">
+              <label className="w-full md:w-44 space-y-1 text-xs text-slate-600">
                 <span>Target date</span>
                 <input
                   type="date"
-                  className="w-full rounded border border-emerald-200 px-3 py-2 bg-white"
+                  className="app-input"
                   value={materialDate}
                   onChange={(e) => setMaterialDate(e.target.value)}
                 />
@@ -952,7 +952,7 @@ export function JobDetailEditor({ job }: { job: Job }) {
 
               <button
                 type="button"
-                className="shrink-0 px-3 py-2 rounded bg-emerald-700 text-white hover:bg-emerald-600 text-xs"
+                className="btn-primary shrink-0 text-xs"
                 onClick={handleAddMaterialNote}
                 disabled={saving}
               >
@@ -962,22 +962,22 @@ export function JobDetailEditor({ job }: { job: Job }) {
 
             <div className="space-y-2 max-h-80 overflow-y-auto">
               {form.materialProductUpdates.length === 0 ? (
-                <p className="text-xs text-emerald-900/70">
+                <p className="text-xs text-slate-600">
                   No notes yet. Add one to show a green "See Note" on the small card.
                 </p>
               ) : (
                 form.materialProductUpdates.map((update) => (
                   <div
                     key={update.id}
-                    className="flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900"
+                    className="flex items-center justify-between rounded-lg border border-[var(--app-border)] bg-[var(--app-surface-muted)] px-3 py-2 text-sm text-slate-900"
                   >
                     <div className="space-y-0.5">
                       <p className="font-medium">{update.label}</p>
-                      <p className="text-[11px] text-emerald-700">Date: {update.date}</p>
+                      <p className="text-[11px] text-slate-600">Date: {update.date}</p>
                     </div>
                     <button
                       type="button"
-                      className="text-xs text-red-700 hover:text-red-900"
+                      className="text-xs text-red-600 hover:text-red-800"
                       onClick={() => removeMaterialUpdate(update.id)}
                       disabled={saving || copying || deleting}
                     >
@@ -991,7 +991,7 @@ export function JobDetailEditor({ job }: { job: Job }) {
             <div className="flex justify-end">
               <button
                 type="button"
-                className="px-4 py-2 rounded border border-emerald-300 text-emerald-900 bg-white hover:bg-emerald-50"
+                className="btn-secondary"
                 onClick={() => setShowNotesModal(false)}
               >
                 Done

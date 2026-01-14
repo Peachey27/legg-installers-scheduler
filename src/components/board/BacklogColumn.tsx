@@ -20,13 +20,13 @@ export default function BacklogColumn({ jobs, placeholder }: Props) {
   const [formError, setFormError] = useState<string | null>(null);
 
   return (
-    <div className="h-full rounded-2xl bg-[#f6f0e7]/90 border border-amber-200/70 shadow-inner flex flex-col p-3">
+    <div className="h-full rounded-2xl bg-[var(--app-surface-muted)] border border-[var(--app-border)] shadow-[var(--app-shadow-soft)] flex flex-col p-3">
       <div className="mb-2">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-amber-900">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-900">
           Backlog
         </h2>
-        <p className="text-xs text-amber-900/70">
-          Unschedule jobs – drag onto a day.
+        <p className="text-xs text-slate-600">
+          Unschedule jobs - drag onto a day.
         </p>
       </div>
       <div className="flex-1 space-y-2 overflow-y-auto">
@@ -54,7 +54,7 @@ export default function BacklogColumn({ jobs, placeholder }: Props) {
         />
       ) : (
         <button
-          className="mt-2 text-xs text-amber-800 underline"
+          className="mt-2 text-xs text-slate-700 underline"
           onClick={openAddJobForm}
         >
           + Add job
@@ -249,14 +249,14 @@ function AddJobModal({
       />
       <form
         onSubmit={handleSubmit}
-        className="relative z-10 w-full max-w-2xl rounded-2xl border border-amber-300 bg-white/95 p-6 shadow-2xl space-y-3 text-sm"
+        className="relative z-10 w-full max-w-2xl app-surface p-6 space-y-3 text-sm"
       >
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-amber-900">New job</h3>
+          <h3 className="text-lg font-semibold text-slate-900">New job</h3>
           <button
             type="button"
             onClick={onCancel}
-            className="text-amber-700 hover:text-amber-900 text-sm"
+            className="text-slate-600 hover:text-slate-900 text-sm"
             disabled={loading}
           >
             Cancel
@@ -265,9 +265,9 @@ function AddJobModal({
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div className="space-y-1">
-            <label className="block text-amber-900/80">Client name*</label>
+            <label className="block text-slate-700">Client name*</label>
             <input
-              className="w-full rounded border border-amber-200 px-3 py-2 text-amber-900 bg-white/80"
+              className="app-input"
               value={values.clientName}
               onChange={(e) => handleChange("clientName", e.target.value)}
               required
@@ -275,19 +275,19 @@ function AddJobModal({
           </div>
 
           <div className="space-y-1">
-            <label className="block text-amber-900/80">Client phone</label>
+            <label className="block text-slate-700">Client phone</label>
             <input
-              className="w-full rounded border border-amber-200 px-3 py-2 text-amber-900 bg-white/80"
+              className="app-input"
               value={values.clientPhone}
               onChange={(e) => handleChange("clientPhone", e.target.value)}
             />
           </div>
 
           <div className="space-y-1 md:col-span-2">
-            <label className="block text-amber-900/80">Job address* (used for location)</label>
+            <label className="block text-slate-700">Job address* (used for location)</label>
             <div className="relative">
               <input
-                className="w-full rounded border border-amber-200 px-3 py-2 text-amber-900 bg-white/80"
+                className="app-input"
                 value={addressQuery}
                 onChange={(e) => {
                   const next = e.target.value;
@@ -309,9 +309,9 @@ function AddJobModal({
               />
               {showAddressSuggestions &&
                 (addressLoading || addressSuggestions.length > 0) && (
-                  <div className="absolute z-20 mt-1 w-full rounded-lg border border-amber-200 bg-white shadow-lg overflow-hidden">
+                  <div className="absolute z-20 mt-1 w-full rounded-xl border border-[var(--app-border)] bg-white shadow-lg overflow-hidden">
                     {addressLoading && (
-                      <div className="px-3 py-2 text-xs text-amber-900/70">
+                      <div className="px-3 py-2 text-xs text-slate-600">
                         Searching...
                       </div>
                     )}
@@ -319,7 +319,7 @@ function AddJobModal({
                       <button
                         key={s.id}
                         type="button"
-                        className="w-full text-left px-3 py-2 text-xs hover:bg-amber-50 border-t border-amber-100 first:border-t-0"
+                        className="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 border-t border-slate-100 first:border-t-0"
                         onMouseDown={(e) => e.preventDefault()}
                         onClick={() => selectClientAddress(s.label, s.lat, s.lng)}
                       >
@@ -329,7 +329,7 @@ function AddJobModal({
                     {!addressLoading &&
                       addressSuggestions.length === 0 &&
                       addressQuery.trim().length >= 3 && (
-                        <div className="px-3 py-2 text-xs text-amber-900/70">
+                        <div className="px-3 py-2 text-xs text-slate-600">
                           No matches found.
                         </div>
                       )}
@@ -339,8 +339,8 @@ function AddJobModal({
           </div>
 
           <div className="space-y-1 md:col-span-2">
-            <label className="block text-amber-900/80">Billing address</label>
-            <div className="flex items-center gap-2 text-xs text-amber-900/70 mb-1">
+            <label className="block text-slate-700">Billing address</label>
+            <div className="flex items-center gap-2 text-xs text-slate-600 mb-1">
               <input
                 type="checkbox"
                 checked={billingSameAsJob}
@@ -358,7 +358,7 @@ function AddJobModal({
               <span>Same as job address</span>
             </div>
             <input
-              className="w-full rounded border border-amber-200 px-3 py-2 text-amber-900 bg-white/80"
+              className="app-input"
               value={values.billingAddress}
               onChange={(e) => handleChange("billingAddress", e.target.value)}
               disabled={billingSameAsJob}
@@ -366,9 +366,9 @@ function AddJobModal({
           </div>
 
           <div className="space-y-1 md:col-span-2">
-            <label className="block text-amber-900/80">Job description</label>
+            <label className="block text-slate-700">Job description</label>
             <select
-              className="w-full rounded border border-amber-200 px-3 py-2 text-amber-900 bg-white/80"
+              className="app-select"
               value={values.description}
               onChange={(e) => handleChange("description", e.target.value)}
             >
@@ -380,7 +380,7 @@ function AddJobModal({
             </select>
             {values.description === "Add a new description" && (
               <input
-                className="mt-2 w-full rounded border border-amber-200 px-3 py-2 text-amber-900 bg-white/80"
+                className="mt-2 app-input"
                 placeholder="Enter new description"
                 value={customDescription}
                 onChange={(e) => setCustomDescription(e.target.value)}
@@ -389,14 +389,14 @@ function AddJobModal({
           </div>
 
           <div className="space-y-1 md:col-span-1">
-            <label className="block text-amber-900/80">
+            <label className="block text-slate-700">
               Estimated hours (optional)
             </label>
             <input
               type="number"
               min="0"
               step="0.25"
-              className="w-full rounded border border-amber-200 px-3 py-2 text-amber-900 bg-white/80"
+              className="app-input"
               value={values.estimatedDurationHours ?? ""}
               onChange={(e) =>
                 handleChange(
@@ -408,9 +408,9 @@ function AddJobModal({
           </div>
 
           <div className="space-y-1 md:col-span-1">
-            <label className="block text-amber-900/80">Area</label>
+            <label className="block text-slate-700">Area</label>
             <select
-              className="w-full rounded border border-amber-200 px-3 py-2 text-amber-900 bg-white/80"
+              className="app-select"
               value={useCustomArea ? "__add_new_area" : values.areaTag}
               onChange={(e) => {
                 if (e.target.value === "__add_new_area") {
@@ -431,7 +431,7 @@ function AddJobModal({
             </select>
             {useCustomArea && (
               <input
-                className="mt-2 w-full rounded border border-amber-200 px-3 py-2 text-amber-900 bg-white/80"
+                className="mt-2 app-input"
                 placeholder="Enter new area"
                 value={customAreaTag}
                 onChange={(e) => setCustomAreaTag(e.target.value)}
@@ -445,7 +445,7 @@ function AddJobModal({
         <div className="flex justify-end gap-3">
           <button
             type="button"
-            className="px-4 py-2 rounded border border-amber-200 text-amber-800 bg-white/80 hover:bg-amber-50"
+            className="btn-secondary"
             onClick={onCancel}
             disabled={loading}
           >
@@ -453,10 +453,10 @@ function AddJobModal({
           </button>
           <button
             type="submit"
-            className="px-4 py-2 rounded bg-amber-600 text-white hover:bg-amber-500 disabled:opacity-60"
+            className="btn-primary disabled:opacity-60"
             disabled={loading}
           >
-            {loading ? "Saving…" : "Create"}
+            {loading ? "Saving..." : "Create"}
           </button>
         </div>
       </form>

@@ -367,16 +367,16 @@ export default function FourWeekBoard({
     >
       <div className="flex flex-col gap-2 h-[calc(100vh-56px)] overflow-y-auto">
         <div className="px-4 pt-2 space-y-2">
-          <div className="flex items-center justify-between text-xs text-amber-900">
+          <div className="flex items-center justify-between text-xs text-slate-700">
             <span className="font-semibold">Week range {weeks[0].displayRange}</span>
-            <span className="text-[11px] font-semibold">Backlog</span>
+            <span className="text-[11px] font-semibold text-slate-700">Backlog</span>
           </div>
           <SortableContext
             items={orderedBacklogJobs.map((j) => j.id)}
             strategy={horizontalListSortingStrategy}
           >
             <DroppableColumn id="backlog" highlight={activeOverListId === "backlog"}>
-              <div className="flex gap-2 overflow-x-auto rounded-2xl border border-amber-200/70 bg-[#f6f0e7]/90 p-3 shadow-inner">
+              <div className="flex gap-2 overflow-x-auto rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] p-3 shadow-[var(--app-shadow-soft)]">
                 {orderedBacklogJobs.map((j) => (
                   <div key={j.id} className="min-w-[200px] max-w-[220px] flex-shrink-0">
                     <SortableJobCard job={j} listId="backlog" />
@@ -390,13 +390,13 @@ export default function FourWeekBoard({
         <div className="flex flex-col gap-2 px-4 pb-2">
           {weeks.map((week, index) => (
             <div key={week.start.toISOString()} className="space-y-1.5">
-              <div className="flex items-center gap-2 text-sm text-amber-900">
+              <div className="flex items-center gap-2 text-sm text-slate-800">
                 <span className="font-semibold">
                   Week {index + 1} ({week.displayRange})
                 </span>
                 {onZoomToWeek ? (
                   <button
-                    className="px-2 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100 text-xs"
+                    className="btn-secondary px-2 py-1 text-xs"
                     onClick={() => onZoomToWeek(weekOffset + index)}
                   >
                     Zoom to this week
@@ -510,7 +510,7 @@ function DroppableColumn({
     <div
       ref={setNodeRef}
       className={`${className ?? ""} ${
-        highlight ? "ring-2 ring-amber-300 rounded-2xl" : ""
+        highlight ? "ring-2 ring-blue-300 rounded-2xl" : ""
       }`}
     >
       {children}

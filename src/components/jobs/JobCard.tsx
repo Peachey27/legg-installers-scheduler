@@ -97,7 +97,7 @@ export default function JobCard({ job, openOnClick = true, onOpen, compact = fal
           }
           : undefined
       }
-      className={`w-full text-left bg-white rounded-xl border border-slate-200 shadow-sm ${cardPadding} relative hover:shadow-md transition-shadow ${
+      className={`w-full text-left app-card ${cardPadding} relative hover:shadow-md hover:border-slate-300 transition-shadow ${
         openOnClick ? "cursor-pointer" : ""
       }`}
     >
@@ -106,11 +106,11 @@ export default function JobCard({ job, openOnClick = true, onOpen, compact = fal
           job.areaTag
         )} shadow`}
       />
-      <div className={`h-1 rounded-t-xl -mx-3 mb-1 ${areaColor(job.areaTag)}`} />
+      <div className={`h-1 rounded-t-2xl -mx-3 mb-1 ${areaColor(job.areaTag)}`} />
       <div className={`${compact ? "text-sm" : "text-base"} font-semibold text-slate-900 truncate`}>
         {formatClientName(job.clientName)}
       </div>
-      <div className="text-[11px] text-slate-700 truncate">
+      <div className="text-[11px] text-slate-600 truncate">
         {job.jobAddress}
       </div>
       {!compact && (

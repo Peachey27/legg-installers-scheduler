@@ -18,14 +18,14 @@ interface Props {
 
 const baseAreas = ["Bairnsdale", "Lakes", "Sale", "Melbourne", "Saphire Coast"];
 const ringPalette = [
-  "border-[8px] border-blue-400 shadow",
-  "border-[8px] border-green-400 shadow",
-  "border-[8px] border-red-400 shadow",
-  "border-[8px] border-purple-400 shadow",
-  "border-[8px] border-yellow-300 shadow",
-  "border-[8px] border-orange-400 shadow",
-  "border-[8px] border-emerald-400 shadow",
-  "border-[8px] border-amber-400 shadow"
+  "border-[8px] border-sky-400 shadow-sm",
+  "border-[8px] border-emerald-400 shadow-sm",
+  "border-[8px] border-rose-400 shadow-sm",
+  "border-[8px] border-violet-400 shadow-sm",
+  "border-[8px] border-amber-300 shadow-sm",
+  "border-[8px] border-orange-400 shadow-sm",
+  "border-[8px] border-teal-400 shadow-sm",
+  "border-[8px] border-cyan-400 shadow-sm"
 ];
 
 function normalizeArea(area?: string | null) {
@@ -95,14 +95,14 @@ function SortableCompactJobRow({
         zIndex: isDragging ? 999 : undefined,
         boxShadow: isDragging ? "0 8px 18px rgba(15, 23, 42, 0.18)" : undefined
       }}
-      className={`rounded-md border border-amber-200 bg-white px-2 py-1 text-[10px] leading-tight shadow-sm flex items-center gap-2 cursor-pointer hover:bg-amber-50 ${
-        isDragging ? "ring-2 ring-amber-300" : ""
+      className={`rounded-md border border-[var(--app-border)] bg-white px-2 py-1 text-[10px] leading-tight shadow-sm flex items-center gap-2 cursor-pointer hover:bg-slate-50 ${
+        isDragging ? "ring-2 ring-blue-300" : ""
       }`}
       onDoubleClick={onOpen}
       title="Double-click to open job"
     >
       <span className={`inline-block w-2 h-2 rounded-full ${miniAreaColor(job.areaTag)}`} />
-      <span className="font-semibold text-amber-900 truncate flex-1">
+      <span className="font-semibold text-slate-900 truncate flex-1">
         {surnameOnly(job.clientName)}
       </span>
     </div>
@@ -125,21 +125,21 @@ export default function CompactDayColumn({
 
   return (
     <div
-      className={`relative h-full rounded-xl border border-amber-200/70 shadow-inner flex flex-col p-1.5 bg-[#f6f0e7]/90 text-[11px] ${
-        isToday ? "ring-2 ring-rose-400" : ""
+      className={`relative h-full rounded-xl border border-[var(--app-border)] shadow-[var(--app-shadow-soft)] flex flex-col p-1.5 bg-[var(--app-surface-muted)] text-[11px] ${
+        isToday ? "ring-2 ring-blue-300" : ""
       } ${areaStyle?.ring ?? ""}`}
     >
       <div className="flex items-center justify-between">
         <div>
-          <div className="text-xs font-semibold text-amber-900">{label}</div>
-          <div className="text-[10px] text-amber-700">{format(date, "d MMM")}</div>
+          <div className="text-xs font-semibold text-slate-900">{label}</div>
+          <div className="text-[10px] text-slate-600">{format(date, "d MMM")}</div>
         </div>
-        <div className="text-[10px] text-amber-800">Jobs {jobs.length}</div>
+        <div className="text-[10px] text-slate-600">Jobs {jobs.length}</div>
       </div>
 
       <div className="mt-1 space-y-1 overflow-y-auto max-h-[120px] pr-0.5">
         {jobs.length === 0 ? (
-          <p className="text-[10px] text-amber-800/70">No jobs</p>
+          <p className="text-[10px] text-slate-500">No jobs</p>
         ) : (
           jobs.map((job) => (
             <SortableCompactJobRow

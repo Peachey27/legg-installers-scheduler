@@ -17,24 +17,24 @@ export default function HomePage() {
   const [weekOffset, setWeekOffset] = useState(0);
   const baseAreas = ["Bairnsdale", "Lakes", "Sale", "Melbourne", "Saphire Coast"];
   const ringPalette = [
-    "border-[12px] border-blue-400 shadow-lg",
-    "border-[12px] border-green-400 shadow-lg",
-    "border-[12px] border-red-400 shadow-lg",
-    "border-[12px] border-purple-400 shadow-lg",
-    "border-[12px] border-yellow-300 shadow-lg",
-    "border-[12px] border-orange-400 shadow-lg",
-    "border-[12px] border-emerald-400 shadow-lg",
-    "border-[12px] border-amber-400 shadow-lg"
+    "border-[10px] border-sky-400 shadow-sm",
+    "border-[10px] border-emerald-400 shadow-sm",
+    "border-[10px] border-rose-400 shadow-sm",
+    "border-[10px] border-violet-400 shadow-sm",
+    "border-[10px] border-amber-300 shadow-sm",
+    "border-[10px] border-orange-400 shadow-sm",
+    "border-[10px] border-teal-400 shadow-sm",
+    "border-[10px] border-cyan-400 shadow-sm"
   ];
   const badgePalette = [
-    "border-blue-200 text-blue-800 bg-blue-50/80 hover:bg-blue-100",
-    "border-green-200 text-green-800 bg-green-50/80 hover:bg-green-100",
-    "border-red-200 text-red-800 bg-red-50/80 hover:bg-red-100",
-    "border-purple-200 text-purple-800 bg-purple-50/80 hover:bg-purple-100",
-    "border-yellow-200 text-yellow-900 bg-yellow-50/80 hover:bg-yellow-100",
-    "border-orange-200 text-orange-800 bg-orange-50/80 hover:bg-orange-100",
-    "border-emerald-200 text-emerald-800 bg-emerald-50/80 hover:bg-emerald-100",
-    "border-amber-200 text-amber-800 bg-amber-50/80 hover:bg-amber-100"
+    "border-sky-200 text-sky-800 bg-sky-50 hover:bg-sky-100",
+    "border-emerald-200 text-emerald-800 bg-emerald-50 hover:bg-emerald-100",
+    "border-rose-200 text-rose-800 bg-rose-50 hover:bg-rose-100",
+    "border-violet-200 text-violet-800 bg-violet-50 hover:bg-violet-100",
+    "border-amber-200 text-amber-900 bg-amber-50 hover:bg-amber-100",
+    "border-orange-200 text-orange-800 bg-orange-50 hover:bg-orange-100",
+    "border-teal-200 text-teal-800 bg-teal-50 hover:bg-teal-100",
+    "border-cyan-200 text-cyan-800 bg-cyan-50 hover:bg-cyan-100"
   ];
 
   // only fetch once on mount
@@ -110,8 +110,8 @@ export default function HomePage() {
         scrollContainer.scrollTo({ left: targetLeft, behavior: "smooth" });
       }
       el.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
-      el.classList.add("ring-4", "ring-amber-400");
-      window.setTimeout(() => el.classList.remove("ring-4", "ring-amber-400"), 1800);
+      el.classList.add("ring-4", "ring-blue-400");
+      window.setTimeout(() => el.classList.remove("ring-4", "ring-blue-400"), 1800);
     } else {
       // Mobile view doesn't show backlog; open the job directly so a due date can be assigned.
       router.push(`/jobs/${jobId}`);
@@ -120,9 +120,9 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen flex flex-col">
-      <header className="px-4 py-3 bg-amber-500 text-amber-50 shadow-md flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+      <header className="px-4 py-3 bg-[var(--app-surface)] text-slate-900 shadow-[var(--app-shadow-soft)] border-b border-[var(--app-border)] flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-3">
-          <h1 className="text-lg font-semibold tracking-wide">
+          <h1 className="text-base md:text-lg font-semibold tracking-tight">
             LEGG Installers Scheduler
           </h1>
           <div className="hidden md:flex flex-wrap items-center gap-2">
@@ -131,7 +131,7 @@ export default function HomePage() {
               return (
                 <span
                   key={area}
-                  className={`inline-flex items-center px-2 py-1 text-[11px] rounded-full border ${style?.badge ?? "border-amber-200 bg-amber-50 text-amber-800"}`}
+                  className={`inline-flex items-center px-2 py-1 text-[11px] rounded-full border ${style?.badge ?? "badge-muted"}`}
                 >
                   {area}
                 </span>
@@ -144,12 +144,12 @@ export default function HomePage() {
             <input
               type="search"
               placeholder="Search jobs (includes archived)..."
-              className="w-full rounded-lg px-3 py-2 text-slate-900 text-sm"
+              className="app-input"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
             {searchResults.length > 0 && (
-              <div className="absolute mt-1 w-full bg-white text-slate-900 rounded-lg shadow-lg border border-slate-200 z-20">
+              <div className="absolute mt-2 w-full app-surface z-20">
                 {searchResults.map((j) => (
                   <button
                     key={j.id}
@@ -173,7 +173,7 @@ export default function HomePage() {
           </div>
           <button
             type="button"
-            className="px-5 py-2 min-w-[120px] whitespace-nowrap rounded-lg bg-amber-500 hover:bg-amber-400 border border-red-600"
+            className="btn-primary min-w-[120px] whitespace-nowrap"
             onClick={openAddJobForm}
           >
             + Add job
@@ -181,7 +181,7 @@ export default function HomePage() {
           <form action="/api/logout" method="POST">
             <button
               type="submit"
-              className="px-3 py-1 rounded-lg border border-red-600 text-red-700 hover:bg-red-50"
+              className="btn-secondary"
             >
               Logout
             </button>
@@ -196,16 +196,24 @@ export default function HomePage() {
 
       {/* Desktop corkboard */}
       <section className="hidden md:flex flex-1 flex-col overflow-x-auto">
-        <div className="flex items-center gap-2 px-4 pt-3 text-sm text-amber-900 flex-wrap md:flex-nowrap">
+        <div className="flex items-center gap-2 px-4 pt-3 text-sm text-slate-700 flex-wrap md:flex-nowrap">
           <div className="flex items-center gap-2">
             <button
-              className={`px-3 py-1 rounded border ${desktopView === "week" ? "bg-amber-500 text-white border-amber-600" : "border-amber-300 bg-amber-50 hover:bg-amber-100"}`}
+              className={`px-3 py-1 rounded-xl border text-sm ${
+                desktopView === "week"
+                  ? "bg-[var(--app-accent)] text-white border-[var(--app-accent)]"
+                  : "border-[var(--app-border-strong)] bg-white hover:bg-slate-50"
+              }`}
               onClick={() => setDesktopView("week")}
             >
               Week view
             </button>
             <button
-              className={`px-3 py-1 rounded border ${desktopView === "four-week" ? "bg-amber-500 text-white border-amber-600" : "border-amber-300 bg-amber-50 hover:bg-amber-100"}`}
+              className={`px-3 py-1 rounded-xl border text-sm ${
+                desktopView === "four-week"
+                  ? "bg-[var(--app-accent)] text-white border-[var(--app-accent)]"
+                  : "border-[var(--app-border-strong)] bg-white hover:bg-slate-50"
+              }`}
               onClick={() => setDesktopView("four-week")}
             >
               View 4 weeks
@@ -213,19 +221,19 @@ export default function HomePage() {
           </div>
           <div className="flex items-center gap-2 md:ml-3">
             <button
-              className="px-3 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
+              className="btn-secondary px-3 py-1 text-xs"
               onClick={() => setWeekOffset((v) => v - 1)}
             >
               Prev week
             </button>
             <button
-              className="px-3 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
+              className="btn-secondary px-3 py-1 text-xs"
               onClick={() => setWeekOffset(0)}
             >
               Today
             </button>
             <button
-              className="px-3 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
+              className="btn-secondary px-3 py-1 text-xs"
               onClick={() => setWeekOffset((v) => v + 1)}
             >
               Next week

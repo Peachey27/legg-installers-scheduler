@@ -6,6 +6,7 @@ import SortableJobCard from "./SortableJobCard";
 import { useSchedulerStore } from "@/store/useSchedulerStore";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { formatClientName } from "@/lib/formatClientName";
+import { useDroppable } from "@dnd-kit/core";
 
 interface Props {
   label: string;
@@ -16,24 +17,24 @@ interface Props {
 
 const baseAreas = ["Bairnsdale", "Lakes", "Sale", "Melbourne", "Saphire Coast"];
 const ringPalette = [
-  "border-[12px] border-blue-400 shadow-lg",
-  "border-[12px] border-green-400 shadow-lg",
-  "border-[12px] border-red-400 shadow-lg",
-  "border-[12px] border-purple-400 shadow-lg",
-  "border-[12px] border-yellow-300 shadow-lg",
-  "border-[12px] border-orange-400 shadow-lg",
-  "border-[12px] border-emerald-400 shadow-lg",
-  "border-[12px] border-amber-400 shadow-lg"
+  "border-[10px] border-sky-400 shadow-sm",
+  "border-[10px] border-emerald-400 shadow-sm",
+  "border-[10px] border-rose-400 shadow-sm",
+  "border-[10px] border-violet-400 shadow-sm",
+  "border-[10px] border-amber-300 shadow-sm",
+  "border-[10px] border-orange-400 shadow-sm",
+  "border-[10px] border-teal-400 shadow-sm",
+  "border-[10px] border-cyan-400 shadow-sm"
 ];
 const badgePalette = [
-  "border-blue-200 text-blue-800 bg-blue-50/80 hover:bg-blue-100",
-  "border-green-200 text-green-800 bg-green-50/80 hover:bg-green-100",
-  "border-red-200 text-red-800 bg-red-50/80 hover:bg-red-100",
-  "border-purple-200 text-purple-800 bg-purple-50/80 hover:bg-purple-100",
-  "border-yellow-200 text-yellow-900 bg-yellow-50/80 hover:bg-yellow-100",
-  "border-orange-200 text-orange-800 bg-orange-50/80 hover:bg-orange-100",
-  "border-emerald-200 text-emerald-800 bg-emerald-50/80 hover:bg-emerald-100",
-  "border-amber-200 text-amber-800 bg-amber-50/80 hover:bg-amber-100"
+  "border-sky-200 text-sky-800 bg-sky-50 hover:bg-sky-100",
+  "border-emerald-200 text-emerald-800 bg-emerald-50 hover:bg-emerald-100",
+  "border-rose-200 text-rose-800 bg-rose-50 hover:bg-rose-100",
+  "border-violet-200 text-violet-800 bg-violet-50 hover:bg-violet-100",
+  "border-amber-200 text-amber-900 bg-amber-50 hover:bg-amber-100",
+  "border-orange-200 text-orange-800 bg-orange-50 hover:bg-orange-100",
+  "border-teal-200 text-teal-800 bg-teal-50 hover:bg-teal-100",
+  "border-cyan-200 text-cyan-800 bg-cyan-50 hover:bg-cyan-100"
 ];
 
 function normalizeArea(area?: string | null) {
@@ -373,8 +374,8 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
     if (!travelData || !travelData.legs?.[legIndex]) return null;
     const leg = travelData.legs[legIndex];
     return (
-      <div className="rounded-lg border border-amber-200 bg-white/70 px-3 py-2">
-        <div className="flex items-center justify-center text-[11px] font-semibold text-amber-900/80">
+      <div className="app-card px-3 py-2">
+        <div className="flex items-center justify-center text-[11px] font-semibold text-slate-700">
           {fmtDistance(leg.distanceMeters)} - {fmtDuration(leg.durationSeconds)}
         </div>
       </div>
@@ -416,22 +417,22 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
 
   return (
     <div
-      className={`relative h-full rounded-2xl border border-amber-200/70 shadow-inner flex flex-col p-3 transition-shadow ${
-        isToday ? "bg-rose-50" : "bg-[#f6f0e7]/90"
+      className={`relative h-full rounded-2xl border border-[var(--app-border)] shadow-[var(--app-shadow-soft)] flex flex-col p-3 transition-shadow ${
+        isToday ? "bg-blue-50/70" : "bg-[var(--app-surface-muted)]"
       } ${areaStyle?.ring ?? ""}`}
     >
       {isToday && (
         <span
-          className="absolute inset-y-0 left-0 w-1 bg-rose-500 rounded-l-2xl"
+          className="absolute inset-y-0 left-0 w-1 bg-blue-500 rounded-l-2xl"
           aria-hidden="true"
         />
       )}
       <div className="mb-2">
         <div className="text-center">
-          <div className="text-lg font-extrabold text-amber-900 leading-tight">
+          <div className="text-lg font-extrabold text-slate-900 leading-tight">
             {label}
           </div>
-          <div className="text-base font-semibold text-amber-900/90 leading-tight">
+          <div className="text-base font-semibold text-slate-700 leading-tight">
             {format(date, "d/MM")}
           </div>
         </div>
@@ -439,11 +440,11 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
         <div className="mt-2 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             {isToday && (
-              <span className="inline-flex items-center px-2 py-1 text-[11px] font-semibold text-white bg-rose-500 rounded-full shadow">
+              <span className="inline-flex items-center px-2 py-1 text-[11px] font-semibold text-white bg-blue-500 rounded-full shadow">
                 Today
               </span>
             )}
-            <div className="text-xs text-amber-900/70">
+            <div className="text-xs text-slate-600">
               Total hours: {totalHours.toFixed(1)}h
             </div>
           </div>
@@ -451,7 +452,7 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
           <select
             className={`text-[11px] px-2 py-1 rounded-full border transition-colors ${
               areaStyle?.badge ??
-              "border-amber-300 text-amber-800 bg-amber-50/70 hover:bg-amber-100"
+              "border-slate-200 text-slate-700 bg-white hover:bg-slate-50"
             }`}
             value={areaOptions.find((a) => normalizeArea(a) === normalizeArea(area)) ?? ""}
             onChange={(e) => {
@@ -477,8 +478,8 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
         </div>
       </div>
 
-      <div className="mb-2 rounded-xl border border-amber-200 bg-white/70 px-3 py-2">
-        <div className="flex items-center justify-between gap-2 text-xs font-semibold text-amber-900">
+      <div className="mb-2 app-card px-3 py-2">
+        <div className="flex items-center justify-between gap-2 text-xs font-semibold text-slate-900">
           <div className="flex items-center gap-2">
             <span>Travel</span>
             {jobs.length > 0 &&
@@ -492,17 +493,17 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
           </div>
         </div>
         {jobs.length === 0 ? (
-          <div className="text-[11px] text-amber-900/70">No jobs.</div>
+          <div className="text-[11px] text-slate-600">No jobs.</div>
         ) : travelDataLoading ? (
-          <div className="text-[11px] text-amber-900/70">Calculating...</div>
+          <div className="text-[11px] text-slate-600">Calculating...</div>
         ) : travelDataError ? (
           <div className="text-[11px] text-red-700">Travel error</div>
         ) : travelDirty ? (
-          <div className="text-[11px] text-amber-900/70">
+          <div className="text-[11px] text-slate-600">
             Travel not calculated.
             <div>
               <button
-                className="mt-1 text-[10px] px-2 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
+                className="mt-1 text-[10px] px-2 py-1 rounded-lg border border-[var(--app-border-strong)] bg-white hover:bg-slate-50"
                 onClick={() => requestTravel({ force: true })}
                 disabled={travelDataLoading}
               >
@@ -513,20 +514,20 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
         ) : travelData ? (
           <div className="mt-1 space-y-1">
             {travelUnresolved.length > 0 && (
-              <div className="text-[11px] text-amber-900/70">
+              <div className="text-[11px] text-slate-600">
                 Could not locate {travelUnresolved.length} jobs (check Job address spelling)
               </div>
             )}
             {travelApprox.length > 0 && (
-              <div className="text-[11px] text-amber-900/70">
+              <div className="text-[11px] text-slate-600">
                 Using closest address for {travelApprox.length} jobs
               </div>
             )}
             {useBlockTrip && (
-              <div className="flex items-center justify-between text-[11px] text-amber-900/70">
+              <div className="flex items-center justify-between text-[11px] text-slate-600">
                 <span>Block total ({blockLabel})</span>
                 <button
-                  className="text-[10px] px-2 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
+                  className="text-[10px] px-2 py-1 rounded-lg border border-[var(--app-border-strong)] bg-white hover:bg-slate-50"
                   onClick={() => requestBlockTravel({ force: true })}
                   disabled={blockTravelLoading}
                 >
@@ -534,14 +535,14 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
                 </button>
               </div>
             )}
-            <div className="flex justify-between items-center text-[11px] font-semibold text-amber-900">
+            <div className="flex justify-between items-center text-[11px] font-semibold text-slate-900">
               <span>Total</span>
               <div className="flex items-center gap-2">
                 <span>
                   {fmtDistance(travelData.totalDistanceMeters)} - {fmtDuration(travelData.totalDurationSeconds)}
                 </span>
                 <button
-                  className="text-[10px] px-2 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
+                  className="text-[10px] px-2 py-1 rounded-lg border border-[var(--app-border-strong)] bg-white hover:bg-slate-50"
                   onClick={() => requestTravel({ force: true })}
                   disabled={travelDataLoading}
                 >
@@ -551,11 +552,11 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
             </div>
           </div>
         ) : (
-          <div className="text-[11px] text-amber-900/70">
+          <div className="text-[11px] text-slate-600">
             Travel not available.
             <div>
               <button
-                className="mt-1 text-[10px] px-2 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100"
+                className="mt-1 text-[10px] px-2 py-1 rounded-lg border border-[var(--app-border-strong)] bg-white hover:bg-slate-50"
                 onClick={() => requestTravel({ force: true })}
                 disabled={travelDataLoading}
               >
@@ -566,74 +567,91 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto space-y-2">
-        {(() => {
-          if (
-            jobs.length === 0 ||
-            !travelData ||
-            travelDataLoading ||
-            travelDataError ||
-            travelUnresolved.length > 0
-          ) {
-            return null;
-          }
+      <div className="flex-1 overflow-y-auto">
+        <div className="space-y-2">
+          <DropSlot listId={isoDate} index={0} />
+          {(() => {
+            if (
+              jobs.length === 0 ||
+              !travelData ||
+              travelDataLoading ||
+              travelDataError ||
+              travelUnresolved.length > 0
+            ) {
+              return null;
+            }
 
-          const stops = useBlockTrip ? blockStops : dayStops;
-          const stopIndex = new Map<string, number>();
-          stops.forEach((s, idx) => stopIndex.set(s.id, idx));
+            const stops = useBlockTrip ? blockStops : dayStops;
+            const stopIndex = new Map<string, number>();
+            stops.forEach((s, idx) => stopIndex.set(s.id, idx));
 
-          const firstJob = jobs[0];
-          const firstIdx = firstJob ? stopIndex.get(firstJob.id) : null;
-          return firstIdx != null ? renderLeg(firstIdx) : null;
-        })()}
-        {jobs.map((job, index) => (
-          <div key={job.id} className="space-y-2">
-            <SortableJobCard job={job} listId={isoDate} />
-            {(() => {
-              const nextJob = jobs[index + 1];
-              if (!nextJob) return null;
+            const firstJob = jobs[0];
+            const firstIdx = firstJob ? stopIndex.get(firstJob.id) : null;
+            return firstIdx != null ? renderLeg(firstIdx) : null;
+          })()}
+          {jobs.map((job, index) => (
+            <div key={job.id} className="space-y-2">
+              <SortableJobCard job={job} listId={isoDate} />
+              {(() => {
+                const nextJob = jobs[index + 1];
+                if (!nextJob) return null;
 
-              const stops = useBlockTrip ? blockStops : dayStops;
-              const stopIndex = new Map<string, number>();
-              stops.forEach((s, idx) => stopIndex.set(s.id, idx));
-              const idxInTrip = stopIndex.get(job.id);
-              const legIdx = idxInTrip != null ? idxInTrip + 1 : null;
-              const leg =
-                legIdx != null &&
-                !travelDataLoading &&
-                !travelDataError &&
-                travelData?.legs?.[legIdx]
-                  ? travelData.legs[legIdx]
-                  : null;
-              const disabled = sendingNextId === job.id || !nextJob.clientPhone?.trim();
+                const stops = useBlockTrip ? blockStops : dayStops;
+                const stopIndex = new Map<string, number>();
+                stops.forEach((s, idx) => stopIndex.set(s.id, idx));
+                const idxInTrip = stopIndex.get(job.id);
+                const legIdx = idxInTrip != null ? idxInTrip + 1 : null;
+                const leg =
+                  legIdx != null &&
+                  !travelDataLoading &&
+                  !travelDataError &&
+                  travelData?.legs?.[legIdx]
+                    ? travelData.legs[legIdx]
+                    : null;
+                const disabled = sendingNextId === job.id || !nextJob.clientPhone?.trim();
 
-              return (
-                <div className="flex items-center justify-between gap-2">
-                  <button
-                    className="text-[11px] px-2 py-1 rounded border border-amber-300 bg-amber-50 hover:bg-amber-100 disabled:opacity-60 disabled:cursor-not-allowed"
-                    onClick={() => sendNextJobText(job, nextJob, legIdx)}
-                    disabled={disabled}
-                    title={nextJob.clientPhone?.trim() ? undefined : "Next job has no phone number"}
-                  >
-                    {disabled ? "Sending..." : "Text next job"}
-                  </button>
-                  <div className="text-[11px] font-semibold text-amber-900 min-w-[110px] text-right">
-                    {leg
-                      ? `${fmtDistance(leg.distanceMeters)} - ${fmtDuration(leg.durationSeconds)}`
-                      : travelDataLoading || travelDataError || travelUnresolved.length > 0
-                      ? "Travel unavailable"
-                      : ""}
+                return (
+                  <div className="flex items-center justify-between gap-2">
+                    <button
+                      className="text-[11px] px-2 py-1 rounded-lg border border-[var(--app-border-strong)] bg-white hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                      onClick={() => sendNextJobText(job, nextJob, legIdx)}
+                      disabled={disabled}
+                      title={nextJob.clientPhone?.trim() ? undefined : "Next job has no phone number"}
+                    >
+                      {disabled ? "Sending..." : "Text next job"}
+                    </button>
+                    <div className="text-[11px] font-semibold text-slate-900 min-w-[110px] text-right">
+                      {leg
+                        ? `${fmtDistance(leg.distanceMeters)} - ${fmtDuration(leg.durationSeconds)}`
+                        : travelDataLoading || travelDataError || travelUnresolved.length > 0
+                        ? "Travel unavailable"
+                        : ""}
+                    </div>
                   </div>
-                </div>
-              );
-            })()}
-          </div>
-        ))}
-        {sendingError && (
-          <div className="text-[11px] text-red-700">{sendingError}</div>
-        )}
+                );
+              })()}
+              <DropSlot listId={isoDate} index={index + 1} />
+            </div>
+          ))}
+          {sendingError && (
+            <div className="text-[11px] text-red-700">{sendingError}</div>
+          )}
+        </div>
       </div>
     </div>
+  );
+}
+
+function DropSlot({ listId, index }: { listId: string; index: number }) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `slot:${listId}:${index}`
+  });
+  return (
+    <div
+      ref={setNodeRef}
+      className={`h-3 my-1 rounded ${isOver ? "bg-blue-200/70" : "bg-transparent"}`}
+      aria-hidden="true"
+    />
   );
 }
 

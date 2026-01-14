@@ -2,8 +2,73 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  :root {
+    --app-bg: #f4f6f9;
+    --app-surface: #ffffff;
+    --app-surface-muted: #f8fafc;
+    --app-border: #e2e8f0;
+    --app-border-strong: #cbd5e1;
+    --app-text: #0f172a;
+    --app-muted: #64748b;
+    --app-accent: #2563eb;
+    --app-accent-strong: #1d4ed8;
+    --app-success: #16a34a;
+    --app-danger: #dc2626;
+    --app-shadow: 0 18px 45px rgba(15, 23, 42, 0.12);
+    --app-shadow-soft: 0 8px 24px rgba(15, 23, 42, 0.08);
+  }
+
+  body {
+    @apply antialiased;
+    background: var(--app-bg);
+    color: var(--app-text);
+  }
+}
+
+@layer components {
+  .app-surface {
+    @apply rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface)] shadow-[var(--app-shadow-soft)];
+  }
+
+  .app-surface-muted {
+    @apply rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface-muted)] shadow-[var(--app-shadow-soft)];
+  }
+
+  .app-card {
+    @apply rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface)] shadow-sm;
+  }
+
+  .app-input {
+    @apply w-full rounded-xl border border-[var(--app-border)] bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200;
+  }
+
+  .app-select {
+    @apply w-full rounded-xl border border-[var(--app-border)] bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-200;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-xl bg-[var(--app-accent)] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[var(--app-accent-strong)];
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center rounded-xl border border-[var(--app-border-strong)] bg-[var(--app-surface)] px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-[var(--app-surface-muted)];
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100;
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center justify-center rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 shadow-sm transition hover:bg-red-100;
+  }
+
+  .badge-muted {
+    @apply inline-flex items-center rounded-full border border-[var(--app-border)] bg-[var(--app-surface-muted)] px-2 py-1 text-[11px] font-medium text-slate-700;
+  }
+}
+
 body {
-  @apply antialiased;
   overflow-y: auto; /* Allow vertical scroll for tall pages like edit card */
 }
 
@@ -11,7 +76,7 @@ body {
 html,
 body {
   scrollbar-width: thin;
-  scrollbar-color: #b45309 #fef3c7;
+  scrollbar-color: #94a3b8 #e2e8f0;
 }
 
 /* Horizontal scrollbar styling helper */
@@ -20,13 +85,13 @@ body {
 }
 
 .scrollbar-thin::-webkit-scrollbar-track {
-  background: #fef3c7;
+  background: #e2e8f0;
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background: #d97706;
+  background: #94a3b8;
   border-radius: 12px;
-  border: 6px solid #fef3c7;
+  border: 6px solid #e2e8f0;
 }
 
 .board-scroll::-webkit-scrollbar {

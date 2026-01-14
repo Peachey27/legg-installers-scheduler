@@ -153,6 +153,8 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
     (id: UniqueIdentifier | null) => {
       if (!id) return null;
       const asString = String(id);
+      const slot = parseDropSlot(asString);
+      if (slot) return slot.listId;
       if (listIds.includes(asString)) return asString;
       return effectiveJobToList.get(asString) ?? null;
     },
@@ -446,7 +448,7 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
               el.scrollTo({ left: val });
               setScrollPos(val);
             }}
-            className="w-full h-6 accent-amber-600"
+            className="w-full h-6 accent-blue-600"
           />
         </div>
       </div>
@@ -509,9 +511,24 @@ function orderJobs<T extends { id: string }>(
 function getOverIndex(ids: string[], overId: UniqueIdentifier | null, listId: string) {
   if (!overId) return ids.length;
   const overStr = String(overId);
+  const slot = parseDropSlot(overStr);
+  if (slot && slot.listId === listId) {
+    return Math.max(0, Math.min(slot.index, ids.length));
+  }
   if (overStr === listId) return ids.length;
   const idx = ids.indexOf(overStr);
   return idx === -1 ? ids.length : idx;
+}
+
+function parseDropSlot(id: string) {
+  if (!id.startsWith("slot:")) return null;
+  const parts = id.split(":");
+  if (parts.length < 3) return null;
+  const indexStr = parts.pop();
+  const listId = parts.slice(1).join(":");
+  const index = Number(indexStr);
+  if (!listId || !Number.isFinite(index)) return null;
+  return { listId, index };
 }
 
 function DroppableColumn({
@@ -530,7 +547,7 @@ function DroppableColumn({
     <div
       ref={setNodeRef}
       className={`${className ?? ""} ${
-        highlight ? "ring-2 ring-amber-300 rounded-2xl" : ""
+        highlight ? "ring-2 ring-blue-300 rounded-2xl" : ""
       }`}
     >
       {children}
