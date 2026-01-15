@@ -185,6 +185,13 @@ export default function FourWeekBoard({
 
       const collisions = pointerWithin(args);
       const intersections = collisions.length ? collisions : rectIntersection(args);
+      const cardHit = intersections.find((item) => {
+        const current = item.data?.current as { type?: string } | undefined;
+        return current?.type === "card" || current?.type === "job";
+      });
+      if (dragAxis !== "horizontal" && cardHit) {
+        return [{ id: cardHit.id as UniqueIdentifier }];
+      }
       const columnHit = getFirstCollision(
         intersections.filter((entry) => listIds.includes(String(entry.id))),
         "id"

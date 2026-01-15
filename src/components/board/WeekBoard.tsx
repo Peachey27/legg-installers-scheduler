@@ -206,6 +206,14 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
       const pointerCollisions = pointerWithin(args);
       const intersections = pointerCollisions.length ? pointerCollisions : rectIntersection(args);
 
+      const cardHit = intersections.find((item) => {
+        const current = item.data?.current as { type?: string } | undefined;
+        return current?.type === "card" || current?.type === "job";
+      });
+      if (cardHit) {
+        return [{ id: cardHit.id as UniqueIdentifier }];
+      }
+
       const containerHit = intersections.find((item) => {
         const current = item.data?.current as { type?: string } | undefined;
         return current?.type === "container";
@@ -245,7 +253,8 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
         });
       }
 
-      if (String(over.id) !== String(active.id)) {
+      const overType = (over.data?.current as { type?: string } | undefined)?.type ?? null;
+      if (overType !== "container" && String(over.id) !== String(active.id)) {
         lastOver.current = { id: over.id, data: over.data };
       }
       if (String(over.id) === String(active.id)) return;
@@ -306,12 +315,13 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
       const activeId = String(active.id);
       const sourceListId = baseJobToList.get(activeId) ?? null;
       const isSelfOver = over && String(over.id) === activeId;
-      const overRecord =
-        !over || isSelfOver
-          ? lastOver.current
-            ? { id: lastOver.current.id, data: lastOver.current.data }
-            : null
-          : { id: over.id, data: over.data };
+      const overType = (over?.data?.current as { type?: string } | undefined)?.type ?? null;
+      const useLastOver = !over || isSelfOver || (overType === "container" && lastOver.current);
+      const overRecord = useLastOver
+        ? lastOver.current
+          ? { id: lastOver.current.id, data: lastOver.current.data }
+          : null
+        : { id: over.id, data: over.data };
       const overId = overRecord?.id ?? null;
       const overData = overRecord?.data as { current?: unknown } | undefined;
       const overContainerId = getContainerIdFromOver(overId, overData);
@@ -328,10 +338,11 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
       const overSortable = (overData?.current as { sortable?: { containerId?: string; index?: number } } | undefined)
         ?.sortable;
       const fromIndex = sourceIdsFull.indexOf(activeId);
+      const fallbackIndex = overId ? getOverIndex(destIdsFull, overId, destListId ?? "") : destIdsFull.length;
       const toIndex =
         overSortable?.containerId === destListId && typeof overSortable.index === "number"
           ? overSortable.index
-          : destIdsFull.length;
+          : fallbackIndex;
 
       if (DEBUG_DND) {
         const sortable = (overData?.current as { sortable?: { containerId?: string; index?: number } } | undefined)
