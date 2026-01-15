@@ -148,14 +148,20 @@ export default function MobileBoard() {
             sortable?: { containerId?: string; index?: number };
           }
         | undefined;
-      if (current?.sortable?.containerId) return current.sortable.containerId;
-      if (current?.containerId) return current.containerId;
+      if (current?.sortable?.containerId) {
+        if (current.sortable.containerId === "backlog" && !drawerOpen) return null;
+        return current.sortable.containerId;
+      }
+      if (current?.containerId) {
+        if (current.containerId === "backlog" && !drawerOpen) return null;
+        return current.containerId;
+      }
       const asString = String(overId);
-      if (asString === "backlog") return "backlog";
+      if (asString === "backlog") return drawerOpen ? "backlog" : null;
       if (asString.startsWith(DAY_PREFIX)) return asString;
       return null;
     },
-    []
+    [drawerOpen]
   );
 
   const collisionDetection: CollisionDetection = useCallback(
@@ -285,6 +291,13 @@ export default function MobileBoard() {
   useEffect(() => {
     if (!drawerDrag.current) {
       setDrawerOffset(drawerOpen ? 0 : -DRAWER_WIDTH);
+    }
+  }, [drawerOpen]);
+
+  useEffect(() => {
+    if (!drawerOpen) {
+      lastOver.current = null;
+      lastOverContainerId.current = null;
     }
   }, [drawerOpen]);
 
@@ -443,7 +456,7 @@ export default function MobileBoard() {
               >
                 <BacklogColumn
                   jobs={orderedBacklogJobs}
-                  droppableId="backlog"
+                  droppableId={drawerOpen ? "backlog" : undefined}
                   hideHeader
                 />
               </SortableContext>
