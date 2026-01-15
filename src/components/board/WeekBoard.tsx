@@ -89,9 +89,8 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
           const isDone = j.status === "completed" || j.status === "cancelled";
           if (isDeleted || isDone) return false;
 
-          const noAssigned = !j.assignedDate;
-          const isBacklog = j.status === "backlog";
-          return isBacklog || noAssigned;
+          const noAssigned = j.assignedDate == null || j.assignedDate === "";
+          return noAssigned;
         });
       }
       if (!listId.startsWith(DAY_PREFIX)) return [];
@@ -101,7 +100,7 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
         const isDone = j.status === "completed" || j.status === "cancelled";
         if (isDeleted || isDone) return false;
 
-        return j.assignedDate === dayKey && j.status !== "backlog";
+        return j.assignedDate === dayKey;
       });
     },
     [jobs]
