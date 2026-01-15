@@ -84,22 +84,25 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
   const listJobsBase = useCallback(
     (listId: string) => {
       if (listId === "backlog") {
-        return jobs.filter(
-          (j) =>
-            !j.assignedDate &&
-            j.status === "backlog" &&
-            !j.deletedAt
-        );
+        return jobs.filter((j) => {
+          const isDeleted = !!j.deletedAt;
+          const isDone = j.status === "completed" || j.status === "cancelled";
+          if (isDeleted || isDone) return false;
+
+          const noAssigned = !j.assignedDate;
+          const isBacklog = j.status === "backlog";
+          return isBacklog || noAssigned;
+        });
       }
       if (!listId.startsWith(DAY_PREFIX)) return [];
       const dayKey = listId.slice(DAY_PREFIX.length);
-      return jobs.filter(
-        (j) =>
-          j.assignedDate === dayKey &&
-          j.status !== "cancelled" &&
-          j.status !== "completed" &&
-          !j.deletedAt
-      );
+      return jobs.filter((j) => {
+        const isDeleted = !!j.deletedAt;
+        const isDone = j.status === "completed" || j.status === "cancelled";
+        if (isDeleted || isDone) return false;
+
+        return j.assignedDate === dayKey && j.status !== "backlog";
+      });
     },
     [jobs]
   );

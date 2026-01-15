@@ -93,19 +93,22 @@ export default function FourWeekBoard({
   const listJobsBase = useCallback(
     (listId: string) =>
       listId === "backlog"
-        ? jobs.filter(
-            (j) =>
-              !j.assignedDate &&
-              j.status === "backlog" &&
-              !j.deletedAt
-          )
-        : jobs.filter(
-            (j) =>
-              j.assignedDate === listId &&
-              j.status !== "cancelled" &&
-              j.status !== "completed" &&
-              !j.deletedAt
-          ),
+        ? jobs.filter((j) => {
+            const isDeleted = !!j.deletedAt;
+            const isDone = j.status === "completed" || j.status === "cancelled";
+            if (isDeleted || isDone) return false;
+
+            const noAssigned = !j.assignedDate;
+            const isBacklog = j.status === "backlog";
+            return isBacklog || noAssigned;
+          })
+        : jobs.filter((j) => {
+            const isDeleted = !!j.deletedAt;
+            const isDone = j.status === "completed" || j.status === "cancelled";
+            if (isDeleted || isDone) return false;
+
+            return j.assignedDate === listId && j.status !== "backlog";
+          }),
     [jobs]
   );
 
