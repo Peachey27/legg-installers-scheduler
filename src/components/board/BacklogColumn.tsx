@@ -13,9 +13,10 @@ interface Props {
   jobs: Job[];
   placeholder?: React.ReactNode;
   droppableId?: string;
+  hideHeader?: boolean;
 }
 
-export default function BacklogColumn({ jobs, placeholder, droppableId }: Props) {
+export default function BacklogColumn({ jobs, placeholder, droppableId, hideHeader }: Props) {
   const { showAddJobForm, openAddJobForm, closeAddJobForm, createJob, error } =
     useSchedulerStore();
   const [saving, setSaving] = useState(false);
@@ -29,14 +30,16 @@ export default function BacklogColumn({ jobs, placeholder, droppableId }: Props)
       ref={droppable?.setNodeRef}
       className="h-full rounded-2xl bg-[var(--app-surface-muted)] border border-[var(--app-border)] shadow-[var(--app-shadow-soft)] flex flex-col p-3"
     >
-      <div className="mb-2">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-900">
-          Backlog
-        </h2>
-        <p className="text-xs text-slate-600">
-          Unschedule jobs - drag onto a day.
-        </p>
-      </div>
+      {!hideHeader && (
+        <div className="mb-2">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-900">
+            Backlog
+          </h2>
+          <p className="text-xs text-slate-600">
+            Unschedule jobs - drag onto a day.
+          </p>
+        </div>
+      )}
       <div className="flex-1 space-y-2 overflow-y-auto">
         {jobs.map((j) => (
           <SortableJobCard key={j.id} job={j} listId="backlog" />

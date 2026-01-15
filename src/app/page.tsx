@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSchedulerStore } from "@/store/useSchedulerStore";
 import WeekBoard from "@/components/board/WeekBoard";
-import MobileDayView from "@/components/board/MobileDayView";
+import MobileBoard from "@/components/board/MobileBoard";
 import FourWeekBoard from "@/components/board/FourWeekBoard";
 import { useRouter } from "next/navigation";
 import { formatClientName } from "@/lib/formatClientName";
@@ -257,7 +257,7 @@ export default function HomePage() {
 
       {/* Mobile view-only list */}
       <section className="block md:hidden flex-1">
-        <MobileDayView />
+        <MobileBoard />
       </section>
     </main>
   );

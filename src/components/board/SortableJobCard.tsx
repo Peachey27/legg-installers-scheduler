@@ -110,9 +110,10 @@ export default function SortableJobCard({
         boxShadow: isDragging || pressed ? "0 10px 24px rgba(15, 23, 42, 0.22)" : undefined,
         touchAction: isDragging ? "none" : "pan-y"
       }}
+      data-dnd-card="true"
       className={`${isDragging ? "opacity-95" : ""} ${
         pressed ? "ring-2 ring-amber-300 rounded-xl" : ""
-      } cursor-grab active:cursor-grabbing`}
+      } cursor-grab active:cursor-grabbing select-none md:select-text`}
     >
       <JobCard job={job} compact={compact} openOnClick={openOnClick} />
     </div>
