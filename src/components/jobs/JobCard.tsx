@@ -1,9 +1,10 @@
 "use client";
 
 import type { Job } from "@/lib/types";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { formatClientName } from "@/lib/formatClientName";
+import { useSchedulerStore } from "@/store/useSchedulerStore";
 
 function areaColor(area: Job["areaTag"]) {
   const normalized = area?.toLowerCase().replace(/[^a-z]/g, "") ?? "";
@@ -29,8 +30,11 @@ interface Props {
   compact?: boolean;
 }
 
+const OPEN_CLICK_COUNT = 2;
+
 export default function JobCard({ job, openOnClick = true, onOpen, compact = false }: Props) {
   const router = useRouter();
+  const { moveJob } = useSchedulerStore();
   const hasMaterialNotes = Array.isArray((job as any).materialProductUpdates)
     ? ((job as any).materialProductUpdates as any[]).length > 0
     : false;
@@ -51,6 +55,9 @@ export default function JobCard({ job, openOnClick = true, onOpen, compact = fal
       router.push(href);
     });
 
+  const isBacklog = job.status === "backlog" && !job.assignedDate;
+  const showBacklogButton = openOnClick && !isBacklog;
+
   const handleClick = useCallback(() => {
     if (!openOnClick) return;
     clickCountRef.current += 1;
@@ -60,7 +67,7 @@ export default function JobCard({ job, openOnClick = true, onOpen, compact = fal
         clickTimerRef.current = null;
       }, 450);
     }
-    if (clickCountRef.current >= 3) {
+    if (clickCountRef.current >= OPEN_CLICK_COUNT) {
       if (clickTimerRef.current != null) {
         window.clearTimeout(clickTimerRef.current);
         clickTimerRef.current = null;
@@ -79,6 +86,13 @@ export default function JobCard({ job, openOnClick = true, onOpen, compact = fal
   }, []);
 
   const cardPadding = compact ? "px-2 py-1.5" : "px-3 py-2";
+  const backlogButtonClass = useMemo(
+    () =>
+      compact
+        ? "mt-1 text-[10px] px-1.5 py-0.5 rounded border border-[var(--app-border-strong)] bg-white hover:bg-slate-50"
+        : "mt-2 text-[11px] px-2 py-1 rounded-lg border border-[var(--app-border-strong)] bg-white hover:bg-slate-50",
+    [compact]
+  );
 
   return (
     <div
@@ -129,6 +143,19 @@ export default function JobCard({ job, openOnClick = true, onOpen, compact = fal
           ~{job.estimatedDurationHours}h - {job.crew ?? "Install crew"}
         </div>
       )}
+      {showBacklogButton ? (
+        <button
+          type="button"
+          className={backlogButtonClass}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            void moveJob(job.id, null);
+          }}
+        >
+          Back to backlog
+        </button>
+      ) : null}
     </div>
   );
 }

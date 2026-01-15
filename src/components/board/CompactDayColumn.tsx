@@ -6,6 +6,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { useSchedulerStore } from "@/store/useSchedulerStore";
 
 interface Props {
   label: string;
@@ -73,6 +74,8 @@ function SortableCompactJobRow({
   listId: string;
   onOpen: () => void;
 }) {
+  const { moveJob } = useSchedulerStore();
+  const isBacklog = job.status === "backlog" && !job.assignedDate;
   const {
     attributes,
     listeners,
@@ -106,6 +109,19 @@ function SortableCompactJobRow({
       <span className="font-semibold text-slate-900 truncate flex-1">
         {surnameOnly(job.clientName)}
       </span>
+      {!isBacklog ? (
+        <button
+          type="button"
+          className="text-[9px] px-1 py-0.5 rounded border border-[var(--app-border-strong)] bg-white hover:bg-slate-50"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            void moveJob(job.id, null);
+          }}
+        >
+          Backlog
+        </button>
+      ) : null}
     </div>
   );
 }
