@@ -88,8 +88,6 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
           (j) =>
             !j.assignedDate &&
             j.status === "backlog" &&
-            j.status !== "completed" &&
-            j.status !== "cancelled" &&
             !j.deletedAt
         );
       }

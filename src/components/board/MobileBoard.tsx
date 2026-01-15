@@ -104,8 +104,6 @@ export default function MobileBoard() {
           (j) =>
             !j.assignedDate &&
             j.status === "backlog" &&
-            j.status !== "completed" &&
-            j.status !== "cancelled" &&
             !j.deletedAt
         );
       }
