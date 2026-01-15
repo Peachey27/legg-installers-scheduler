@@ -12,6 +12,7 @@ interface Props {
   date: Date;
   isoDate: string;
   jobs: Job[];
+  listId: string;
 }
 
 const baseAreas = ["Bairnsdale", "Lakes", "Sale", "Melbourne", "Saphire Coast"];
@@ -89,7 +90,7 @@ function getTodayIsoTz() {
   return adjusted.toISOString().slice(0, 10);
 }
 
-export default function DayColumn({ label, date, isoDate, jobs }: Props) {
+export default function DayColumn({ label, date, isoDate, jobs, listId }: Props) {
   const { dayAreaLabels, setDayAreaLabel, jobs: allJobs } = useSchedulerStore();
   const area = dayAreaLabels[isoDate];
   const todayIso = getTodayIsoTz();
@@ -588,7 +589,7 @@ export default function DayColumn({ label, date, isoDate, jobs }: Props) {
         })()}
         {jobs.map((job, index) => (
           <div key={job.id} className="space-y-2">
-            <SortableJobCard job={job} listId={isoDate} />
+            <SortableJobCard job={job} listId={listId} />
             {(() => {
               const nextJob = jobs[index + 1];
               if (!nextJob) return null;

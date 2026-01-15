@@ -31,7 +31,7 @@ export default function SortableJobCard({
     isDragging
   } = useSortable({
     id: job.id,
-    data: { type: "job", job, listId }
+    data: { type: "card", cardId: job.id, containerId: listId, job }
   });
 
   const [pressed, setPressed] = useState(false);

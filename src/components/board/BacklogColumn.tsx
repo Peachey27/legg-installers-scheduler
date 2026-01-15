@@ -13,22 +13,21 @@ interface Props {
   jobs: Job[];
   placeholder?: React.ReactNode;
   droppableId?: string;
-  highlight?: boolean;
 }
 
-export default function BacklogColumn({ jobs, placeholder, droppableId, highlight }: Props) {
+export default function BacklogColumn({ jobs, placeholder, droppableId }: Props) {
   const { showAddJobForm, openAddJobForm, closeAddJobForm, createJob, error } =
     useSchedulerStore();
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const droppable = droppableId ? useDroppable({ id: droppableId }) : null;
+  const droppable = droppableId
+    ? useDroppable({ id: droppableId, data: { type: "container", containerId: droppableId } })
+    : null;
 
   return (
     <div
       ref={droppable?.setNodeRef}
-      className={`h-full rounded-2xl bg-[var(--app-surface-muted)] border border-[var(--app-border)] shadow-[var(--app-shadow-soft)] flex flex-col p-3 ${
-        highlight ? "ring-2 ring-blue-300" : ""
-      }`}
+      className="h-full rounded-2xl bg-[var(--app-surface-muted)] border border-[var(--app-border)] shadow-[var(--app-shadow-soft)] flex flex-col p-3"
     >
       <div className="mb-2">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-900">

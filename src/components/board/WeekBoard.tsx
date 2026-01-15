@@ -34,7 +34,8 @@ type Props = {
   onWeekOffsetChange?: (offset: number) => void;
 };
 
-const AXIS_THRESHOLD = 12;
+const DEBUG_DND = false;
+const DAY_PREFIX = "day:";
 
 export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
   const { jobs, moveJob, dayAreaLabels } = useSchedulerStore();
@@ -45,10 +46,8 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
   const [scrollMax, setScrollMax] = useState(0);
 
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [dragAxis, setDragAxis] = useState<"vertical" | "horizontal" | null>(null);
   const [previewListId, setPreviewListId] = useState<string | null>(null);
-  const lastOverId = useRef<UniqueIdentifier | null>(null);
-  const recentlyMovedToNewContainer = useRef(false);
+  const lastOver = useRef<{ id: UniqueIdentifier; data?: { current?: unknown } } | null>(null);
 
   const activeWeekOffset = weekOffset ?? internalWeekOffset;
 
@@ -78,27 +77,31 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
   }, [startDate]);
 
   const listIds = useMemo(
-    () => ["backlog", ...days.map((d) => d.iso)],
+    () => ["backlog", ...days.map((d) => `${DAY_PREFIX}${d.iso}`)],
     [days]
   );
 
   const listJobsBase = useCallback(
-    (listId: string) =>
-      listId === "backlog"
-        ? jobs.filter(
-            (j) =>
-              (!j.assignedDate || j.status === "backlog") &&
-              j.status !== "completed" &&
-              j.status !== "cancelled" &&
-              !j.deletedAt
-          )
-        : jobs.filter(
-            (j) =>
-              j.assignedDate === listId &&
-              j.status !== "cancelled" &&
-              j.status !== "completed" &&
-              !j.deletedAt
-          ),
+    (listId: string) => {
+      if (listId === "backlog") {
+        return jobs.filter(
+          (j) =>
+            (!j.assignedDate || j.status === "backlog") &&
+            j.status !== "completed" &&
+            j.status !== "cancelled" &&
+            !j.deletedAt
+        );
+      }
+      if (!listId.startsWith(DAY_PREFIX)) return [];
+      const dayKey = listId.slice(DAY_PREFIX.length);
+      return jobs.filter(
+        (j) =>
+          j.assignedDate === dayKey &&
+          j.status !== "cancelled" &&
+          j.status !== "completed" &&
+          !j.deletedAt
+      );
+    },
     [jobs]
   );
 
@@ -141,8 +144,9 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
 
   const jobsByDate: Record<string, typeof jobs> = {};
   for (const d of days) {
-    const raw = listJobs(d.iso);
-    jobsByDate[d.iso] = orderJobs(d.iso, orderByList, raw);
+    const listId = `${DAY_PREFIX}${d.iso}`;
+    const raw = listJobs(listId);
+    jobsByDate[d.iso] = orderJobs(listId, orderByList, raw);
   }
 
   const sensors = useSensors(
@@ -152,8 +156,11 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
   );
 
   const getListIdForDroppable = useCallback(
-    (id: UniqueIdentifier | null) => {
+    (id: UniqueIdentifier | null, data?: { current?: unknown }) => {
       if (!id) return null;
+      const containerId =
+        (data?.current as { containerId?: string } | undefined)?.containerId ?? null;
+      if (containerId && listIds.includes(containerId)) return containerId;
       const asString = String(id);
       if (listIds.includes(asString)) return asString;
       return effectiveJobToList.get(asString) ?? null;
@@ -172,18 +179,19 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
       const first = getFirstCollision(intersections, "id");
 
       if (first != null) {
-        const overListId = getListIdForDroppable(first);
+        const entry = intersections.find((item) => item.id === first);
+        const overListId = getListIdForDroppable(first, entry?.data as { current?: unknown });
         if (overListId) {
-          lastOverId.current = first as UniqueIdentifier;
+          lastOver.current = { id: first as UniqueIdentifier, data: entry?.data };
           return [{ id: first as UniqueIdentifier }];
         }
       }
 
-      if (recentlyMovedToNewContainer.current && lastOverId.current) {
-        return [{ id: lastOverId.current }];
+      if (lastOver.current) {
+        return [{ id: lastOver.current.id }];
       }
 
-      return lastOverId.current ? [{ id: lastOverId.current }] : closestCenter(args);
+      return closestCenter(args);
     },
     [activeId, getListIdForDroppable]
   );
@@ -191,9 +199,8 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
   const handleDragStart = useCallback(
     ({ active }: DragStartEvent) => {
       setActiveId(String(active.id));
-      setDragAxis(null);
       setPreviewListId(null);
-      lastOverId.current = active.id;
+      lastOver.current = { id: active.id, data: active.data };
     },
     []
   );
@@ -201,32 +208,18 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
   const handleDragOver = useCallback(
     ({ active, over, delta }: DragOverEvent) => {
       if (!over) return;
-      const absX = Math.abs(delta.x);
-      const absY = Math.abs(delta.y);
-      let nextAxis = dragAxis;
-      if (absX > absY + AXIS_THRESHOLD) nextAxis = "horizontal";
-      else if (absY > absX + AXIS_THRESHOLD) nextAxis = "vertical";
-      if (nextAxis !== dragAxis) setDragAxis(nextAxis);
+      if (DEBUG_DND) {
+        console.log("dnd:over", { activeId: active?.id, overId: over?.id, overData: over?.data?.current });
+      }
 
       const activeId = String(active.id);
       const overId = over?.id ?? null;
       const activeListId = baseJobToList.get(activeId) ?? null;
-      const overListId = getListIdForDroppable(overId);
+      const overListId = getListIdForDroppable(overId, over?.data as { current?: unknown });
       if (!activeListId || !overListId) return;
 
       if (overListId !== activeListId) {
-        if (nextAxis !== "horizontal") setDragAxis("horizontal");
         if (overListId !== previewListId) setPreviewListId(overListId);
-        if (!recentlyMovedToNewContainer.current) {
-          recentlyMovedToNewContainer.current = true;
-          window.setTimeout(() => {
-            recentlyMovedToNewContainer.current = false;
-          }, 0);
-        }
-      }
-
-      if (nextAxis === "horizontal" && overListId !== previewListId) {
-        setPreviewListId(overListId);
       }
 
       if (activeListId === overListId) {
@@ -243,8 +236,6 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
         });
         return;
       }
-
-      if (nextAxis !== "horizontal") return;
 
       setOrderByList((prev) => {
         const sourceIds = orderJobs(activeListId, prev, listJobs(activeListId)).map(
@@ -266,24 +257,32 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
         };
       });
     },
-    [baseJobToList, dragAxis, getListIdForDroppable, listJobs, previewListId]
+    [baseJobToList, getListIdForDroppable, listJobs, previewListId]
   );
 
   const handleDragEnd = useCallback(
     ({ active, over }: DragEndEvent) => {
-      const activeId = String(active.id);
-      const overId = over?.id ?? null;
-      const sourceListId = baseJobToList.get(activeId) ?? null;
-      let destListId = getListIdForDroppable(overId);
-      if (previewListId && previewListId !== sourceListId) {
-        destListId = previewListId;
+      if (DEBUG_DND) {
+        console.log("dnd:end", {
+          activeId: active?.id,
+          overId: over?.id,
+          overData: over?.data?.current,
+          activeData: active?.data?.current
+        });
       }
+
+      const activeId = String(active.id);
+      const sourceListId = baseJobToList.get(activeId) ?? null;
+      const overRecord = over ?? (lastOver.current ? { id: lastOver.current.id, data: lastOver.current.data } : null);
+      const overId = overRecord?.id ?? null;
+      const overData = overRecord?.data as { current?: unknown } | undefined;
+      const destListId =
+        getListIdForDroppable(overId, overData) ??
+        (previewListId && previewListId !== sourceListId ? previewListId : null);
 
       setActiveId(null);
       setPreviewListId(null);
-      setDragAxis(null);
-      lastOverId.current = null;
-      recentlyMovedToNewContainer.current = false;
+      lastOver.current = null;
 
       if (!sourceListId || !destListId) return;
 
@@ -291,7 +290,7 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
         return;
       }
 
-      const assignedDate = destListId === "backlog" ? null : destListId;
+      const assignedDate = destListId === "backlog" ? null : destListId.slice(DAY_PREFIX.length);
 
       // track manual order for any list (day or backlog)
       setOrderByList((prev) => {
@@ -384,7 +383,6 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
   }, [orderByList]);
 
   const activeJob = activeId ? jobs.find((j) => j.id === activeId) : null;
-  const activeOverListId = previewListId ?? (activeId ? baseJobToList.get(activeId) ?? null : null);
 
   return (
     <DndContext
@@ -396,9 +394,7 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
       onDragCancel={() => {
         setActiveId(null);
         setPreviewListId(null);
-        setDragAxis(null);
-        lastOverId.current = null;
-        recentlyMovedToNewContainer.current = false;
+        lastOver.current = null;
       }}
       autoScroll
     >
@@ -413,11 +409,7 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
             strategy={verticalListSortingStrategy}
           >
             <div className="w-64 flex-shrink-0">
-              <BacklogColumn
-                jobs={orderedBacklogJobs}
-                droppableId="backlog"
-                highlight={activeOverListId === "backlog"}
-              />
+              <BacklogColumn jobs={orderedBacklogJobs} droppableId="backlog" />
             </div>
           </SortableContext>
 
@@ -428,8 +420,7 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
               strategy={verticalListSortingStrategy}
             >
               <DroppableColumn
-                id={d.iso}
-                highlight={activeOverListId === d.iso}
+                id={`${DAY_PREFIX}${d.iso}`}
                 className="flex-1 min-w-[260px] px-1"
               >
                 <DayColumn
@@ -437,6 +428,7 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
                   isoDate={d.iso}
                   label={d.label}
                   jobs={jobsByDate[d.iso] ?? []}
+                  listId={`${DAY_PREFIX}${d.iso}`}
                 />
               </DroppableColumn>
             </SortableContext>
@@ -525,22 +517,21 @@ function getOverIndex(ids: string[], overId: UniqueIdentifier | null, listId: st
 
 function DroppableColumn({
   id,
-  highlight,
   className,
   children
 }: {
   id: string;
-  highlight?: boolean;
   className?: string;
   children: React.ReactNode;
 }) {
-  const { setNodeRef } = useDroppable({ id, data: { type: "column", listId: id } });
+  const { setNodeRef } = useDroppable({
+    id,
+    data: { type: "container", containerId: id }
+  });
   return (
     <div
       ref={setNodeRef}
-      className={`${className ?? ""} ${
-        highlight ? "ring-2 ring-blue-300 rounded-2xl" : ""
-      }`}
+      className={className ?? ""}
     >
       {children}
     </div>
