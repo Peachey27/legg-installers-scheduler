@@ -1,4 +1,5 @@
 export const runtime = "nodejs";
+
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db/client";
 import { jobs } from "@/db/schema";
@@ -7,6 +8,13 @@ import { normalizeClientName } from "@/lib/normalizeClientName";
 
 interface Params {
   params: { id: string };
+}
+
+function coerceId(idParam: string) {
+  // Works for either numeric PKs or string PKs.
+  const n = Number(idParam);
+  if (Number.isFinite(n) && String(n) === idParam) return n;
+  return idParam;
 }
 
 async function geocodeAuAddress(address: string) {
@@ -52,15 +60,18 @@ async function geocodeAuAddress(address: string) {
         cache: "no-store"
       });
       if (!res.ok) continue;
+
       const data = (await res.json()) as Array<{ lat?: string; lon?: string }>;
       const first = Array.isArray(data) ? data[0] : null;
       if (!first?.lat || !first?.lon) continue;
+
       const lat = Number(first.lat);
       const lng = Number(first.lon);
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+
       return { lat, lng };
     } catch {
-      // ignore and try next query
+      // try next query
     }
   }
 
@@ -68,7 +79,9 @@ async function geocodeAuAddress(address: string) {
 }
 
 export async function GET(_req: NextRequest, { params }: Params) {
-  const [job] = await db.select().from(jobs).where(eq(jobs.id, params.id));
+  const id = coerceId(params.id) as any;
+
+  const [job] = await db.select().from(jobs).where(eq((jobs as any).id, id));
   if (!job || job.deletedAt) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
@@ -76,59 +89,96 @@ export async function GET(_req: NextRequest, { params }: Params) {
 }
 
 export async function PUT(req: NextRequest, { params }: Params) {
+  const id = coerceId(params.id) as any;
+
   try {
     const body = await req.json();
-    const normalizedBody: any = {
-      ...body,
-      materialProductUpdates: Array.isArray(body.materialProductUpdates)
-        ? body.materialProductUpdates
-        : []
-    };
-    if (typeof normalizedBody.clientName === "string") {
-      normalizedBody.clientName = normalizeClientName(normalizedBody.clientName);
+
+    // Load existing row first, so we only update intended fields.
+    const [existing] = await db.select().from(jobs).where(eq((jobs as any).id, id));
+    if (!existing || existing.deletedAt) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    // If the UI only sends jobAddress, keep clientAddress in sync for back-compat.
-    if (
-      (typeof normalizedBody.jobAddress === "string" && normalizedBody.jobAddress.trim()) &&
-      (!normalizedBody.clientAddress ||
-        (typeof normalizedBody.clientAddress === "string" &&
-          normalizedBody.clientAddress.trim() !== normalizedBody.jobAddress.trim()))
-    ) {
-      normalizedBody.clientAddress = normalizedBody.jobAddress;
+    // Only allow specific fields to be updated via this endpoint.
+    // This prevents drag/drop or UI state from accidentally clobbering the record.
+    const updatePayload: any = {};
+
+    // Keep clientName tidy if provided
+    if (typeof body.clientName === "string") {
+      updatePayload.clientName = normalizeClientName(body.clientName);
     }
 
-    // Best-effort: if an address is provided but coords are missing, geocode to the closest AU match.
-    if (
-      normalizedBody.clientAddressLat == null ||
-      normalizedBody.clientAddressLat === "" ||
-      normalizedBody.clientAddressLng == null ||
-      normalizedBody.clientAddressLng === ""
-    ) {
+    // Address sync (optional)
+    if (typeof body.jobAddress === "string" && body.jobAddress.trim()) {
+      updatePayload.jobAddress = body.jobAddress.trim();
+      // Keep clientAddress in sync for back-compat if provided or missing.
+      updatePayload.clientAddress =
+        typeof body.clientAddress === "string" && body.clientAddress.trim()
+          ? body.clientAddress.trim()
+          : body.jobAddress.trim();
+    } else if (typeof body.clientAddress === "string" && body.clientAddress.trim()) {
+      updatePayload.clientAddress = body.clientAddress.trim();
+    }
+
+    // Move fields (this is the important part for your disappearing issue)
+    if (body.assignedDate === null) {
+      updatePayload.assignedDate = null;
+    } else if (typeof body.assignedDate === "string") {
+      // if someone accidentally sends "day:YYYY-MM-DD", strip it
+      updatePayload.assignedDate = body.assignedDate.startsWith("day:")
+        ? body.assignedDate.slice(4)
+        : body.assignedDate;
+    }
+
+    if (typeof body.status === "string") {
+      updatePayload.status = body.status;
+    }
+
+    // If explicitly cancelled, soft delete.
+    if (updatePayload.status === "cancelled") {
+      updatePayload.deletedAt = new Date().toISOString();
+    }
+
+    // Best-effort geocode if address present and coords missing
+    const wantsGeo =
+      (body.clientAddressLat == null || body.clientAddressLat === "" ||
+        body.clientAddressLng == null || body.clientAddressLng === "") &&
+      (updatePayload.jobAddress || updatePayload.clientAddress || existing.jobAddress || existing.clientAddress);
+
+    if (wantsGeo) {
       const candidateAddress =
-        (typeof normalizedBody.jobAddress === "string" && normalizedBody.jobAddress.trim()
-          ? normalizedBody.jobAddress
+        (typeof updatePayload.jobAddress === "string" && updatePayload.jobAddress.trim()
+          ? updatePayload.jobAddress
           : null) ??
-        (typeof normalizedBody.clientAddress === "string" &&
-        normalizedBody.clientAddress.trim()
-          ? normalizedBody.clientAddress
+        (typeof updatePayload.clientAddress === "string" && updatePayload.clientAddress.trim()
+          ? updatePayload.clientAddress
+          : null) ??
+        (typeof existing.jobAddress === "string" && existing.jobAddress.trim()
+          ? existing.jobAddress
+          : null) ??
+        (typeof existing.clientAddress === "string" && existing.clientAddress.trim()
+          ? existing.clientAddress
           : null);
 
       if (candidateAddress) {
         const geo = await geocodeAuAddress(candidateAddress);
         if (geo) {
-          normalizedBody.clientAddressLat = geo.lat;
-          normalizedBody.clientAddressLng = geo.lng;
+          updatePayload.clientAddressLat = geo.lat;
+          updatePayload.clientAddressLng = geo.lng;
         }
       }
     }
-    const updatePayload =
-      normalizedBody.status === "cancelled"
-        ? { ...normalizedBody, deletedAt: new Date().toISOString() }
-        : normalizedBody;
 
-    await db.update(jobs).set(updatePayload).where(eq(jobs.id, params.id));
-    return NextResponse.json({ ok: true });
+    // IMPORTANT: If nothing to update, return current row
+    if (Object.keys(updatePayload).length === 0) {
+      return NextResponse.json({ ok: true, job: existing });
+    }
+
+    await db.update(jobs).set(updatePayload).where(eq((jobs as any).id, id));
+
+    const [updated] = await db.select().from(jobs).where(eq((jobs as any).id, id));
+    return NextResponse.json({ ok: true, job: updated });
   } catch (error) {
     console.error("Update job failed", error);
     return NextResponse.json({ error: String(error) }, { status: 500 });
@@ -136,9 +186,12 @@ export async function PUT(req: NextRequest, { params }: Params) {
 }
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
+  const id = coerceId(params.id) as any;
+
   await db
     .update(jobs)
-    .set({ deletedAt: new Date().toISOString() })
-    .where(eq(jobs.id, params.id));
+    .set({ deletedAt: new Date().toISOString() } as any)
+    .where(eq((jobs as any).id, id));
+
   return NextResponse.json({ ok: true });
 }

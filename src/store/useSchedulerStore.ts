@@ -33,6 +33,52 @@ interface SchedulerState {
   closeAddJobForm: () => void;
 }
 
+function isIsoDate(val: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(val);
+}
+
+/**
+ * Accept ONLY:
+ * - null
+ * - "yyyy-mm-dd"
+ *
+ * Convert common bad inputs to null or a real date:
+ * - "backlog" -> null
+ * - "day:yyyy-mm-dd" -> "yyyy-mm-dd"
+ * - "Sortable-0" -> null
+ * - whitespace -> trimmed, then validated
+ */
+function sanitizeAssignedDate(input: unknown): string | null {
+  if (input == null) return null;
+
+  const raw = String(input).trim();
+  if (!raw) return null;
+
+  if (raw === "backlog") return null;
+
+  if (raw.startsWith("day:")) {
+    const maybe = raw.slice("day:".length).trim();
+    return isIsoDate(maybe) ? maybe : null;
+  }
+
+  // If it looks like an internal sortable id or any non-date string, drop it.
+  if (!isIsoDate(raw)) return null;
+
+  return raw;
+}
+
+function normalizeIncomingJob(j: any): Job {
+  return {
+    ...j,
+    id: String(j.id),
+    materialProductUpdates: Array.isArray(j.materialProductUpdates)
+      ? j.materialProductUpdates
+      : [],
+    // Defensive: ensure assignedDate is either yyyy-mm-dd or null
+    assignedDate: sanitizeAssignedDate(j.assignedDate)
+  } as Job;
+}
+
 export const useSchedulerStore = create<SchedulerState>((set, get) => ({
   jobs: [],
   loading: false,
@@ -53,16 +99,9 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
 
       const data = JSON.parse(text) as Job[];
 
-      const normalised = data
-        // Hide soft-deleted jobs client-side too, in case older caches sneak through.
-        .filter((j) => !j.deletedAt)
-        .map((j) => ({
-          ...j,
-          id: String(j.id),
-          materialProductUpdates: Array.isArray((j as any).materialProductUpdates)
-            ? (j as any).materialProductUpdates
-            : []
-        })) as Job[];
+      const normalised = (data ?? [])
+        .filter((j: any) => !j?.deletedAt)
+        .map((j: any) => normalizeIncomingJob(j)) as Job[];
 
       set({ jobs: normalised, loading: false });
     } catch (e: any) {
@@ -87,30 +126,68 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
 
   async moveJob(id, assignedDate) {
     const { jobs } = get();
-    const job = jobs.find((j) => j.id === id);
-    if (!job) return;
+    const existing = jobs.find((j) => j.id === id);
+    if (!existing) return;
 
-    const newStatus = assignedDate ? "scheduled" : "backlog";
+    // Hard sanitize: only null or yyyy-mm-dd can ever be stored client-side.
+    const safeAssignedDate = sanitizeAssignedDate(assignedDate);
+    const newStatus = safeAssignedDate ? "scheduled" : "backlog";
 
+    // Optimistic update
+    const previousJobs = jobs;
     set({
+      error: null,
       jobs: jobs.map((j) =>
-        j.id === id ? { ...j, assignedDate, status: newStatus } : j
+        j.id === id ? { ...j, assignedDate: safeAssignedDate, status: newStatus } : j
       )
     });
 
-    await fetch(`/api/jobs/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        assignedDate,
-        status: newStatus
-      })
-    });
+    try {
+      const res = await fetch(`/api/jobs/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          assignedDate: safeAssignedDate, // always null or yyyy-mm-dd
+          status: newStatus
+        })
+      });
+
+      const text = await res.text();
+      if (!res.ok) {
+        console.error("Move job failed", res.status, text);
+        throw new Error(`Move job failed: ${res.status}`);
+      }
+
+      // If API returns the updated job, merge it. If not, refetch.
+      let parsed: any = null;
+      try {
+        parsed = text ? JSON.parse(text) : null;
+      } catch {
+        parsed = null;
+      }
+
+      if (parsed && typeof parsed === "object" && parsed.id != null) {
+        const updated = normalizeIncomingJob(parsed);
+        set((state) => ({
+          jobs: state.jobs.map((j) => (j.id === id ? { ...j, ...updated } : j))
+        }));
+      } else {
+        // API might return empty or { ok: true }, so ensure we stay in sync.
+        await get().fetchJobs();
+      }
+    } catch (e: any) {
+      // Rollback UI so jobs don't vanish silently
+      set({ jobs: previousJobs, error: e?.message ?? "Failed to move job" });
+      throw e;
+    }
   },
 
   async createJob(input) {
     const today = new Date().toISOString().slice(0, 10);
     const clientName = normalizeClientName(input.clientName);
+
+    const safeAssignedDate = sanitizeAssignedDate(input.assignedDate ?? null);
+
     const payload = {
       ...input,
       clientName,
@@ -133,9 +210,9 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
       photo3Url: null,
       clientAddressLat: input.clientAddressLat ?? null,
       clientAddressLng: input.clientAddressLng ?? null,
-      assignedDate: input.assignedDate ?? null,
+      assignedDate: safeAssignedDate,
       estimatedDurationHours: input.estimatedDurationHours ?? null,
-      status: input.assignedDate ? "scheduled" : "backlog"
+      status: safeAssignedDate ? "scheduled" : "backlog"
     };
 
     set({ error: null });
@@ -153,7 +230,7 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
         throw new Error(`Failed to create job: ${res.status}`);
       }
 
-      const data = JSON.parse(text) as { id: string | number };
+      const data = text ? (JSON.parse(text) as { id: string | number }) : null;
       const id = data?.id != null ? String(data.id) : crypto.randomUUID();
 
       set((state) => ({
@@ -162,7 +239,7 @@ export const useSchedulerStore = create<SchedulerState>((set, get) => ({
             id,
             ...payload,
             deletedAt: null
-          },
+          } as any,
           ...state.jobs
         ],
         showAddJobForm: false

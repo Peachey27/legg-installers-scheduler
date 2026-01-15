@@ -34,7 +34,7 @@ type Props = {
   onWeekOffsetChange?: (offset: number) => void;
 };
 
-const DEBUG_DND = false;
+const DEBUG_DND = true;
 const DAY_PREFIX = "day:";
 
 export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
@@ -158,15 +158,41 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
   const getListIdForDroppable = useCallback(
     (id: UniqueIdentifier | null, data?: { current?: unknown }) => {
       if (!id) return null;
-      const containerId =
-        (data?.current as { containerId?: string } | undefined)?.containerId ?? null;
-      if (containerId && listIds.includes(containerId)) return containerId;
+      const current = data?.current as
+        | { containerId?: string; cardId?: string }
+        | undefined;
+      if (current?.containerId && listIds.includes(current.containerId)) {
+        return current.containerId;
+      }
+      if (current?.cardId && effectiveJobToList.has(current.cardId)) {
+        return effectiveJobToList.get(current.cardId) ?? null;
+      }
       const asString = String(id);
       if (listIds.includes(asString)) return asString;
       return effectiveJobToList.get(asString) ?? null;
     },
     [effectiveJobToList, listIds]
   );
+
+  const getContainerIdFromOver = useCallback(
+    (overId: UniqueIdentifier | null, overData?: { current?: unknown }) => {
+      if (!overId) return null;
+      const current = overData?.current as
+        | {
+            containerId?: string;
+            sortable?: { containerId?: string; index?: number };
+          }
+        | undefined;
+      if (current?.sortable?.containerId) return current.sortable.containerId;
+      if (current?.containerId) return current.containerId;
+      const asString = String(overId);
+      if (asString === "backlog") return "backlog";
+      if (asString.startsWith(DAY_PREFIX)) return asString;
+      return null;
+    },
+    []
+  );
+
 
   const collisionDetection: CollisionDetection = useCallback(
     (args) => {
@@ -176,22 +202,22 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
 
       const pointerCollisions = pointerWithin(args);
       const intersections = pointerCollisions.length ? pointerCollisions : rectIntersection(args);
+
+      const containerHit = intersections.find((item) => {
+        const current = item.data?.current as { type?: string } | undefined;
+        return current?.type === "container";
+      });
+
+      if (containerHit) {
+        return [{ id: containerHit.id as UniqueIdentifier }];
+      }
+
       const first = getFirstCollision(intersections, "id");
-
-      if (first != null) {
-        const entry = intersections.find((item) => item.id === first);
-        const overListId = getListIdForDroppable(first, entry?.data as { current?: unknown });
-        if (overListId) {
-          lastOver.current = { id: first as UniqueIdentifier, data: entry?.data };
-          return [{ id: first as UniqueIdentifier }];
-        }
+      if (first != null && String(first) !== String(activeId)) {
+        return [{ id: first as UniqueIdentifier }];
       }
 
-      if (lastOver.current) {
-        return [{ id: lastOver.current.id }];
-      }
-
-      return closestCenter(args);
+      return lastOver.current ? [{ id: lastOver.current.id }] : closestCenter(args);
     },
     [activeId, getListIdForDroppable]
   );
@@ -206,11 +232,20 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
   );
 
   const handleDragOver = useCallback(
-    ({ active, over, delta }: DragOverEvent) => {
+    ({ active, over }: DragOverEvent) => {
       if (!over) return;
       if (DEBUG_DND) {
-        console.log("dnd:over", { activeId: active?.id, overId: over?.id, overData: over?.data?.current });
+        console.log("dnd:over", {
+          activeId: active?.id,
+          overId: over?.id,
+          overData: over?.data?.current
+        });
       }
+
+      if (String(over.id) !== String(active.id)) {
+        lastOver.current = { id: over.id, data: over.data };
+      }
+      if (String(over.id) === String(active.id)) return;
 
       const activeId = String(active.id);
       const overId = over?.id ?? null;
@@ -262,23 +297,61 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
 
   const handleDragEnd = useCallback(
     ({ active, over }: DragEndEvent) => {
-      if (DEBUG_DND) {
-        console.log("dnd:end", {
-          activeId: active?.id,
-          overId: over?.id,
-          overData: over?.data?.current,
-          activeData: active?.data?.current
-        });
-      }
-
       const activeId = String(active.id);
       const sourceListId = baseJobToList.get(activeId) ?? null;
-      const overRecord = over ?? (lastOver.current ? { id: lastOver.current.id, data: lastOver.current.data } : null);
+      const isSelfOver = over && String(over.id) === activeId;
+      const overRecord =
+        !over || isSelfOver
+          ? lastOver.current
+            ? { id: lastOver.current.id, data: lastOver.current.data }
+            : null
+          : { id: over.id, data: over.data };
       const overId = overRecord?.id ?? null;
       const overData = overRecord?.data as { current?: unknown } | undefined;
+      const overContainerId = getContainerIdFromOver(overId, overData);
       const destListId =
-        getListIdForDroppable(overId, overData) ??
+        overContainerId ??
         (previewListId && previewListId !== sourceListId ? previewListId : null);
+
+      const sourceIdsFull = sourceListId
+        ? orderJobs(sourceListId, orderByList, listJobsBase(sourceListId)).map((j) => j.id)
+        : [];
+      const destIdsFull = destListId
+        ? orderJobs(destListId, orderByList, listJobsBase(destListId)).map((j) => j.id)
+        : [];
+      const overSortable = (overData?.current as { sortable?: { containerId?: string; index?: number } } | undefined)
+        ?.sortable;
+      const fromIndex = sourceIdsFull.indexOf(activeId);
+      const toIndex =
+        overSortable?.containerId === destListId && typeof overSortable.index === "number"
+          ? overSortable.index
+          : destIdsFull.length;
+
+      if (DEBUG_DND) {
+        const sortable = (overData?.current as { sortable?: { containerId?: string; index?: number } } | undefined)
+          ?.sortable;
+        const resolvedType =
+          (overData?.current as { type?: string } | undefined)?.type ?? "unknown";
+        const activeContainerId =
+          (active?.data?.current as { containerId?: string } | undefined)?.containerId ??
+          sourceListId ??
+          null;
+        console.log("dnd:end", {
+          activeId,
+          activeContainerId,
+          rawOverId: over?.id ?? null,
+          lastOverId: lastOver.current?.id ?? null,
+          resolvedOverId: overId,
+          resolvedType,
+          resolvedContainerId: overContainerId,
+          overSortableContainerId: sortable?.containerId ?? null,
+          overSortableIndex: sortable?.index ?? null,
+          sourceListId,
+          destListId,
+          fromIndex,
+          toIndex
+        });
+      }
 
       setActiveId(null);
       setPreviewListId(null);
@@ -294,26 +367,22 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
 
       // track manual order for any list (day or backlog)
       setOrderByList((prev) => {
-        const getIds = (listId: string) =>
-          orderJobs(listId, prev, listJobsBase(listId)).map((j) => j.id);
-
-        const sourceIds = getIds(sourceListId).filter((id) => id !== activeId);
+        const sourceIds = sourceIdsFull.filter((id) => id !== activeId);
+        const destIds = destIdsFull.filter((id) => id !== activeId);
 
         if (sourceListId === destListId) {
-          const insertAt = Math.min(getOverIndex(sourceIds, overId, sourceListId), sourceIds.length);
-          const nextIds = [...sourceIds];
-          nextIds.splice(insertAt, 0, activeId);
+          const nextIds = arrayMove(sourceIdsFull, fromIndex, toIndex);
           return { ...prev, [sourceListId]: nextIds };
         }
 
-        const destIds = getIds(destListId).filter((id) => id !== activeId);
-        const insertAt = Math.min(getOverIndex(destIds, overId, destListId), destIds.length);
-        destIds.splice(insertAt, 0, activeId);
+        const nextDest = [...destIds];
+        const insertAt = Math.min(toIndex, nextDest.length);
+        nextDest.splice(insertAt, 0, activeId);
 
         return {
           ...prev,
           [sourceListId]: sourceIds,
-          [destListId]: destIds
+          [destListId]: nextDest
         };
       });
 
@@ -342,7 +411,7 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
 
       void moveJob(activeId, assignedDate);
     },
-    [baseJobToList, dayAreaLabels, getListIdForDroppable, jobs, listJobsBase, moveJob, previewListId]
+    [baseJobToList, dayAreaLabels, getContainerIdFromOver, getListIdForDroppable, jobs, listJobsBase, moveJob, previewListId]
   );
 
   useEffect(() => {
