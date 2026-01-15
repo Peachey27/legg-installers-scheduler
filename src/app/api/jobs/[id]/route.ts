@@ -109,6 +109,10 @@ export async function PUT(req: NextRequest, { params }: Params) {
       updatePayload.clientName = normalizeClientName(body.clientName);
     }
 
+    if (typeof body.areaTag === "string") {
+      updatePayload.areaTag = body.areaTag.trim() || null;
+    }
+
     const incomingJobAddress =
       typeof body.jobAddress === "string" ? body.jobAddress.trim() : "";
     const incomingClientAddress =
