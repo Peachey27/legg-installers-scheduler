@@ -109,16 +109,26 @@ export async function PUT(req: NextRequest, { params }: Params) {
       updatePayload.clientName = normalizeClientName(body.clientName);
     }
 
+    const incomingJobAddress =
+      typeof body.jobAddress === "string" ? body.jobAddress.trim() : "";
+    const incomingClientAddress =
+      typeof body.clientAddress === "string" ? body.clientAddress.trim() : "";
+
+    const existingJobAddress = (existing.jobAddress ?? "").trim();
+    const existingClientAddress = (existing.clientAddress ?? "").trim();
+
+    const jobAddressChanged =
+      Boolean(incomingJobAddress) && incomingJobAddress !== existingJobAddress;
+    const clientAddressChanged =
+      Boolean(incomingClientAddress) && incomingClientAddress !== existingClientAddress;
+
     // Address sync (optional)
-    if (typeof body.jobAddress === "string" && body.jobAddress.trim()) {
-      updatePayload.jobAddress = body.jobAddress.trim();
+    if (incomingJobAddress) {
+      updatePayload.jobAddress = incomingJobAddress;
       // Keep clientAddress in sync for back-compat if provided or missing.
-      updatePayload.clientAddress =
-        typeof body.clientAddress === "string" && body.clientAddress.trim()
-          ? body.clientAddress.trim()
-          : body.jobAddress.trim();
-    } else if (typeof body.clientAddress === "string" && body.clientAddress.trim()) {
-      updatePayload.clientAddress = body.clientAddress.trim();
+      updatePayload.clientAddress = incomingClientAddress || incomingJobAddress;
+    } else if (incomingClientAddress) {
+      updatePayload.clientAddress = incomingClientAddress;
     }
 
     // Move fields (this is the important part for your disappearing issue)
@@ -163,10 +173,13 @@ export async function PUT(req: NextRequest, { params }: Params) {
     }
 
     // Best-effort geocode if address present and coords missing
-    const wantsGeo =
+    const coordsMissing =
       (body.clientAddressLat == null || body.clientAddressLat === "" ||
         body.clientAddressLng == null || body.clientAddressLng === "") &&
-      (updatePayload.jobAddress || updatePayload.clientAddress || existing.jobAddress || existing.clientAddress);
+      (existing.clientAddressLat == null || existing.clientAddressLng == null);
+
+    const wantsGeo =
+      coordsMissing && (jobAddressChanged || clientAddressChanged);
 
     if (wantsGeo) {
       const candidateAddress =
@@ -175,12 +188,6 @@ export async function PUT(req: NextRequest, { params }: Params) {
           : null) ??
         (typeof updatePayload.clientAddress === "string" && updatePayload.clientAddress.trim()
           ? updatePayload.clientAddress
-          : null) ??
-        (typeof existing.jobAddress === "string" && existing.jobAddress.trim()
-          ? existing.jobAddress
-          : null) ??
-        (typeof existing.clientAddress === "string" && existing.clientAddress.trim()
-          ? existing.clientAddress
           : null);
 
       if (candidateAddress) {
