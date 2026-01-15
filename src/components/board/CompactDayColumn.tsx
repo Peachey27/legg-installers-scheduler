@@ -12,6 +12,7 @@ interface Props {
   date: Date;
   isoDate: string;
   jobs: Job[];
+  listId: string;
   areaLabel?: string;
   placeholder?: ReactNode;
 }
@@ -114,6 +115,7 @@ export default function CompactDayColumn({
   date,
   isoDate,
   jobs,
+  listId,
   areaLabel,
   placeholder
 }: Props) {
@@ -145,7 +147,7 @@ export default function CompactDayColumn({
             <SortableCompactJobRow
               key={job.id}
               job={job}
-              listId={isoDate}
+              listId={listId}
               onOpen={() => {
                 const returnTo =
                   typeof window !== "undefined"

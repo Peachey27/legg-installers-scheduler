@@ -89,8 +89,7 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
           const isDone = j.status === "completed" || j.status === "cancelled";
           if (isDeleted || isDone) return false;
 
-          const noAssigned = j.assignedDate == null || j.assignedDate === "";
-          return noAssigned;
+          return j.status === "backlog";
         });
       }
       if (!listId.startsWith(DAY_PREFIX)) return [];
@@ -100,7 +99,7 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
         const isDone = j.status === "completed" || j.status === "cancelled";
         if (isDeleted || isDone) return false;
 
-        return j.assignedDate === dayKey;
+        return j.status === "scheduled" && j.assignedDate === dayKey;
       });
     },
     [jobs]
@@ -184,14 +183,17 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
             sortable?: { containerId?: string; index?: number };
           }
         | undefined;
-      if (current?.sortable?.containerId) return current.sortable.containerId;
-      if (current?.containerId) return current.containerId;
+      if (current?.sortable?.containerId && listIds.includes(current.sortable.containerId)) {
+        return current.sortable.containerId;
+      }
+      if (current?.containerId && listIds.includes(current.containerId)) {
+        return current.containerId;
+      }
       const asString = String(overId);
-      if (asString === "backlog") return "backlog";
-      if (asString.startsWith(DAY_PREFIX)) return asString;
+      if (listIds.includes(asString)) return asString;
       return null;
     },
-    []
+    [listIds]
   );
 
 
@@ -475,6 +477,7 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
           ref={scrollRef}
         >
           <SortableContext
+            id="backlog"
             items={orderedBacklogJobs.map((j) => j.id)}
             strategy={verticalListSortingStrategy}
           >
@@ -486,6 +489,7 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
           {days.map((d) => (
             <SortableContext
               key={d.iso}
+              id={`${DAY_PREFIX}${d.iso}`}
               items={(jobsByDate[d.iso] ?? []).map((j) => j.id)}
               strategy={verticalListSortingStrategy}
             >

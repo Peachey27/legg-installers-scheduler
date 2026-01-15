@@ -122,17 +122,39 @@ export async function PUT(req: NextRequest, { params }: Params) {
     }
 
     // Move fields (this is the important part for your disappearing issue)
-    if (body.assignedDate === null) {
-      updatePayload.assignedDate = null;
-    } else if (typeof body.assignedDate === "string") {
-      // if someone accidentally sends "day:YYYY-MM-DD", strip it
-      updatePayload.assignedDate = body.assignedDate.startsWith("day:")
-        ? body.assignedDate.slice(4)
-        : body.assignedDate;
+    const assignedDateProvided = Object.prototype.hasOwnProperty.call(body, "assignedDate");
+    let nextAssignedDate: string | null | undefined = undefined;
+    if (assignedDateProvided) {
+      if (body.assignedDate === null) {
+        nextAssignedDate = null;
+      } else if (typeof body.assignedDate === "string") {
+        const trimmed = body.assignedDate.trim();
+        if (!trimmed || trimmed === "backlog") {
+          nextAssignedDate = null;
+        } else if (trimmed.startsWith("day:")) {
+          nextAssignedDate = trimmed.slice(4).trim() || null;
+        } else {
+          nextAssignedDate = trimmed;
+        }
+      }
+
+      if (nextAssignedDate !== undefined) {
+        updatePayload.assignedDate = nextAssignedDate;
+      }
     }
 
     if (typeof body.status === "string") {
       updatePayload.status = body.status;
+    }
+
+    if (assignedDateProvided && nextAssignedDate !== undefined) {
+      const isTerminal =
+        updatePayload.status === "completed" || updatePayload.status === "cancelled";
+      if (nextAssignedDate) {
+        if (!isTerminal) updatePayload.status = "scheduled";
+      } else {
+        if (!isTerminal) updatePayload.status = "backlog";
+      }
     }
 
     // If explicitly cancelled, soft delete.

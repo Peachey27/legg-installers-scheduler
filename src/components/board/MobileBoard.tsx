@@ -26,9 +26,9 @@ import {
 import { addDays, format, startOfWeek } from "date-fns";
 import { useSchedulerStore } from "@/store/useSchedulerStore";
 import type { Job } from "@/lib/types";
-import SortableJobCard from "./SortableJobCard";
 import JobCard from "../jobs/JobCard";
 import BacklogColumn from "./BacklogColumn";
+import DayTravelAndJobs from "./DayTravelAndJobs";
 
 const DAY_PREFIX = "day:";
 const EDGE_SWIPE_PX = 24;
@@ -59,6 +59,7 @@ type DebugState = {
   sourceListId: string | null;
   rawOverId: string | null;
   overContainerId: string | null;
+  overSortableContainerId: string | null;
   lastOverId: string | null;
   lastOverContainerId: string | null;
   resolvedDestListId: string | null;
@@ -118,6 +119,7 @@ export default function MobileBoard() {
     sourceListId: null,
     rawOverId: null,
     overContainerId: null,
+    overSortableContainerId: null,
     lastOverId: null,
     lastOverContainerId: null,
     resolvedDestListId: null,
@@ -142,6 +144,10 @@ export default function MobileBoard() {
   const lastPointer = useRef<{ x: number; y: number } | null>(null);
 
   const days = useMemo(() => buildWeekdays(weekOffset), [weekOffset]);
+  const listIds = useMemo(
+    () => ["backlog", ...days.map((day) => `${DAY_PREFIX}${day.iso}`)],
+    [days]
+  );
 
   const areaOptions = useMemo(() => {
     const set = new Set<string>(baseAreas);
@@ -159,8 +165,7 @@ export default function MobileBoard() {
           const isDone = j.status === "completed" || j.status === "cancelled";
           if (isDeleted || isDone) return false;
 
-          const noAssigned = j.assignedDate == null || j.assignedDate === "";
-          return noAssigned;
+          return j.status === "backlog";
         });
       }
 
@@ -172,7 +177,7 @@ export default function MobileBoard() {
         const isDone = j.status === "completed" || j.status === "cancelled";
         if (isDeleted || isDone) return false;
 
-        return j.assignedDate === dayKey;
+        return j.status === "scheduled" && j.assignedDate === dayKey;
       });
     },
     [jobs]
@@ -229,23 +234,24 @@ export default function MobileBoard() {
       const directContainer = current?.containerId;
 
       const allowBacklog = isBacklogEligible(pointer ?? lastPointer.current);
+      const isKnownListId = (id: string | undefined | null) => !!id && listIds.includes(id);
 
-      if (sortableContainer) {
+      if (sortableContainer && isKnownListId(sortableContainer)) {
         if (sortableContainer === "backlog" && !allowBacklog) return null;
         return sortableContainer;
       }
-      if (directContainer) {
+      if (directContainer && isKnownListId(directContainer)) {
         if (directContainer === "backlog" && !allowBacklog) return null;
         return directContainer;
       }
 
       const asString = String(overId);
       if (asString === "backlog") return allowBacklog ? "backlog" : null;
-      if (asString.startsWith(DAY_PREFIX)) return asString;
+      if (listIds.includes(asString)) return asString;
 
       return null;
     },
-    [isBacklogEligible]
+    [isBacklogEligible, listIds]
   );
 
   const collisionDetection: CollisionDetection = useCallback(
@@ -330,6 +336,7 @@ export default function MobileBoard() {
         sourceListId,
         rawOverId: null,
         overContainerId: null,
+        overSortableContainerId: null,
         lastOverId: null,
         lastOverContainerId: null,
         resolvedDestListId: null,
@@ -345,7 +352,15 @@ export default function MobileBoard() {
       if (!over) return;
 
       const pointer = lastPointer.current;
-      const containerId = getContainerIdFromOver(over.id, over.data as { current?: unknown }, pointer);
+      const overCurrent = over.data?.current as
+        | { sortable?: { containerId?: string }; containerId?: string }
+        | undefined;
+      const sortableContainerId = overCurrent?.sortable?.containerId ?? null;
+      const containerId = getContainerIdFromOver(
+        over.id,
+        over.data as { current?: unknown },
+        pointer
+      );
 
       if (String(over.id) !== String(active.id) && containerId) {
         lastOver.current = { id: over.id, data: over.data };
@@ -360,6 +375,7 @@ export default function MobileBoard() {
         sourceListId,
         rawOverId: over?.id ? String(over.id) : null,
         overContainerId: containerId,
+        overSortableContainerId: sortableContainerId,
         lastOverId: lastOver.current ? String(lastOver.current.id) : null,
         lastOverContainerId: lastOverContainerId.current,
         resolvedDestListId: null,
@@ -389,6 +405,10 @@ export default function MobileBoard() {
 
       const overId = overRecord?.id ?? null;
       const overData = overRecord?.data as { current?: unknown } | undefined;
+      const overCurrent = overData?.current as
+        | { sortable?: { containerId?: string }; containerId?: string }
+        | undefined;
+      const overSortableContainerId = overCurrent?.sortable?.containerId ?? null;
       const pointer = lastPointer.current;
       const allowBacklog = isBacklogEligible(pointer);
       const pointerInsideDrawer = allowBacklog;
@@ -407,16 +427,19 @@ export default function MobileBoard() {
         !destListId
           ? "revert/no-op"
           : sourceListId === destListId
-            ? "reorder"
+            ? destListId === "backlog"
+              ? "reorder-in-backlog"
+              : "reorder-in-day"
             : destListId === "backlog"
-              ? "move->backlog"
-              : "move->day";
+              ? "move-to-backlog"
+              : "move-to-day";
 
       updateDebug({
         activeId: activeIdStr,
         sourceListId,
         rawOverId: over?.id ? String(over.id) : null,
         overContainerId: getContainerIdFromOver(overId, overData, pointer),
+        overSortableContainerId,
         lastOverId: lastOver.current ? String(lastOver.current.id) : null,
         lastOverContainerId: lastOverContainerId.current,
         resolvedDestListId: destListId,
@@ -660,6 +683,7 @@ export default function MobileBoard() {
             return (
               <SortableContext
                 key={day.iso}
+                id={listId}
                 items={dayJobs.map((j) => j.id)}
                 strategy={verticalListSortingStrategy}
               >
@@ -667,6 +691,7 @@ export default function MobileBoard() {
                   listId={listId}
                   label={format(day.date, "EEEE")}
                   dateLabel={format(day.date, "d MMM")}
+                  isoDate={day.iso}
                   areaLabel={areaLabel}
                   tintClass={tint}
                   jobs={dayJobs}
@@ -700,6 +725,7 @@ export default function MobileBoard() {
             <div>sourceListId: {debugState.sourceListId ?? "-"}</div>
             <div>rawOverId: {debugState.rawOverId ?? "-"}</div>
             <div>overContainerId: {debugState.overContainerId ?? "-"}</div>
+            <div>overSortableContainerId: {debugState.overSortableContainerId ?? "-"}</div>
             <div>lastOverId: {debugState.lastOverId ?? "-"}</div>
             <div>lastOverContainerId: {debugState.lastOverContainerId ?? "-"}</div>
             <div>destListId: {debugState.resolvedDestListId ?? "-"}</div>
@@ -753,6 +779,7 @@ export default function MobileBoard() {
             <div className="flex-1 overflow-y-auto p-3">
               {drawerOpen ? (
                 <SortableContext
+                  id="backlog"
                   items={orderedBacklogJobs.map((j) => j.id)}
                   strategy={verticalListSortingStrategy}
                 >
@@ -783,6 +810,7 @@ function MobileDayColumn({
   listId,
   label,
   dateLabel,
+  isoDate,
   areaLabel,
   tintClass,
   jobs
@@ -790,6 +818,7 @@ function MobileDayColumn({
   listId: string;
   label: string;
   dateLabel: string;
+  isoDate: string;
   areaLabel?: string;
   tintClass: string;
   jobs: Job[];
@@ -817,13 +846,7 @@ function MobileDayColumn({
         </div>
       </div>
 
-      <div className="space-y-2">
-        {jobs.length === 0 ? (
-          <p className="text-xs text-slate-500">No jobs scheduled</p>
-        ) : (
-          jobs.map((job) => <SortableJobCard key={job.id} job={job} listId={listId} />)
-        )}
-      </div>
+      <DayTravelAndJobs jobs={jobs} listId={listId} isoDate={isoDate} />
     </section>
   );
 }

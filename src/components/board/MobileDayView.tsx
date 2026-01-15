@@ -54,6 +54,7 @@ export default function MobileDayView() {
       if (!job.assignedDate) continue;
       if (job.deletedAt) continue;
       if (job.status === "cancelled" || job.status === "completed") continue;
+      if (job.status !== "scheduled") continue;
       if (map[job.assignedDate]) {
         map[job.assignedDate].push(job);
       }

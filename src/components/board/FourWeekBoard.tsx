@@ -43,6 +43,7 @@ type Week = {
 };
 
 const AXIS_THRESHOLD = 12;
+const DAY_PREFIX = "day:";
 
 export default function FourWeekBoard({
   weekOffset,
@@ -85,29 +86,32 @@ export default function FourWeekBoard({
   const listIds = useMemo(() => {
     const ids = ["backlog"];
     for (const w of weeks) {
-      for (const d of w.days) ids.push(d.iso);
+      for (const d of w.days) ids.push(`${DAY_PREFIX}${d.iso}`);
     }
     return ids;
   }, [weeks]);
 
   const listJobsBase = useCallback(
-    (listId: string) =>
-      listId === "backlog"
-        ? jobs.filter((j) => {
-            const isDeleted = !!j.deletedAt;
-            const isDone = j.status === "completed" || j.status === "cancelled";
-            if (isDeleted || isDone) return false;
+    (listId: string) => {
+      if (listId === "backlog") {
+        return jobs.filter((j) => {
+          const isDeleted = !!j.deletedAt;
+          const isDone = j.status === "completed" || j.status === "cancelled";
+          if (isDeleted || isDone) return false;
 
-            const noAssigned = j.assignedDate == null || j.assignedDate === "";
-            return noAssigned;
-          })
-        : jobs.filter((j) => {
-            const isDeleted = !!j.deletedAt;
-            const isDone = j.status === "completed" || j.status === "cancelled";
-            if (isDeleted || isDone) return false;
+          return j.status === "backlog";
+        });
+      }
+      if (!listId.startsWith(DAY_PREFIX)) return [];
+      const dayKey = listId.slice(DAY_PREFIX.length);
+      return jobs.filter((j) => {
+        const isDeleted = !!j.deletedAt;
+        const isDone = j.status === "completed" || j.status === "cancelled";
+        if (isDeleted || isDone) return false;
 
-            return j.assignedDate === listId;
-          }),
+        return j.status === "scheduled" && j.assignedDate === dayKey;
+      });
+    },
     [jobs]
   );
 
@@ -152,7 +156,8 @@ export default function FourWeekBoard({
   const jobsByDate: Record<string, typeof jobs> = {};
   for (const w of weeks) {
     for (const d of w.days) {
-      jobsByDate[d.iso] = orderJobs(d.iso, orderByList, listJobs(d.iso));
+      const listId = `${DAY_PREFIX}${d.iso}`;
+      jobsByDate[d.iso] = orderJobs(listId, orderByList, listJobs(listId));
     }
   }
 
@@ -294,7 +299,8 @@ export default function FourWeekBoard({
         return;
       }
 
-      const assignedDate = destListId === "backlog" ? null : destListId;
+      const assignedDate =
+        destListId === "backlog" ? null : destListId.slice(DAY_PREFIX.length);
 
       // Handle ordering for any list.
       setOrderByList((prev) => {
@@ -373,6 +379,7 @@ export default function FourWeekBoard({
             <span className="text-[11px] font-semibold text-slate-700">Backlog</span>
           </div>
           <SortableContext
+            id="backlog"
             items={orderedBacklogJobs.map((j) => j.id)}
             strategy={horizontalListSortingStrategy}
           >
@@ -408,18 +415,20 @@ export default function FourWeekBoard({
                 {week.days.map((d) => (
                   <SortableContext
                     key={d.iso}
+                    id={`${DAY_PREFIX}${d.iso}`}
                     items={(jobsByDate[d.iso] ?? []).map((j) => j.id)}
                     strategy={verticalListSortingStrategy}
                   >
                     <DroppableColumn
-                      id={d.iso}
-                      highlight={activeOverListId === d.iso}
+                      id={`${DAY_PREFIX}${d.iso}`}
+                      highlight={activeOverListId === `${DAY_PREFIX}${d.iso}`}
                       className="min-w-[160px] min-h-[170px]"
                     >
                       <CompactDayColumn
                         date={d.date}
                         isoDate={d.iso}
                         label={d.label}
+                        listId={`${DAY_PREFIX}${d.iso}`}
                         jobs={jobsByDate[d.iso] ?? []}
                         areaLabel={dayAreaLabels[d.iso]}
                       />
@@ -506,7 +515,10 @@ function DroppableColumn({
   className?: string;
   children: React.ReactNode;
 }) {
-  const { setNodeRef } = useDroppable({ id, data: { type: "column", listId: id } });
+  const { setNodeRef } = useDroppable({
+    id,
+    data: { type: "container", containerId: id }
+  });
   return (
     <div
       ref={setNodeRef}

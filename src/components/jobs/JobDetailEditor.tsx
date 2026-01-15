@@ -10,6 +10,7 @@ import type {
 } from "@/lib/types";
 import { useRouter, useSearchParams } from "next/navigation";
 import { normalizeClientName } from "@/lib/normalizeClientName";
+import { useSchedulerStore } from "@/store/useSchedulerStore";
 
 type FormState = {
   clientName: string;
@@ -67,6 +68,7 @@ export function JobDetailEditor({ job }: { job: Job }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnTo = searchParams?.get("return") || "/";
+  const { fetchJobs } = useSchedulerStore();
 
   function toTelHref(phone: string) {
     const raw = (phone ?? "").trim();
@@ -422,6 +424,7 @@ export function JobDetailEditor({ job }: { job: Job }) {
         throw new Error(text || "Failed to save job");
       }
 
+      await fetchJobs();
       setSavedMessage("Saved");
       setSaving(false);
       router.refresh();
