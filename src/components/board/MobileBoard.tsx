@@ -31,9 +31,6 @@ import JobCard from "../jobs/JobCard";
 import BacklogColumn from "./BacklogColumn";
 
 const DAY_PREFIX = "day:";
-const DEBUG_MOBILE_DND = false;
-const DEBUG_MOBILE_ERRORS = false;
-
 const EDGE_SWIPE_PX = 24;
 const DRAWER_WIDTH = 300;
 
@@ -50,6 +47,27 @@ const tintPalette = [
 ];
 
 type Day = { label: string; date: Date; iso: string };
+
+type ErrorEntry = {
+  ts: string;
+  message: string;
+  stack?: string;
+};
+
+type DebugState = {
+  activeId: string | null;
+  sourceListId: string | null;
+  rawOverId: string | null;
+  overContainerId: string | null;
+  lastOverId: string | null;
+  lastOverContainerId: string | null;
+  resolvedDestListId: string | null;
+  drawerOpen: boolean;
+  pointerX: number | null;
+  pointerY: number | null;
+  pointerInsideDrawer: boolean;
+  action: string | null;
+};
 
 function buildWeekdays(weekOffset: number): Day[] {
   const start = startOfWeek(addDays(new Date(), weekOffset * 7), { weekStartsOn: 1 });
@@ -92,8 +110,27 @@ export default function MobileBoard() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerOffset, setDrawerOffset] = useState(-DRAWER_WIDTH);
 
-  const drawerRef = useRef<HTMLDivElement | null>(null);
+  const [debugOpen, setDebugOpen] = useState(false);
+  const [errorsOpen, setErrorsOpen] = useState(false);
 
+  const [debugState, setDebugState] = useState<DebugState>({
+    activeId: null,
+    sourceListId: null,
+    rawOverId: null,
+    overContainerId: null,
+    lastOverId: null,
+    lastOverContainerId: null,
+    resolvedDestListId: null,
+    drawerOpen: false,
+    pointerX: null,
+    pointerY: null,
+    pointerInsideDrawer: false,
+    action: null
+  });
+
+  const [errorEvents, setErrorEvents] = useState<ErrorEntry[]>([]);
+
+  const drawerRef = useRef<HTMLDivElement | null>(null);
   const drawerDrag = useRef<{
     startX: number;
     startOffset: number;
@@ -103,19 +140,6 @@ export default function MobileBoard() {
   const lastOver = useRef<{ id: UniqueIdentifier; data?: { current?: unknown } } | null>(null);
   const lastOverContainerId = useRef<string | null>(null);
   const lastPointer = useRef<{ x: number; y: number } | null>(null);
-  const [debugState, setDebugState] = useState({
-    activeId: null as string | null,
-    lastOverId: null as string | null,
-    rawOverId: null as string | null,
-    resolvedDestListId: null as string | null,
-    resolvedContainerId: null as string | null,
-    drawerOpen: false,
-    pointerX: null as number | null,
-    pointerY: null as number | null,
-    pointerInsideDrawer: false,
-    action: null as string | null
-  });
-  const [errorEvents, setErrorEvents] = useState<string[]>([]);
 
   const days = useMemo(() => buildWeekdays(weekOffset), [weekOffset]);
 
@@ -127,11 +151,6 @@ export default function MobileBoard() {
     return Array.from(set);
   }, [dayAreaLabels]);
 
-  /**
-   * IMPORTANT:
-   * Make list membership mutually exclusive to reduce “duplicate” appearance bugs
-   * when something ends up with inconsistent assignedDate/status during edits.
-   */
   const listJobsBase = useCallback(
     (listId: string) => {
       if (listId === "backlog") {
@@ -140,7 +159,6 @@ export default function MobileBoard() {
           const isDone = j.status === "completed" || j.status === "cancelled";
           if (isDeleted || isDone) return false;
 
-          // Backlog = explicitly backlog OR no assignedDate (null/undefined/empty)
           const noAssigned = !j.assignedDate;
           const isBacklog = j.status === "backlog";
           return isBacklog || noAssigned;
@@ -155,7 +173,6 @@ export default function MobileBoard() {
         const isDone = j.status === "completed" || j.status === "cancelled";
         if (isDeleted || isDone) return false;
 
-        // Day list must match assignedDate AND must not be backlog
         return j.assignedDate === dayKey && j.status !== "backlog";
       });
     },
@@ -183,7 +200,7 @@ export default function MobileBoard() {
     const el = drawerRef.current;
     if (!el) return null;
     return el.getBoundingClientRect();
-  }, [drawerOpen]);
+  }, []);
 
   const isBacklogEligible = useCallback(
     (pointer: { x: number; y: number } | null) => {
@@ -195,7 +212,11 @@ export default function MobileBoard() {
   );
 
   const getContainerIdFromOver = useCallback(
-    (overId: UniqueIdentifier | null, overData?: { current?: unknown }, pointer?: { x: number; y: number } | null) => {
+    (
+      overId: UniqueIdentifier | null,
+      overData?: { current?: unknown },
+      pointer?: { x: number; y: number } | null
+    ) => {
       if (!overId) return null;
 
       const current = overData?.current as
@@ -228,11 +249,6 @@ export default function MobileBoard() {
     [isBacklogEligible]
   );
 
-  /**
-   * Key fix:
-   * Filter backlog collisions unless drawer is open AND pointer is inside drawer bounds.
-   * Also prevent lastOver fallback from ever “sticking” to backlog unless eligible.
-   */
   const collisionDetection: CollisionDetection = useCallback(
     (args) => {
       if (!activeId) return closestCenter(args);
@@ -240,13 +256,11 @@ export default function MobileBoard() {
       const pointer = args.pointerCoordinates
         ? { x: args.pointerCoordinates.x, y: args.pointerCoordinates.y }
         : lastPointer.current;
-
       const allowBacklog = isBacklogEligible(pointer);
 
       const pointerCollisions = pointerWithin(args);
       const intersections = pointerCollisions.length ? pointerCollisions : rectIntersection(args);
 
-      // If backlog is not eligible, strip it out of collisions entirely.
       const filtered = allowBacklog
         ? intersections
         : intersections.filter((item) => {
@@ -271,7 +285,6 @@ export default function MobileBoard() {
         return [{ id: first as UniqueIdentifier }];
       }
 
-      // Fallback to lastOver ONLY if it is not backlog (unless eligible)
       if (lastOver.current) {
         const lastIdStr = String(lastOver.current.id);
         if (lastIdStr !== "backlog" || allowBacklog) {
@@ -294,21 +307,39 @@ export default function MobileBoard() {
     [activeId, isBacklogEligible]
   );
 
-  const handleDragStart = useCallback(({ active }: DragStartEvent) => {
-    setActiveId(String(active.id));
-    if (DEBUG_MOBILE_DND) {
+  const updateDebug = useCallback(
+    (partial: Partial<DebugState>) => {
       setDebugState((prev) => ({
         ...prev,
+        ...partial
+      }));
+    },
+    []
+  );
+
+  const handleDragStart = useCallback(
+    ({ active }: DragStartEvent) => {
+      lastOver.current = null;
+      lastOverContainerId.current = null;
+      setActiveId(String(active.id));
+
+      const sourceListId =
+        (active?.data?.current as { containerId?: string } | undefined)?.containerId ?? null;
+
+      updateDebug({
         activeId: String(active.id),
-        lastOverId: null,
+        sourceListId,
         rawOverId: null,
+        overContainerId: null,
+        lastOverId: null,
+        lastOverContainerId: null,
         resolvedDestListId: null,
-        resolvedContainerId: null,
         drawerOpen,
         action: null
-      }));
-    }
-  }, []);
+      });
+    },
+    [drawerOpen, updateDebug]
+  );
 
   const handleDragOver = useCallback(
     ({ active, over }: DragOverEvent) => {
@@ -317,41 +348,39 @@ export default function MobileBoard() {
       const pointer = lastPointer.current;
       const containerId = getContainerIdFromOver(over.id, over.data as { current?: unknown }, pointer);
 
-      // Only record lastOver if it resolves to a valid container
       if (String(over.id) !== String(active.id) && containerId) {
         lastOver.current = { id: over.id, data: over.data };
         lastOverContainerId.current = containerId;
       }
 
-      if (DEBUG_MOBILE_DND) {
-        const pointerInsideDrawer = isBacklogEligible(pointer ?? null);
-        setDebugState((prev) => ({
-          ...prev,
-          activeId: String(active.id),
-          lastOverId: lastOver.current ? String(lastOver.current.id) : null,
-          rawOverId: over?.id ? String(over.id) : null,
-          resolvedDestListId: containerId,
-          resolvedContainerId: containerId,
-          drawerOpen,
-          pointerX: pointer?.x ?? null,
-          pointerY: pointer?.y ?? null,
-          pointerInsideDrawer,
-          action: null
-        }));
-      }
+      const sourceListId =
+        (active?.data?.current as { containerId?: string } | undefined)?.containerId ?? null;
+
+      updateDebug({
+        activeId: String(active.id),
+        sourceListId,
+        rawOverId: over?.id ? String(over.id) : null,
+        overContainerId: containerId,
+        lastOverId: lastOver.current ? String(lastOver.current.id) : null,
+        lastOverContainerId: lastOverContainerId.current,
+        resolvedDestListId: null,
+        drawerOpen,
+        pointerX: pointer?.x ?? null,
+        pointerY: pointer?.y ?? null,
+        pointerInsideDrawer: isBacklogEligible(pointer ?? null),
+        action: null
+      });
     },
-    [drawerOpen, getContainerIdFromOver, isBacklogEligible]
+    [drawerOpen, getContainerIdFromOver, isBacklogEligible, updateDebug]
   );
 
   const handleDragEnd = useCallback(
     ({ active, over }: DragEndEvent) => {
       const activeIdStr = String(active.id);
-
       const sourceListId =
         (active?.data?.current as { containerId?: string } | undefined)?.containerId ?? null;
 
       const isSelfOver = over && String(over.id) === activeIdStr;
-
       const overRecord =
         !over || isSelfOver
           ? lastOver.current
@@ -361,77 +390,50 @@ export default function MobileBoard() {
 
       const overId = overRecord?.id ?? null;
       const overData = overRecord?.data as { current?: unknown } | undefined;
-
       const pointer = lastPointer.current;
       const allowBacklog = isBacklogEligible(pointer);
       const pointerInsideDrawer = allowBacklog;
 
-      // Resolve destination container deterministically
       let destListId =
         getContainerIdFromOver(overId, overData, pointer) ??
         (lastOverContainerId.current && lastOverContainerId.current !== sourceListId
           ? lastOverContainerId.current
           : null);
 
-      // HARD GUARD: never allow backlog unless pointer is inside the drawer bounds while open
       if (destListId === "backlog" && !allowBacklog) {
         destListId = null;
       }
 
-      if (DEBUG_MOBILE_DND) {
-        const sortable = (overData?.current as { sortable?: { containerId?: string; index?: number } } | undefined)
-          ?.sortable;
-        console.log("mobile:dnd:end", {
-          activeId: activeIdStr,
-          sourceListId,
-          rawOverId: over?.id ?? null,
-          resolvedOverId: overId,
-          resolvedDestListId: destListId,
-          overSortableContainerId: sortable?.containerId ?? null,
-          overSortableIndex: sortable?.index ?? null,
-          drawerOpen,
-          allowBacklog,
-          pointer
-        });
-      }
-
-      const lastOverId =
-        lastOver.current && lastOver.current.id != null ? String(lastOver.current.id) : null;
-
-      // Cleanup drag state
-      setActiveId(null);
-      lastOver.current = null;
-      lastOverContainerId.current = null;
-
       const action =
         !destListId
-          ? "revert"
+          ? "revert/no-op"
           : sourceListId === destListId
             ? "reorder"
             : destListId === "backlog"
               ? "move->backlog"
               : "move->day";
 
-      if (DEBUG_MOBILE_DND) {
-        setDebugState((prev) => ({
-          ...prev,
-          activeId: activeIdStr,
-          lastOverId,
-          rawOverId: over?.id ? String(over.id) : null,
-          resolvedDestListId: destListId,
-          resolvedContainerId: destListId,
-          drawerOpen,
-          pointerX: pointer?.x ?? null,
-          pointerY: pointer?.y ?? null,
-          pointerInsideDrawer,
-          action
-        }));
-      }
+      updateDebug({
+        activeId: activeIdStr,
+        sourceListId,
+        rawOverId: over?.id ? String(over.id) : null,
+        overContainerId: getContainerIdFromOver(overId, overData, pointer),
+        lastOverId: lastOver.current ? String(lastOver.current.id) : null,
+        lastOverContainerId: lastOverContainerId.current,
+        resolvedDestListId: destListId,
+        drawerOpen,
+        pointerX: pointer?.x ?? null,
+        pointerY: pointer?.y ?? null,
+        pointerInsideDrawer,
+        action
+      });
 
-      // If no valid destination, revert (do nothing)
+      setActiveId(null);
+      lastOver.current = null;
+      lastOverContainerId.current = null;
+
       if (!sourceListId || !destListId) return;
 
-      // Calculate indices for ordering
       const sourceIdsFull = orderJobs(sourceListId, orderByList, listJobsBase(sourceListId)).map(
         (j) => j.id
       );
@@ -439,26 +441,23 @@ export default function MobileBoard() {
         (j) => j.id
       );
 
-      const overSortable = (overData?.current as { sortable?: { containerId?: string; index?: number } } | undefined)
-        ?.sortable;
+      const overSortable = (overData?.current as
+        | { sortable?: { containerId?: string; index?: number } }
+        | undefined)?.sortable;
 
       const fromIndex = sourceIdsFull.indexOf(activeIdStr);
-
       const toIndex =
         overSortable?.containerId === destListId && typeof overSortable.index === "number"
           ? overSortable.index
           : destIdsFull.length;
 
-      // Update client-side ordering
       setOrderByList((prev) => {
         if (sourceListId === destListId) {
-          // Reorder within same list
           if (fromIndex < 0) return prev;
           const nextIds = arrayMove(sourceIdsFull, fromIndex, toIndex);
           return { ...prev, [sourceListId]: nextIds };
         }
 
-        // Move between lists
         const sourceIds = sourceIdsFull.filter((id) => id !== activeIdStr);
         const destIds = destIdsFull.filter((id) => id !== activeIdStr);
         const nextDest = [...destIds];
@@ -471,16 +470,12 @@ export default function MobileBoard() {
         };
       });
 
-      // Only call moveJob if list changes OR list is a day (so assignedDate might change)
       if (sourceListId !== destListId) {
         const assignedDate = destListId === "backlog" ? null : destListId.slice(DAY_PREFIX.length);
         void moveJob(activeIdStr, assignedDate);
-      } else {
-        // If same list and it's a day, do not call moveJob (pure reorder)
-        // If same list and backlog, also no moveJob (pure reorder)
       }
     },
-    [drawerOpen, getContainerIdFromOver, isBacklogEligible, listJobsBase, moveJob, orderByList]
+    [drawerOpen, getContainerIdFromOver, isBacklogEligible, listJobsBase, moveJob, orderByList, updateDebug]
   );
 
   useEffect(() => {
@@ -501,59 +496,45 @@ export default function MobileBoard() {
 
     const handleMove = (e: PointerEvent) => {
       lastPointer.current = { x: e.clientX, y: e.clientY };
-      if (DEBUG_MOBILE_DND) {
-        const pointerInsideDrawer = isBacklogEligible({ x: e.clientX, y: e.clientY });
-        setDebugState((prev) => ({
-          ...prev,
-          pointerX: e.clientX,
-          pointerY: e.clientY,
-          pointerInsideDrawer,
-          drawerOpen
-        }));
-      }
+      updateDebug({
+        pointerX: e.clientX,
+        pointerY: e.clientY,
+        pointerInsideDrawer: isBacklogEligible({ x: e.clientX, y: e.clientY }),
+        drawerOpen
+      });
     };
     window.addEventListener("pointermove", handleMove);
 
     return () => {
       window.removeEventListener("pointermove", handleMove);
     };
-  }, [activeId, drawerOpen, isBacklogEligible]);
+  }, [activeId, drawerOpen, isBacklogEligible, updateDebug]);
 
   useEffect(() => {
-    if (!DEBUG_MOBILE_ERRORS) return;
-
-    const pushEvent = (message: string) => {
+    const pushError = (entry: ErrorEntry) => {
       setErrorEvents((prev) => {
-        const next = [...prev, message];
+        const next = [...prev, entry];
         return next.slice(-20);
       });
     };
 
     const onError = (event: ErrorEvent) => {
-      const msg = `[onerror] ${event.message} @ ${event.filename}:${event.lineno}:${event.colno}`;
-      pushEvent(msg);
+      pushError({
+        ts: new Date().toISOString(),
+        message: event.message,
+        stack: event.error?.stack
+      });
     };
 
     const onRejection = (event: PromiseRejectionEvent) => {
-      const reason = event.reason instanceof Error ? event.reason.message : String(event.reason);
-      pushEvent(`[unhandledrejection] ${reason}`);
-    };
-
-    const originalError = console.error;
-    console.error = (...args: unknown[]) => {
-      const formatted = args
-        .map((arg) => {
-          if (arg instanceof Error) return arg.message;
-          if (typeof arg === "string") return arg;
-          try {
-            return JSON.stringify(arg);
-          } catch {
-            return String(arg);
-          }
-        })
-        .join(" ");
-      pushEvent(`[console.error] ${formatted}`);
-      originalError(...args);
+      const reason =
+        event.reason instanceof Error ? event.reason.message : String(event.reason);
+      const stack = event.reason instanceof Error ? event.reason.stack : undefined;
+      pushError({
+        ts: new Date().toISOString(),
+        message: reason,
+        stack
+      });
     };
 
     window.addEventListener("error", onError);
@@ -562,18 +543,17 @@ export default function MobileBoard() {
     return () => {
       window.removeEventListener("error", onError);
       window.removeEventListener("unhandledrejection", onRejection);
-      console.error = originalError;
     };
   }, []);
 
   function startDrawerDrag(e: React.PointerEvent<HTMLDivElement>) {
     if (e.pointerType !== "touch") return;
 
-    // Don’t steal pointer if user started on a draggable card
+    // Don't steal pointer if user started on a draggable card.
     const target = e.target as HTMLElement | null;
     if (target?.closest("[data-dnd-card='true']")) return;
 
-    // Only allow edge swipe to open when closed
+    // Only allow edge swipe to open when closed.
     if (!drawerOpen && e.clientX > EDGE_SWIPE_PX) return;
 
     drawerDrag.current = {
@@ -697,11 +677,67 @@ export default function MobileBoard() {
           })}
         </div>
 
-        {/* Drawer */}
+        <div className="fixed top-2 right-2 z-[70] flex items-center gap-2">
+          <button
+            type="button"
+            className="btn-secondary px-2 py-1 text-[11px]"
+            onClick={() => setDebugOpen((v) => !v)}
+          >
+            Debug
+          </button>
+          <button
+            type="button"
+            className="btn-secondary px-2 py-1 text-[11px]"
+            onClick={() => setErrorsOpen((v) => !v)}
+          >
+            Errors
+          </button>
+        </div>
+
+        {debugOpen ? (
+          <div className="fixed top-10 right-2 z-[70] max-w-[90vw] rounded-lg border border-slate-200 bg-white/95 p-2 text-[11px] text-slate-900 shadow-lg">
+            <div className="font-semibold">Mobile DnD Debug</div>
+            <div>activeId: {debugState.activeId ?? "-"}</div>
+            <div>sourceListId: {debugState.sourceListId ?? "-"}</div>
+            <div>rawOverId: {debugState.rawOverId ?? "-"}</div>
+            <div>overContainerId: {debugState.overContainerId ?? "-"}</div>
+            <div>lastOverId: {debugState.lastOverId ?? "-"}</div>
+            <div>lastOverContainerId: {debugState.lastOverContainerId ?? "-"}</div>
+            <div>destListId: {debugState.resolvedDestListId ?? "-"}</div>
+            <div>drawerOpen: {String(debugState.drawerOpen)}</div>
+            <div>
+              pointer: {debugState.pointerX ?? "-"}, {debugState.pointerY ?? "-"}
+            </div>
+            <div>pointerInsideDrawer: {String(debugState.pointerInsideDrawer)}</div>
+            <div>action: {debugState.action ?? "-"}</div>
+          </div>
+        ) : null}
+
+        {errorsOpen ? (
+          <div className="fixed top-10 left-2 z-[70] max-w-[90vw] rounded-lg border border-rose-200 bg-white/95 p-2 text-[11px] text-rose-800 shadow-lg">
+            <div className="font-semibold">Mobile Errors (last 20)</div>
+            {errorEvents.length === 0 ? (
+              <div>None</div>
+            ) : (
+              errorEvents.map((entry, idx) => (
+                <div key={`${entry.ts}-${idx}`} className="mb-1">
+                  <div>
+                    [{entry.ts}] {entry.message}
+                  </div>
+                  {entry.stack ? <div className="text-[10px]">{entry.stack}</div> : null}
+                </div>
+              ))
+            )}
+          </div>
+        ) : null}
+
         <div
           ref={drawerRef}
           className="fixed inset-y-0 left-0 z-40 w-[300px] max-w-[80vw] transition-transform duration-300"
-          style={{ transform: `translateX(${drawerOffset}px)` }}
+          style={{
+            transform: `translateX(${drawerOffset}px)`,
+            pointerEvents: drawerOpen ? "auto" : "none"
+          }}
         >
           <div className="h-full bg-white shadow-2xl border-r border-[var(--app-border)] flex flex-col">
             <div className="px-3 py-2 border-b border-[var(--app-border)] flex items-center gap-2">
@@ -731,33 +767,6 @@ export default function MobileBoard() {
         </div>
 
         {drawerOpen && <div className="fixed inset-0 z-30 bg-black/20 pointer-events-none" />}
-
-        {DEBUG_MOBILE_DND ? (
-          <div className="fixed bottom-3 left-3 z-[60] max-w-[90vw] rounded-lg border border-slate-200 bg-white/90 p-2 text-[11px] text-slate-900 shadow-lg pointer-events-none">
-            <div>activeId: {debugState.activeId ?? "-"}</div>
-            <div>lastOverId: {debugState.lastOverId ?? "-"}</div>
-            <div>rawOverId: {debugState.rawOverId ?? "-"}</div>
-            <div>destListId: {debugState.resolvedDestListId ?? "-"}</div>
-            <div>containerId: {debugState.resolvedContainerId ?? "-"}</div>
-            <div>drawerOpen: {String(debugState.drawerOpen)}</div>
-            <div>
-              pointer: {debugState.pointerX ?? "-"}, {debugState.pointerY ?? "-"}
-            </div>
-            <div>pointerInsideDrawer: {String(debugState.pointerInsideDrawer)}</div>
-            <div>action: {debugState.action ?? "-"}</div>
-          </div>
-        ) : null}
-
-        {DEBUG_MOBILE_ERRORS ? (
-          <div className="fixed top-3 left-3 z-[60] max-w-[90vw] rounded-lg border border-rose-200 bg-white/95 p-2 text-[11px] text-rose-800 shadow-lg pointer-events-none">
-            <div className="font-semibold">Mobile errors</div>
-            {errorEvents.length === 0 ? (
-              <div>None</div>
-            ) : (
-              errorEvents.map((msg, idx) => <div key={`${idx}-${msg}`}>{msg}</div>)
-            )}
-          </div>
-        ) : null}
 
         <DragOverlay>
           {activeJob ? (
