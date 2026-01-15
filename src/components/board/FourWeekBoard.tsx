@@ -95,7 +95,8 @@ export default function FourWeekBoard({
       listId === "backlog"
         ? jobs.filter(
             (j) =>
-              (!j.assignedDate || j.status === "backlog") &&
+              !j.assignedDate &&
+              j.status === "backlog" &&
               j.status !== "completed" &&
               j.status !== "cancelled" &&
               !j.deletedAt

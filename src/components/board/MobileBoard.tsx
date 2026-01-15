@@ -31,6 +31,7 @@ import JobCard from "../jobs/JobCard";
 import BacklogColumn from "./BacklogColumn";
 
 const DAY_PREFIX = "day:";
+const DEBUG_MOBILE_DND = false;
 const EDGE_SWIPE_PX = 24;
 const DRAWER_WIDTH = 300;
 
@@ -84,6 +85,8 @@ export default function MobileBoard() {
     pointerId: number;
   } | null>(null);
   const lastOver = useRef<{ id: UniqueIdentifier; data?: { current?: unknown } } | null>(null);
+  const lastOverContainerId = useRef<string | null>(null);
+  const lastPointer = useRef<{ x: number; y: number } | null>(null);
 
   const days = useMemo(() => buildWeekdays(weekOffset), [weekOffset]);
   const areaOptions = useMemo(() => {
@@ -99,7 +102,8 @@ export default function MobileBoard() {
       if (listId === "backlog") {
         return jobs.filter(
           (j) =>
-            (!j.assignedDate || j.status === "backlog") &&
+            !j.assignedDate &&
+            j.status === "backlog" &&
             j.status !== "completed" &&
             j.status !== "cancelled" &&
             !j.deletedAt
@@ -185,10 +189,14 @@ export default function MobileBoard() {
     ({ active, over }: DragOverEvent) => {
       if (!over) return;
       if (String(over.id) !== String(active.id)) {
-        lastOver.current = { id: over.id, data: over.data };
+        const containerId = getContainerIdFromOver(over.id, over.data as { current?: unknown });
+        if (containerId) {
+          lastOver.current = { id: over.id, data: over.data };
+          lastOverContainerId.current = containerId;
+        }
       }
     },
-    []
+    [getContainerIdFromOver]
   );
 
   const handleDragEnd = useCallback(
@@ -205,12 +213,39 @@ export default function MobileBoard() {
           : { id: over.id, data: over.data };
       const overId = overRecord?.id ?? null;
       const overData = overRecord?.data as { current?: unknown } | undefined;
-      const destListId = getContainerIdFromOver(overId, overData);
+      const destListId =
+        getContainerIdFromOver(overId, overData) ??
+        (lastOverContainerId.current && lastOverContainerId.current !== sourceListId
+          ? lastOverContainerId.current
+          : null);
+
+      if (DEBUG_MOBILE_DND) {
+        const pointer = lastPointer.current;
+        const sortable = (overData?.current as { sortable?: { containerId?: string; index?: number } } | undefined)
+          ?.sortable;
+        console.log("mobile:dnd:end", {
+          activeId,
+          rawOverId: over?.id ?? null,
+          resolvedOverId: overId,
+          resolvedContainerId: destListId,
+          overSortableContainerId: sortable?.containerId ?? null,
+          overSortableIndex: sortable?.index ?? null,
+          pointer
+        });
+      }
+
+      if (!destListId) {
+        setActiveId(null);
+        lastOver.current = null;
+        lastOverContainerId.current = null;
+        return;
+      }
 
       setActiveId(null);
       lastOver.current = null;
+      lastOverContainerId.current = null;
 
-      if (!sourceListId || !destListId) return;
+      if (!sourceListId) return;
 
       const sourceIdsFull = orderJobs(sourceListId, orderByList, listJobsBase(sourceListId)).map(
         (j) => j.id
@@ -254,6 +289,17 @@ export default function MobileBoard() {
       setDrawerOffset(drawerOpen ? 0 : -DRAWER_WIDTH);
     }
   }, [drawerOpen]);
+
+  useEffect(() => {
+    if (!activeId) return;
+    const handleMove = (e: PointerEvent) => {
+      lastPointer.current = { x: e.clientX, y: e.clientY };
+    };
+    window.addEventListener("pointermove", handleMove);
+    return () => {
+      window.removeEventListener("pointermove", handleMove);
+    };
+  }, [activeId]);
 
   function startDrawerDrag(e: React.PointerEvent<HTMLDivElement>) {
     if (e.pointerType !== "touch") return;

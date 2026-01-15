@@ -343,6 +343,15 @@ export function JobDetailEditor({ job }: { job: Job }) {
 
     const clientName = normalizeClientName(form.clientName);
 
+    const safeAssignedDate = form.assignedDate || null;
+    let nextStatus = form.status;
+    if (safeAssignedDate && nextStatus === "backlog") {
+      nextStatus = "scheduled";
+    }
+    if (!safeAssignedDate && nextStatus === "scheduled") {
+      nextStatus = "backlog";
+    }
+
     return {
       clientName,
       clientPhone: form.clientPhone.trim() || "N/A",
@@ -363,7 +372,7 @@ export function JobDetailEditor({ job }: { job: Job }) {
       invoiceNumber: form.invoiceNumber.trim() || null,
       estimateNumber: form.estimateNumber.trim() || null,
       cashSaleNumber: form.cashSaleNumber.trim() || null,
-      assignedDate: form.assignedDate || null,
+      assignedDate: safeAssignedDate,
       estimatedDurationHours: form.estimatedDurationHours.trim()
         ? Number(form.estimatedDurationHours)
         : null,
@@ -371,7 +380,7 @@ export function JobDetailEditor({ job }: { job: Job }) {
       areaTag: useCustomArea
         ? customAreaTag.trim() || "Other"
         : form.areaTag,
-      status: form.status,
+      status: nextStatus,
       factoryJobId: form.factoryJobId.trim() || null,
       photo1Url: form.photo1Url.trim() || null,
       photo2Url: form.photo2Url.trim() || null,

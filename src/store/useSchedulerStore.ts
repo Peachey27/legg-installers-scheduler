@@ -68,6 +68,14 @@ function sanitizeAssignedDate(input: unknown): string | null {
 }
 
 function normalizeIncomingJob(j: any): Job {
+  const safeAssignedDate = sanitizeAssignedDate(j.assignedDate);
+  let nextStatus = j.status as string;
+  if (safeAssignedDate && nextStatus === "backlog") {
+    nextStatus = "scheduled";
+  }
+  if (!safeAssignedDate && nextStatus === "scheduled") {
+    nextStatus = "backlog";
+  }
   return {
     ...j,
     id: String(j.id),
@@ -75,7 +83,8 @@ function normalizeIncomingJob(j: any): Job {
       ? j.materialProductUpdates
       : [],
     // Defensive: ensure assignedDate is either yyyy-mm-dd or null
-    assignedDate: sanitizeAssignedDate(j.assignedDate)
+    assignedDate: safeAssignedDate,
+    status: nextStatus
   } as Job;
 }
 

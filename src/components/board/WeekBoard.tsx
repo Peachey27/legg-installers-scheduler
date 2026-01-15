@@ -86,7 +86,8 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
       if (listId === "backlog") {
         return jobs.filter(
           (j) =>
-            (!j.assignedDate || j.status === "backlog") &&
+            !j.assignedDate &&
+            j.status === "backlog" &&
             j.status !== "completed" &&
             j.status !== "cancelled" &&
             !j.deletedAt
