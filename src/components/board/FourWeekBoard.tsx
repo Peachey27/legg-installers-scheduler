@@ -240,6 +240,9 @@ export default function FourWeekBoard({
       }
 
       if (activeListId === overListId) {
+        if (overId && String(overId) === activeListId) {
+          return;
+        }
         setOrderByList((prev) => {
           const ids = orderJobs(activeListId, prev, listJobs(activeListId)).map(
             (j) => j.id
