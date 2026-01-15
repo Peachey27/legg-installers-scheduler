@@ -194,13 +194,13 @@ export default function MobileBoard() {
       if (!over) return;
       if (String(over.id) !== String(active.id)) {
         const containerId = getContainerIdFromOver(over.id, over.data as { current?: unknown });
-        if (containerId) {
+        if (containerId && !(containerId === "backlog" && !drawerOpen)) {
           lastOver.current = { id: over.id, data: over.data };
           lastOverContainerId.current = containerId;
         }
       }
     },
-    [getContainerIdFromOver]
+    [drawerOpen, getContainerIdFromOver]
   );
 
   const handleDragEnd = useCallback(
@@ -238,7 +238,7 @@ export default function MobileBoard() {
         });
       }
 
-      if (!destListId) {
+      if (!destListId || (destListId === "backlog" && !drawerOpen)) {
         setActiveId(null);
         lastOver.current = null;
         lastOverContainerId.current = null;
@@ -285,7 +285,7 @@ export default function MobileBoard() {
       const assignedDate = destListId === "backlog" ? null : destListId.slice(DAY_PREFIX.length);
       void moveJob(activeId, assignedDate);
     },
-    [getContainerIdFromOver, listJobsBase, moveJob, orderByList]
+    [drawerOpen, getContainerIdFromOver, listJobsBase, moveJob, orderByList]
   );
 
   useEffect(() => {
@@ -450,16 +450,20 @@ export default function MobileBoard() {
               <span className="text-sm font-semibold text-slate-900">Backlog</span>
             </div>
             <div className="flex-1 overflow-y-auto p-3">
-              <SortableContext
-                items={orderedBacklogJobs.map((j) => j.id)}
-                strategy={verticalListSortingStrategy}
-              >
-                <BacklogColumn
-                  jobs={orderedBacklogJobs}
-                  droppableId={drawerOpen ? "backlog" : undefined}
-                  hideHeader
-                />
-              </SortableContext>
+              {drawerOpen ? (
+                <SortableContext
+                  items={orderedBacklogJobs.map((j) => j.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <BacklogColumn
+                    jobs={orderedBacklogJobs}
+                    droppableId="backlog"
+                    hideHeader
+                  />
+                </SortableContext>
+              ) : (
+                <div className="text-xs text-slate-500">Swipe to open backlog</div>
+              )}
             </div>
           </div>
         </div>
