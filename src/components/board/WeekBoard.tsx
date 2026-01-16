@@ -107,20 +107,8 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
   );
 
   const listJobs = useCallback(
-    (listId: string) => {
-      const base = listJobsBase(listId);
-      if (!activeId || !previewListId) return base;
-
-      if (listId !== previewListId) {
-        return base.filter((j) => j.id !== activeId);
-      }
-
-      const activeJob = jobs.find((j) => j.id === activeId);
-      if (!activeJob) return base;
-      if (base.some((j) => j.id === activeId)) return base;
-      return [...base, activeJob];
-    },
-    [activeId, jobs, listJobsBase, previewListId]
+    (listId: string) => listJobsBase(listId),
+    [listJobsBase]
   );
 
   const baseJobToList = useMemo(() => {
