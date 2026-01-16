@@ -238,7 +238,7 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
     ({ active }: DragStartEvent) => {
       setActiveId(String(active.id));
       setPreviewListId(null);
-      lastOver.current = { id: active.id, data: active.data };
+      lastOver.current = null;
       lastReorderSig.current = null;
     },
     []
@@ -284,7 +284,12 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
       const sourceListId = baseJobToList.get(activeId) ?? null;
       const isSelfOver = over && String(over.id) === activeId;
       const overType = (over?.data?.current as { type?: string } | undefined)?.type ?? null;
-      const useLastOver = !over || isSelfOver || (overType === "container" && lastOver.current);
+      const useLastOver =
+        !over ||
+        isSelfOver ||
+        (overType === "container" &&
+          lastOver.current &&
+          String(lastOver.current.id) !== activeId);
       const overRecord = useLastOver
         ? lastOver.current
           ? { id: lastOver.current.id, data: lastOver.current.data }
@@ -292,7 +297,10 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
         : { id: over.id, data: over.data };
       const overId = overRecord?.id ?? null;
       const overData = overRecord?.data as { current?: unknown } | undefined;
-      const overContainerId = getContainerIdFromOver(overId, overData);
+      const overContainerId =
+        (overType === "container"
+          ? getContainerIdFromOver(over?.id ?? null, over?.data as { current?: unknown })
+          : null) ?? getContainerIdFromOver(overId, overData);
       const destListId =
         overContainerId ??
         (previewListId && previewListId !== sourceListId ? previewListId : null);
