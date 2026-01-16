@@ -16,20 +16,20 @@ interface Props {
 
 const baseAreas = ["Bairnsdale", "Lakes", "Sale", "Melbourne", "Saphire Coast"];
 const ringPalette = [
-  "border-[10px] border-sky-400 shadow-sm",
+  "border-[10px] border-blue-400 shadow-sm",
   "border-[10px] border-emerald-400 shadow-sm",
-  "border-[10px] border-rose-400 shadow-sm",
   "border-[10px] border-violet-400 shadow-sm",
+  "border-[10px] border-red-400 shadow-sm",
   "border-[10px] border-amber-300 shadow-sm",
   "border-[10px] border-orange-400 shadow-sm",
   "border-[10px] border-teal-400 shadow-sm",
   "border-[10px] border-cyan-400 shadow-sm"
 ];
 const badgePalette = [
-  "border-sky-200 text-sky-800 bg-sky-50 hover:bg-sky-100",
+  "border-blue-200 text-blue-800 bg-blue-50 hover:bg-blue-100",
   "border-emerald-200 text-emerald-800 bg-emerald-50 hover:bg-emerald-100",
-  "border-rose-200 text-rose-800 bg-rose-50 hover:bg-rose-100",
   "border-violet-200 text-violet-800 bg-violet-50 hover:bg-violet-100",
+  "border-red-200 text-red-800 bg-red-50 hover:bg-red-100",
   "border-amber-200 text-amber-900 bg-amber-50 hover:bg-amber-100",
   "border-orange-200 text-orange-800 bg-orange-50 hover:bg-orange-100",
   "border-teal-200 text-teal-800 bg-teal-50 hover:bg-teal-100",

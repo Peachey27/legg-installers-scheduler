@@ -55,6 +55,7 @@ export default function FourWeekBoard({
   const [activeId, setActiveId] = useState<string | null>(null);
   const [dragAxis, setDragAxis] = useState<"vertical" | "horizontal" | null>(null);
   const [previewListId, setPreviewListId] = useState<string | null>(null);
+  const lastReorderSig = useRef<string | null>(null);
 
   const baseStart = useMemo(
     () => startOfWeek(addDays(new Date(), weekOffset * 7), { weekStartsOn: 1 }),
@@ -219,6 +220,7 @@ export default function FourWeekBoard({
     setActiveId(String(active.id));
     setDragAxis(null);
     setPreviewListId(null);
+    lastReorderSig.current = null;
   }, []);
 
   const handleDragOver = useCallback(
@@ -250,6 +252,10 @@ export default function FourWeekBoard({
         if (overId && String(overId) === activeListId) {
           return;
         }
+        const signature = `${activeListId}:${activeId}:${String(overId)}`;
+        if (lastReorderSig.current === signature) {
+          return;
+        }
         setOrderByList((prev) => {
           const ids = orderJobs(activeListId, prev, listJobs(activeListId)).map(
             (j) => j.id
@@ -259,6 +265,7 @@ export default function FourWeekBoard({
           if (oldIndex === -1 || overIndex === -1 || oldIndex === overIndex) {
             return prev;
           }
+          lastReorderSig.current = signature;
           return { ...prev, [activeListId]: arrayMove(ids, oldIndex, overIndex) };
         });
         return;
@@ -302,6 +309,7 @@ export default function FourWeekBoard({
       setActiveId(null);
       setPreviewListId(null);
       setDragAxis(null);
+      lastReorderSig.current = null;
 
       if (!sourceListId || !destListId) return;
 

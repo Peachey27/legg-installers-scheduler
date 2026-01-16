@@ -20,10 +20,10 @@ interface Props {
 
 const baseAreas = ["Bairnsdale", "Lakes", "Sale", "Melbourne", "Saphire Coast"];
 const ringPalette = [
-  "border-[8px] border-sky-400 shadow-sm",
+  "border-[8px] border-blue-400 shadow-sm",
   "border-[8px] border-emerald-400 shadow-sm",
-  "border-[8px] border-rose-400 shadow-sm",
   "border-[8px] border-violet-400 shadow-sm",
+  "border-[8px] border-red-400 shadow-sm",
   "border-[8px] border-amber-300 shadow-sm",
   "border-[8px] border-orange-400 shadow-sm",
   "border-[8px] border-teal-400 shadow-sm",

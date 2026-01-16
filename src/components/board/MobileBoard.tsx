@@ -36,10 +36,10 @@ const DRAWER_WIDTH = 300;
 
 const baseAreas = ["Bairnsdale", "Lakes", "Sale", "Melbourne", "Saphire Coast"];
 const tintPalette = [
-  "bg-sky-200/30",
+  "bg-blue-200/30",
   "bg-emerald-200/30",
-  "bg-rose-200/30",
   "bg-violet-200/30",
+  "bg-red-200/30",
   "bg-amber-200/30",
   "bg-orange-200/30",
   "bg-teal-200/30",

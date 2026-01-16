@@ -48,6 +48,7 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [previewListId, setPreviewListId] = useState<string | null>(null);
   const lastOver = useRef<{ id: UniqueIdentifier; data?: { current?: unknown } } | null>(null);
+  const lastReorderSig = useRef<string | null>(null);
 
   const activeWeekOffset = weekOffset ?? internalWeekOffset;
 
@@ -238,6 +239,7 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
       setActiveId(String(active.id));
       setPreviewListId(null);
       lastOver.current = { id: active.id, data: active.data };
+      lastReorderSig.current = null;
     },
     []
   );
@@ -273,6 +275,10 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
         if (overId && String(overId) === activeListId) {
           return;
         }
+        const signature = `${activeListId}:${activeId}:${String(overId)}`;
+        if (lastReorderSig.current === signature) {
+          return;
+        }
         setOrderByList((prev) => {
           const ids = orderJobs(activeListId, prev, listJobs(activeListId)).map(
             (j) => j.id
@@ -282,6 +288,7 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
           if (oldIndex === -1 || overIndex === -1 || oldIndex === overIndex) {
             return prev;
           }
+          lastReorderSig.current = signature;
           return { ...prev, [activeListId]: arrayMove(ids, oldIndex, overIndex) };
         });
         return;
@@ -373,6 +380,7 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
       setActiveId(null);
       setPreviewListId(null);
       lastOver.current = null;
+      lastReorderSig.current = null;
 
       if (!sourceListId || !destListId) return;
 
