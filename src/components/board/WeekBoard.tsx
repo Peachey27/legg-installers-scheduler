@@ -272,47 +272,8 @@ export default function WeekBoard({ weekOffset, onWeekOffsetChange }: Props) {
       }
 
       if (activeListId === overListId) {
-        if (overId && String(overId) === activeListId) {
-          return;
-        }
-        const signature = `${activeListId}:${activeId}:${String(overId)}`;
-        if (lastReorderSig.current === signature) {
-          return;
-        }
-        setOrderByList((prev) => {
-          const ids = orderJobs(activeListId, prev, listJobs(activeListId)).map(
-            (j) => j.id
-          );
-          const oldIndex = ids.indexOf(activeId);
-          const overIndex = getOverIndex(ids, overId, activeListId);
-          if (oldIndex === -1 || overIndex === -1 || oldIndex === overIndex) {
-            return prev;
-          }
-          lastReorderSig.current = signature;
-          return { ...prev, [activeListId]: arrayMove(ids, oldIndex, overIndex) };
-        });
         return;
       }
-
-      setOrderByList((prev) => {
-        const sourceIds = orderJobs(activeListId, prev, listJobs(activeListId)).map(
-          (j) => j.id
-        );
-        const destIds = orderJobs(overListId, prev, listJobs(overListId)).map(
-          (j) => j.id
-        );
-        const nextSource = sourceIds.filter((id) => id !== activeId);
-        const nextDest = destIds.includes(activeId) ? destIds : [...destIds];
-        const overIndex = getOverIndex(nextDest, overId, overListId);
-        if (!nextDest.includes(activeId)) {
-          nextDest.splice(overIndex, 0, activeId);
-        }
-        return {
-          ...prev,
-          [activeListId]: nextSource,
-          [overListId]: nextDest
-        };
-      });
     },
     [baseJobToList, getListIdForDroppable, listJobs, previewListId]
   );
